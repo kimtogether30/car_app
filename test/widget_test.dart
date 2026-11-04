@@ -11,9 +11,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:car_app1/main.dart';
 
 void main() {
+  testWidgets('App starts on the CAR:ON home screen', (tester) async {
+    await tester.pumpWidget(const MyApp());
+
+    expect(find.text('CAR:ON'), findsOneWidget);
+    expect(find.text('남은 연료'), findsOneWidget);
+    expect(find.text('차량 청결도'), findsOneWidget);
+    expect(find.text('Flutter Demo Home Page'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(
+      const MaterialApp(home: MyHomePage(title: 'Flutter Demo Home Page')),
+    );
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
