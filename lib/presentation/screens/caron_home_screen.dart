@@ -276,6 +276,7 @@ class CaronHomeScreen extends StatelessWidget {
   );
 
   Widget _hero() => SizedBox(
+    width: double.infinity,
     height: 218,
     child: Stack(
       alignment: Alignment.bottomCenter,

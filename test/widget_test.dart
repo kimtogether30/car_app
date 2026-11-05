@@ -7,36 +7,88 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:car_app1/main.dart';
+import 'package:car_app1/presentation/screens/caron_calendar_screen.dart';
+import 'package:car_app1/presentation/screens/caron_profile_screen.dart';
 
 void main() {
   testWidgets('App starts on the CAR:ON home screen', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'vehicle_brand': '현대',
+      'vehicle_model': '아반떼',
+      'vehicle_variant': '아반떼',
+      'personal_setup_v1': '{"fuel":"휘발유","nickname":"몽글이","oilEstimate":"기억이 안 나요","washAlert":30,"fuelAlert":20}',
+    });
     await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
 
     expect(find.text('CAR:ON'), findsOneWidget);
     expect(find.text('남은 연료'), findsOneWidget);
     expect(find.text('차량 청결도'), findsOneWidget);
     expect(find.text('Flutter Demo Home Page'), findsNothing);
+    expect(find.byType(CaronCalendarScreen, skipOffstage: false), findsNothing);
+    expect(find.byType(CaronProfileScreen, skipOffstage: false), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('tab-1')));
+    await tester.pumpAndSettle();
+    expect(find.byType(CaronCalendarScreen), findsOneWidget);
+    await tester.tap(find.byTooltip('다음 달'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('tab-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('tab-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('2025년 4월'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(
-      const MaterialApp(home: MyHomePage(title: 'Flutter Demo Home Page')),
-    );
+  testWidgets('First launch requires a brand and saves the selection', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('현대'), findsOneWidget);
+    expect(find.text('기아'), findsOneWidget);
+    expect(find.text('제네시스'), findsOneWidget);
+    expect(find.byType(FilledButton), findsNothing);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('기아'));
     await tester.pump();
+    await tester.ensureVisible(find.text('K5'));
+    await tester.tap(find.text('K5'));
+    await tester.pumpAndSettle();
+    expect(find.text('주유 방식을 선택해 주세요'), findsOneWidget);
+    expect(find.text('세부 모델'), findsNothing);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(
+      (await SharedPreferences.getInstance()).getString('vehicle_brand'),
+      '기아',
+    );
+    expect(
+      (await SharedPreferences.getInstance()).getString('vehicle_model'),
+      'K5',
+    );
+    await tester.tap(find.text('하이브리드'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(CheckboxListTile).at(0));
+    await tester.tap(find.byType(CheckboxListTile).at(1));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('1~3개월 전'), 150);
+    await tester.tap(find.text('1~3개월 전'));
+    await tester.pumpAndSettle();
+    expect(find.text('차량의 닉네임을 지어 주세요'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField), '구름이');
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+    expect(find.text('기본 알림 기준을 설정해 뒀어요! 🚗'), findsOneWidget);
+    expect(find.text('🧽 세차 알림: 청결도 30% 이하'), findsOneWidget);
+    await tester.tap(find.text('홈으로 가기'));
+    await tester.pumpAndSettle();
+    expect(find.text('남은 연료'), findsOneWidget);
+    expect(find.text('오늘도 구름이와\n기분 좋은 드라이브!'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

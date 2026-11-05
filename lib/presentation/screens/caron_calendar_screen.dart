@@ -66,7 +66,10 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
     );
     if (result == null || !mounted) return;
     setState(() {
-      _records.add(result);
+      final index = _records.indexWhere(
+        (record) => record.date.isBefore(result.date),
+      );
+      _records.insert(index < 0 ? _records.length : index, result);
       _month = DateTime(result.date.year, result.date.month);
       _selected = result.date;
     });
@@ -76,12 +79,11 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
   Widget build(BuildContext context) {
     final offset = _month.weekday % 7;
     final days = DateTime(_month.year, _month.month + 1, 0).day;
-    final sorted = [..._records]..sort((a, b) => b.date.compareTo(a.date));
     final visible = _all
-        ? sorted
+        ? _records
         : _selected != null
-        ? sorted.where((r) => DateUtils.isSameDay(r.date, _selected)).toList()
-        : sorted
+        ? _records.where((r) => DateUtils.isSameDay(r.date, _selected)).toList()
+        : _records
               .where(
                 (r) =>
                     r.date.year == _month.year && r.date.month == _month.month,

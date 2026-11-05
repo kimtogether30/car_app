@@ -10,13 +10,29 @@ import 'widgets/caron_vehicle_form.dart';
 
 /// UI 예시 상태의 소유자. 실제 API·친구의 기능과 독립적으로 동작합니다.
 class CaronShell extends StatefulWidget {
-  const CaronShell({super.key});
+  const CaronShell({
+    super.key,
+    this.initialModel = '현대 캐스퍼',
+    this.initialPersonal,
+  });
+  final String initialModel;
+  final Map<String, dynamic>? initialPersonal;
   @override
   State<CaronShell> createState() => _CaronShellState();
 }
 
 class _CaronShellState extends State<CaronShell> {
   int _tab = 0;
+  final _visitedTabs = <int>{0};
+
+  void _selectTab(int index) {
+    if (_tab == index) return;
+    setState(() {
+      _tab = index;
+      _visitedTabs.add(index);
+    });
+  }
+
   VehicleStatus _vehicle = const VehicleStatus(
     vehicleName: '몽글이',
     licensePlate: '123가 4567',
@@ -25,8 +41,27 @@ class _CaronShellState extends State<CaronShell> {
     cleanlinessPercent: 82,
     characterMessage: '컨디션 최고!',
   );
-  String _model = '현대 캐스퍼';
+  late String _model = widget.initialModel;
   DateTime? _lastWash, _lastOil;
+
+  @override
+  void initState() {
+    super.initState();
+    final data = widget.initialPersonal;
+    if (data == null) return;
+    final fuel = data['fuel'];
+    _vehicle = VehicleStatus(
+      vehicleName: data['nickname'] as String,
+      licensePlate: '',
+      vehicleType: fuel == '전기차'
+          ? VehicleType.electric
+          : fuel == '하이브리드'
+          ? VehicleType.hybrid
+          : VehicleType.combustion,
+      characterMessage: '오늘도 안전 운전하세요!',
+    );
+    _lastWash = DateTime.tryParse(data['lastWash'] as String? ?? '');
+  }
 
   Future<void> _edit(bool nickname) async {
     final result = await caronSheet<String>(
@@ -124,10 +159,7 @@ class _CaronShellState extends State<CaronShell> {
 
   @override
   Widget build(BuildContext context) {
-    final nav = CaronNavigationBar(
-      selectedIndex: _tab,
-      onSelected: (index) => setState(() => _tab = index),
-    );
+    final nav = CaronNavigationBar(selectedIndex: _tab, onSelected: _selectTab);
     return IndexedStack(
       index: _tab,
       children: [
@@ -136,22 +168,29 @@ class _CaronShellState extends State<CaronShell> {
           vehicleModel: _model,
           navigationBar: nav,
           lastWashLabel: _lastWash == null
-              ? '5일 전'
+              ? (widget.initialPersonal == null ? '5일 전' : '기록 없음')
               : '${_lastWash!.year}.${_lastWash!.month}.${_lastWash!.day}',
-          onCalendar: () => setState(() => _tab = 1),
-          onProfile: () => setState(() => _tab = 2),
+          onCalendar: () => _selectTab(1),
+          onProfile: () => _selectTab(2),
           onEditNickname: () => _edit(true),
           onNotifications: _notifications,
         ),
-        CaronCalendarScreen(navigationBar: nav),
-        CaronProfileScreen(
-          vehicle: _vehicle,
-          vehicleModel: _model,
-          navigationBar: nav,
-          onEditNickname: () => _edit(true),
-          onEditModel: () => _edit(false),
-          onRegister: _register,
-        ),
+        if (_visitedTabs.contains(1))
+          CaronCalendarScreen(navigationBar: nav)
+        else
+          const SizedBox.shrink(),
+        if (_visitedTabs.contains(2))
+          CaronProfileScreen(
+            vehicle: _vehicle,
+            vehicleModel: _model,
+            navigationBar: nav,
+            onEditNickname: () => _edit(true),
+            onEditModel: () => _edit(false),
+            onRegister: _register,
+            initialPersonal: widget.initialPersonal,
+          )
+        else
+          const SizedBox.shrink(),
       ],
     );
   }

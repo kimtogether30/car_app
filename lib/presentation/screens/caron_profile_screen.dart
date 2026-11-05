@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../shared/models/vehicle_status.dart';
 import '../widgets/caron_car_character.dart';
@@ -13,8 +16,10 @@ class CaronProfileScreen extends StatefulWidget {
     required this.onEditNickname,
     required this.onEditModel,
     required this.onRegister,
+    this.initialPersonal,
   });
   final VehicleStatus vehicle;
+  final Map<String, dynamic>? initialPersonal;
   final String vehicleModel;
   final Widget navigationBar;
   final VoidCallback onEditNickname, onEditModel, onRegister;
@@ -24,8 +29,30 @@ class CaronProfileScreen extends StatefulWidget {
 
 class _CaronProfileScreenState extends State<CaronProfileScreen> {
   bool _notifications = true;
-  double _washCycle = 14;
-  double _fuelAlert = 20;
+  late double _washAlert = (widget.initialPersonal?['washAlert'] as num? ?? 30)
+      .toDouble();
+  late double _fuelAlert = (widget.initialPersonal?['fuelAlert'] as num? ?? 20)
+      .toDouble();
+
+  Future<void> _saveAlerts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString('personal_setup_v1');
+      if (stored == null) return;
+      final data = Map<String, dynamic>.from(jsonDecode(stored));
+      data['washAlert'] = _washAlert.round();
+      data['fuelAlert'] = _fuelAlert.round();
+      if (!await prefs.setString('personal_setup_v1', jsonEncode(data))) {
+        throw StateError('Save failed');
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('알림 기준을 저장하지 못했어요. 다시 시도해 주세요.')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) => CaronPage(
@@ -35,7 +62,7 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
       children: [
         const CaronPageHeader(
           eyebrow: 'MY GARAGE',
-          title: '내 차와 설정',
+          title: '내 차 설정',
           trailing: Icon(Icons.settings_outlined, color: Color(0xFF4C5572)),
         ),
         const CaronSampleNotice(),
@@ -159,20 +186,20 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
               ),
               const SizedBox(height: 18),
               _range(
-                '내 세차 주기',
-                '${_washCycle.round()}일',
+                '세차 알림 기준',
+                '${_washAlert.round()}% 이하',
                 Icons.local_car_wash_outlined,
                 caronBlue,
-                _washCycle,
-                7,
-                30,
-                23,
-                (value) => setState(() => _washCycle = value),
+                _washAlert,
+                5,
+                50,
+                9,
+                (value) => setState(() => _washAlert = value),
               ),
               const Divider(color: Color(0xFFF0F0F2)),
               _range(
                 '주유 알림 기준',
-                '${_fuelAlert.round()}%',
+                '${_fuelAlert.round()}% 이하',
                 Icons.local_gas_station_outlined,
                 caronOrange,
                 _fuelAlert,
@@ -275,6 +302,7 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
         max: max,
         divisions: divisions,
         onChanged: onChanged,
+        onChangeEnd: (_) => _saveAlerts(),
       ),
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

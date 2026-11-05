@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:car_app1/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> tapTab(WidgetTester tester, int index) async {
+  await tester.pumpAndSettle();
   await tester.tap(find.byKey(ValueKey('tab-$index')));
   await tester.pumpAndSettle();
 }
@@ -15,6 +17,14 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({
+      'vehicle_brand': '현대',
+      'vehicle_model': '아반떼',
+      'vehicle_variant': '아반떼',
+      'personal_setup_v1': '{"fuel":"휘발유","nickname":"몽글이","oilEstimate":"기억이 안 나요","washAlert":30,"fuelAlert":20}',
+    });
+  });
   testWidgets('Tabs switch and vehicle edits propagate to home', (
     tester,
   ) async {
@@ -25,7 +35,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('2025년 4월'), findsOneWidget);
     await tapTab(tester, 2);
-    expect(find.text('내 차와 설정'), findsOneWidget);
+    expect(find.text('내 차 설정'), findsOneWidget);
     await tapVisible(tester, find.text('닉네임'));
     await tester.enterText(find.byType(TextFormField), '구름이');
     await tester.tap(find.text('저장하기'));
