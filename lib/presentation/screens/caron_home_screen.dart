@@ -26,6 +26,8 @@ class CaronHomeScreen extends StatelessWidget {
     this.dateLabel = 'MONDAY, 24 MARCH',
     this.rangeLabel = '412 km',
     this.lastWashLabel = '5일 전',
+    this.lastFuelLabel,
+    this.lastOilLabel,
     this.nextCareLabel = '엔진오일 교체까지 12일 남았어요',
     this.onNotifications,
     this.onEditNickname,
@@ -35,6 +37,7 @@ class CaronHomeScreen extends StatelessWidget {
   });
 
   final VehicleStatus vehicle;
+  final String? lastFuelLabel, lastOilLabel;
   final String vehicleModel,
       dateLabel,
       rangeLabel,
@@ -147,6 +150,36 @@ class CaronHomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 21),
                     _stats(),
+                    if (lastFuelLabel != null || lastOilLabel != null)
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        children: [
+                          Text(
+                            '마지막 세차일: $lastWashLabel',
+                            key: const ValueKey('home-last-wash'),
+                            style: const TextStyle(fontSize: 10, color: _muted),
+                          ),
+                          if (lastFuelLabel != null)
+                            Text(
+                              '마지막 주유일: $lastFuelLabel',
+                              key: const ValueKey('home-last-fuel'),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: _muted,
+                              ),
+                            ),
+                          if (lastOilLabel != null)
+                            Text(
+                              '마지막 엔진오일 교체일: $lastOilLabel',
+                              key: const ValueKey('home-last-oil'),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: _muted,
+                              ),
+                            ),
+                        ],
+                      ),
                     const SizedBox(height: 12),
                     const _WeatherCard(),
                     const SizedBox(height: 12),

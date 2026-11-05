@@ -1,95 +1,86 @@
 import 'package:flutter/material.dart';
 
+import '../data/care_history.dart';
 import '../widgets/caron_page.dart';
 
-enum _CareKind {
-  wash('세차', Icons.local_car_wash_outlined, caronBlue),
-  fuel('주유', Icons.local_gas_station_outlined, caronOrange),
-  oil('엔진오일', Icons.oil_barrel_outlined, caronMint);
-
-  const _CareKind(this.label, this.icon, this.color);
-  final String label;
-  final IconData icon;
-  final Color color;
-}
-
-class _CareRecord {
-  const _CareRecord(this.date, this.kind, this.title, this.detail);
-  final DateTime date;
-  final _CareKind kind;
-  final String title, detail;
+extension on CareKind {
+  IconData get icon => switch (this) {
+    CareKind.wash => Icons.local_car_wash_outlined,
+    CareKind.fuel => Icons.local_gas_station_outlined,
+    CareKind.oil => Icons.oil_barrel_outlined,
+  };
+  Color get color => switch (this) {
+    CareKind.wash => caronBlue,
+    CareKind.fuel => caronOrange,
+    CareKind.oil => caronMint,
+  };
 }
 
 class CaronCalendarScreen extends StatefulWidget {
-  const CaronCalendarScreen({super.key, required this.navigationBar});
+  const CaronCalendarScreen({
+    super.key,
+    required this.navigationBar,
+    required this.records,
+    required this.onSave,
+  });
   final Widget navigationBar;
+  final List<CareRecord> records;
+  final Future<void> Function(CareRecord) onSave;
   @override
   State<CaronCalendarScreen> createState() => _CaronCalendarScreenState();
 }
 
 class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
-  DateTime _month = DateTime(2025, 3);
+  late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _selected;
   bool _all = false;
-  final _records = <_CareRecord>[
-    _CareRecord(
-      DateTime(2025, 3, 29),
-      _CareKind.wash,
-      '자동 세차',
-      '워시존 성수점 · 18,000원',
-    ),
-    _CareRecord(
-      DateTime(2025, 3, 19),
-      _CareKind.fuel,
-      '주유',
-      '휘발유 34L · 56,400원',
-    ),
-    _CareRecord(
-      DateTime(2025, 3, 14),
-      _CareKind.oil,
-      '엔진오일 교체',
-      '카센터 101 · 84,000원',
-    ),
-    _CareRecord(DateTime(2025, 3, 9), _CareKind.fuel, '주유', '원본 달력 예시'),
-    _CareRecord(DateTime(2025, 3, 3), _CareKind.wash, '세차', '원본 달력 예시'),
-  ];
-
   void _move(int offset) => setState(() {
     _month = DateTime(_month.year, _month.month + offset);
     _selected = null;
   });
 
-  Future<void> _add() async {
-    final result = await caronSheet<_CareRecord>(
+  Future<void> _edit([CareRecord? record]) async {
+    if (record == null && _selected != null && isFutureCareDay(_selected!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('미래 날짜에는 관리 기록을 등록할 수 없어요.')),
+      );
+      return;
+    }
+    final result = await caronSheet<CareRecord>(
       context,
-      _RecordForm(initialDate: _selected ?? _month),
+      CareRecordForm(
+        initialDate: record?.date ?? _selected ?? careDay(DateTime.now()),
+        existing: record,
+      ),
     );
     if (result == null || !mounted) return;
-    setState(() {
-      final index = _records.indexWhere(
-        (record) => record.date.isBefore(result.date),
-      );
-      _records.insert(index < 0 ? _records.length : index, result);
-      _month = DateTime(result.date.year, result.date.month);
-      _selected = result.date;
-    });
+    try {
+      await widget.onSave(result);
+      if (!mounted) return;
+      setState(() {
+        _month = DateTime(result.date.year, result.date.month);
+        _selected = result.date;
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장하지 못했어요. 날짜를 확인하고 다시 시도해 주세요.')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final offset = _month.weekday % 7;
     final days = DateTime(_month.year, _month.month + 1, 0).day;
+    final sorted = [...widget.records]
+      ..sort((a, b) => b.date.compareTo(a.date));
     final visible = _all
-        ? _records
+        ? sorted
         : _selected != null
-        ? _records.where((r) => DateUtils.isSameDay(r.date, _selected)).toList()
-        : _records
-              .where(
-                (r) =>
-                    r.date.year == _month.year && r.date.month == _month.month,
-              )
-              .take(3)
-              .toList();
+        ? sorted.where((r) => DateUtils.isSameDay(r.date, _selected)).toList()
+        : sorted.take(3).toList();
     return CaronPage(
       navigationBar: widget.navigationBar,
       child: ListView(
@@ -100,7 +91,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
             title: '관리 기록',
             trailing: IconButton.filled(
               tooltip: '관리 기록 추가',
-              onPressed: _add,
+              onPressed: () => _edit(),
               style: IconButton.styleFrom(
                 backgroundColor: caronBlue,
                 shape: RoundedRectangleBorder(
@@ -110,7 +101,13 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
               icon: const Icon(Icons.add),
             ),
           ),
-          const CaronSampleNotice(),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text(
+              '직접 입력한 기록 · 이 기기/브라우저에 저장됩니다.',
+              style: TextStyle(fontSize: 10),
+            ),
+          ),
           Container(
             decoration: caronCard(),
             padding: const EdgeInsets.all(13),
@@ -184,7 +181,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
             alignment: WrapAlignment.center,
             spacing: 17,
             children: [
-              for (final kind in _CareKind.values)
+              for (final kind in CareKind.values)
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -197,13 +194,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
                       ),
                     ),
                     const SizedBox(width: 5),
-                    Text(
-                      kind.label,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF7A7F8E),
-                      ),
-                    ),
+                    Text(kind.label, style: const TextStyle(fontSize: 10)),
                   ],
                 ),
             ],
@@ -251,17 +242,10 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
                       children: [
                         for (final record in visible)
                           ListTile(
-                            leading: Container(
-                              padding: const EdgeInsets.all(9),
-                              decoration: BoxDecoration(
-                                color: record.kind.color.withValues(alpha: .1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                record.kind.icon,
-                                color: record.kind.color,
-                                size: 20,
-                              ),
+                            key: ValueKey('record-${record.id}'),
+                            leading: Icon(
+                              record.kind.icon,
+                              color: record.kind.color,
                             ),
                             title: Text(
                               record.title,
@@ -270,15 +254,17 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            subtitle: Text(
-                              record.detail,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF979AA5),
-                              ),
-                            ),
+                            subtitle: record.detail.isEmpty
+                                ? null
+                                : Text(
+                                    record.detail,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF979AA5),
+                                    ),
+                                  ),
                             trailing: Text(
-                              '${record.date.month}월 ${record.date.day}일',
+                              careDateLabel(record.date),
                               style: const TextStyle(fontSize: 10),
                             ),
                             onTap: () => caronSheet<void>(
@@ -292,12 +278,18 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       CaronSheetHeader(title: record.title),
-                                      const CaronSampleNotice(),
-                                      Text(
-                                        '${record.date.year}년 ${record.date.month}월 ${record.date.day}일',
+                                      Text(careDateLabel(record.date)),
+                                      if (record.detail.isNotEmpty) ...[
+                                        const SizedBox(height: 12),
+                                        Text(record.detail),
+                                      ],
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                          _edit(record);
+                                        },
+                                        child: const Text('기록 수정'),
                                       ),
-                                      const SizedBox(height: 12),
-                                      Text(record.detail),
                                     ],
                                   ),
                                 ),
@@ -315,7 +307,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
 
   Widget _day(int day) {
     final date = DateTime(_month.year, _month.month, day);
-    final matching = _records
+    final matching = widget.records
         .where((r) => DateUtils.isSameDay(r.date, date))
         .toList();
     final selected = DateUtils.isSameDay(_selected, date);
@@ -348,7 +340,11 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
                   '$day',
                   style: TextStyle(
                     fontSize: 11,
-                    color: today ? Colors.white : caronInk,
+                    color: today
+                        ? Colors.white
+                        : isFutureCareDay(date)
+                        ? Colors.grey
+                        : caronInk,
                   ),
                 ),
               ),
@@ -376,19 +372,22 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
   }
 }
 
-class _RecordForm extends StatefulWidget {
-  const _RecordForm({required this.initialDate});
+class CareRecordForm extends StatefulWidget {
+  const CareRecordForm({super.key, required this.initialDate, this.existing});
   final DateTime initialDate;
+  final CareRecord? existing;
   @override
-  State<_RecordForm> createState() => _RecordFormState();
+  State<CareRecordForm> createState() => _CareRecordFormState();
 }
 
-class _RecordFormState extends State<_RecordForm> {
+class _CareRecordFormState extends State<CareRecordForm> {
   final _form = GlobalKey<FormState>();
-  final _title = TextEditingController();
-  final _detail = TextEditingController();
-  late DateTime _date = widget.initialDate;
-  _CareKind _kind = _CareKind.wash;
+  late final _title = TextEditingController(text: widget.existing?.title);
+  late final _detail = TextEditingController(text: widget.existing?.detail);
+  late DateTime _date = isFutureCareDay(widget.initialDate)
+      ? careDay(DateTime.now())
+      : widget.initialDate;
+  late CareKind _kind = widget.existing?.kind ?? CareKind.wash;
   @override
   void dispose() {
     _title.dispose();
@@ -405,13 +404,14 @@ class _RecordFormState extends State<_RecordForm> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CaronSheetHeader(title: '관리 기록 추가'),
-            const CaronSampleNotice(),
-            DropdownButtonFormField<_CareKind>(
+            CaronSheetHeader(
+              title: widget.existing == null ? '관리 기록 추가' : '관리 기록 수정',
+            ),
+            DropdownButtonFormField<CareKind>(
               initialValue: _kind,
               decoration: const InputDecoration(labelText: '관리 종류'),
               items: [
-                for (final kind in _CareKind.values)
+                for (final kind in CareKind.values)
                   DropdownMenuItem(value: kind, child: Text(kind.label)),
               ],
               onChanged: (value) => setState(() => _kind = value!),
@@ -439,8 +439,8 @@ class _RecordFormState extends State<_RecordForm> {
                 final date = await showDatePicker(
                   context: context,
                   initialDate: _date,
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime(2100),
+                  firstDate: DateTime(1980),
+                  lastDate: careDay(DateTime.now()),
                 );
                 if (date != null && mounted) setState(() => _date = date);
               },
@@ -450,14 +450,18 @@ class _RecordFormState extends State<_RecordForm> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () {
-                  if (_form.currentState!.validate()) {
+                  if (_form.currentState!.validate() &&
+                      !isFutureCareDay(_date)) {
                     Navigator.pop(
                       context,
-                      _CareRecord(
-                        _date,
-                        _kind,
-                        _title.text.trim(),
-                        _detail.text.trim(),
+                      CareRecord(
+                        id:
+                            widget.existing?.id ??
+                            DateTime.now().microsecondsSinceEpoch.toString(),
+                        date: _date,
+                        kind: _kind,
+                        title: _title.text.trim(),
+                        detail: _detail.text.trim(),
                       ),
                     );
                   }

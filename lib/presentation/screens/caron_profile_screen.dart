@@ -17,9 +17,11 @@ class CaronProfileScreen extends StatefulWidget {
     required this.onEditModel,
     required this.onRegister,
     this.initialPersonal,
+    this.onAlertsChanged,
   });
   final VehicleStatus vehicle;
   final Map<String, dynamic>? initialPersonal;
+  final void Function(double fuel, double wash)? onAlertsChanged;
   final String vehicleModel;
   final Widget navigationBar;
   final VoidCallback onEditNickname, onEditModel, onRegister;
@@ -194,7 +196,10 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
                 5,
                 50,
                 9,
-                (value) => setState(() => _washAlert = value),
+                (value) {
+                  setState(() => _washAlert = value);
+                  widget.onAlertsChanged?.call(_fuelAlert, _washAlert);
+                },
               ),
               const Divider(color: Color(0xFFF0F0F2)),
               _range(
@@ -206,7 +211,10 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
                 5,
                 40,
                 7,
-                (value) => setState(() => _fuelAlert = value),
+                (value) {
+                  setState(() => _fuelAlert = value);
+                  widget.onAlertsChanged?.call(_fuelAlert, _washAlert);
+                },
               ),
             ],
           ),
@@ -294,6 +302,7 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
         ],
       ),
       Slider(
+        key: ValueKey(label),
         label: valueLabel,
         semanticFormatterCallback: (_) => '$label $valueLabel',
         activeColor: color,
