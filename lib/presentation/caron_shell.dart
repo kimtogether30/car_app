@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'data/care_history.dart';
 
 import '../shared/models/vehicle_status.dart';
+import 'logic/caron_condition.dart';
 import 'screens/caron_calendar_screen.dart';
 import 'screens/caron_home_screen.dart';
 import 'screens/caron_profile_screen.dart';
@@ -42,11 +46,48 @@ class _CaronShellState extends State<CaronShell> {
     characterMessage: '컨디션 최고!',
   );
   late String _model = widget.initialModel;
-  DateTime? _lastWash, _lastOil;
+  CareHistory? _history;
+  bool _loadingHistory = true;
+  String? _historyError;
+  DateTime? get _lastWash => _history?.latest(CareKind.wash);
+  DateTime? get _lastOil => _history?.latest(CareKind.oil);
+  DateTime? get _lastFuel => _history?.latest(CareKind.fuel);
+
+  Future<void> _loadHistory() async {
+    try {
+      final history = CareHistory(await SharedPreferences.getInstance());
+      await history.load(initialPersonal: widget.initialPersonal);
+      if (mounted) {
+        setState(() {
+          _history = history;
+          _loadingHistory = false;
+          _historyError = null;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadingHistory = false;
+          _historyError = '관리 기록을 불러오지 못했어요. 기존 저장 데이터는 보존됩니다.';
+        });
+      }
+    }
+  }
+
+  Future<void> _saveRecord(CareRecord record) async {
+    await _history!.put(record);
+    if (mounted) setState(() {});
+  }
+
+  late double _fuelThreshold =
+      (widget.initialPersonal?['fuelAlert'] as num? ?? 20).toDouble();
+  late double _washThreshold =
+      (widget.initialPersonal?['washAlert'] as num? ?? 30).toDouble();
 
   @override
   void initState() {
     super.initState();
+    _loadHistory();
     final data = widget.initialPersonal;
     if (data == null) return;
     final fuel = data['fuel'];
@@ -60,7 +101,6 @@ class _CaronShellState extends State<CaronShell> {
           : VehicleType.combustion,
       characterMessage: '오늘도 안전 운전하세요!',
     );
-    _lastWash = DateTime.tryParse(data['lastWash'] as String? ?? '');
   }
 
   Future<void> _edit(bool nickname) async {
@@ -98,14 +138,28 @@ class _CaronShellState extends State<CaronShell> {
         model: _model,
         lastWash: _lastWash,
         lastOil: _lastOil,
+        lastFuel: _lastFuel,
       ),
     );
     if (result == null || !mounted) return;
+    try {
+      await _history!.setLatestDates({
+        CareKind.wash: result.lastWash,
+        CareKind.oil: result.lastOil,
+        CareKind.fuel: result.lastFuel,
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('관리 날짜를 저장하지 못했어요. 다시 시도해 주세요.')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
     setState(() {
       _vehicle = result.vehicle;
       _model = result.model;
-      _lastWash = result.lastWash;
-      _lastOil = result.lastOil;
     });
   }
 
@@ -159,24 +213,75 @@ class _CaronShellState extends State<CaronShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loadingHistory) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_historyError != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_historyError!),
+              TextButton(
+                onPressed: () {
+                  setState(() => _loadingHistory = true);
+                  _loadHistory();
+                },
+                child: const Text('다시 시도'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final condition = caronCondition(
+      _vehicle,
+      fuelThreshold: _fuelThreshold,
+      washThreshold: _washThreshold,
+    );
+    final displayedVehicle = VehicleStatus(
+      vehicleName: _vehicle.vehicleName,
+      licensePlate: _vehicle.licensePlate,
+      vehicleType: _vehicle.vehicleType,
+      fuelLevelPercent: _vehicle.fuelLevelPercent,
+      batteryLevelPercent: _vehicle.batteryLevelPercent,
+      cleanlinessPercent: _vehicle.cleanlinessPercent,
+      characterMessage: condition.message,
+    );
     final nav = CaronNavigationBar(selectedIndex: _tab, onSelected: _selectTab);
     return IndexedStack(
       index: _tab,
       children: [
         CaronHomeScreen(
-          vehicle: _vehicle,
+          vehicle: displayedVehicle,
+          rangeLabel: condition.exampleRangeKm == null
+              ? '정보 없음'
+              : '${condition.exampleRangeKm} km (예시)',
           vehicleModel: _model,
+          dateLabel: careDateLabel(DateTime.now()),
+          nextCareLabel: '저장된 차량 관리 기록을 확인해 보세요',
           navigationBar: nav,
           lastWashLabel: _lastWash == null
-              ? (widget.initialPersonal == null ? '5일 전' : '기록 없음')
+              ? '기록 없음'
               : '${_lastWash!.year}.${_lastWash!.month}.${_lastWash!.day}',
+          lastFuelLabel: _lastFuel == null
+              ? '기록 없음'
+              : '${_lastFuel!.year}.${_lastFuel!.month}.${_lastFuel!.day}',
+          lastOilLabel: _lastOil == null
+              ? '기록 없음'
+              : '${_lastOil!.year}.${_lastOil!.month}.${_lastOil!.day}',
           onCalendar: () => _selectTab(1),
           onProfile: () => _selectTab(2),
           onEditNickname: () => _edit(true),
           onNotifications: _notifications,
         ),
         if (_visitedTabs.contains(1))
-          CaronCalendarScreen(navigationBar: nav)
+          CaronCalendarScreen(
+            navigationBar: nav,
+            records: _history!.records,
+            onSave: _saveRecord,
+          )
         else
           const SizedBox.shrink(),
         if (_visitedTabs.contains(2))
@@ -188,6 +293,10 @@ class _CaronShellState extends State<CaronShell> {
             onEditModel: () => _edit(false),
             onRegister: _register,
             initialPersonal: widget.initialPersonal,
+            onAlertsChanged: (fuel, wash) => setState(() {
+              _fuelThreshold = fuel;
+              _washThreshold = wash;
+            }),
           )
         else
           const SizedBox.shrink(),

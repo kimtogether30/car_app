@@ -95,7 +95,7 @@ class CaronSampleNotice extends StatelessWidget {
   Widget build(BuildContext context) => const Padding(
     padding: EdgeInsets.only(bottom: 12),
     child: Text(
-      '예시 데이터 · 변경 내용은 앱 실행 중에만 유지됩니다.\n홈의 차량 상태·날씨·일정도 예시입니다.',
+      '관리 날짜·기록과 알림 기준은 이 기기/브라우저에 저장됩니다.\n차량 상태·날씨·예상 주행거리는 예시입니다.',
       style: TextStyle(fontSize: 10, color: Color(0xFF777D90)),
     ),
   );

@@ -33,7 +33,12 @@ void main() {
     expect(find.text('MY CAR LOG'), findsOneWidget);
     await tester.tap(find.byTooltip('다음 달'));
     await tester.pumpAndSettle();
-    expect(find.text('2025년 4월'), findsOneWidget);
+    expect(
+      find.text(
+        '${DateTime(DateTime.now().year, DateTime.now().month + 1).year}년 ${DateTime(DateTime.now().year, DateTime.now().month + 1).month}월',
+      ),
+      findsOneWidget,
+    );
     await tapTab(tester, 2);
     expect(find.text('내 차 설정'), findsOneWidget);
     await tapVisible(tester, find.text('닉네임'));
@@ -44,7 +49,12 @@ void main() {
     await tapTab(tester, 0);
     expect(find.text('오늘도 구름이와\n기분 좋은 드라이브!'), findsOneWidget);
     await tapTab(tester, 1);
-    expect(find.text('2025년 4월'), findsOneWidget);
+    expect(
+      find.text(
+        '${DateTime(DateTime.now().year, DateTime.now().month + 1).year}년 ${DateTime(DateTime.now().year, DateTime.now().month + 1).month}월',
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -53,14 +63,23 @@ void main() {
   ) async {
     await tester.pumpWidget(const MyApp());
     await tapTab(tester, 1);
-    await tester.tap(find.byKey(const ValueKey('day-2025-3-19')));
+    await tester.tap(
+      find.byKey(
+        ValueKey(
+          'day-${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}',
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('3월 19일 관리'),
+      find.text('${DateTime.now().month}월 ${DateTime.now().day}일 관리'),
       150,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('3월 19일 관리'), findsOneWidget);
+    expect(
+      find.text('${DateTime.now().month}월 ${DateTime.now().day}일 관리'),
+      findsOneWidget,
+    );
     await tester.drag(find.byType(ListView), const Offset(0, 600));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('관리 기록 추가'));
@@ -102,6 +121,10 @@ void main() {
       // The vehicle-type menu is the first dropdown on this form.
       await tester.tap(find.text('전기').last);
       await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, '차량 번호'),
+        '123가 4567',
+      );
       await tester.enterText(
         find.widgetWithText(TextFormField, '차량 닉네임'),
         '전기 몽글이',

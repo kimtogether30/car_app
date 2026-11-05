@@ -39,7 +39,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('tab-1')));
     await tester.pumpAndSettle();
-    expect(find.text('2025년 4월'), findsOneWidget);
+    final nextMonth = DateTime(DateTime.now().year, DateTime.now().month + 1);
+    expect(find.text('${nextMonth.year}년 ${nextMonth.month}월'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -77,6 +78,9 @@ void main() {
     await tester.tap(find.byType(CheckboxListTile).at(1));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('1~3개월 전'), 150);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('1~3개월 전'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('1~3개월 전'));
     await tester.pumpAndSettle();
     expect(find.text('차량의 닉네임을 지어 주세요'), findsOneWidget);

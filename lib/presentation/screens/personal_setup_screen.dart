@@ -135,7 +135,7 @@ class _PersonalSetupScreenState extends State<PersonalSetupScreen> {
     body: Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
-        child: ColoredBox(
+        child: Material(
           color: const Color(0xFFF8F7F2),
           child: SafeArea(
             child: ListView(

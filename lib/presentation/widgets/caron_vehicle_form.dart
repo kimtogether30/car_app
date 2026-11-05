@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../shared/models/vehicle_status.dart';
 import 'caron_page.dart';
+import '../data/care_history.dart';
 
 class CaronVehicleEdit {
-  const CaronVehicleEdit(this.vehicle, this.model, this.lastWash, this.lastOil);
+  const CaronVehicleEdit(
+    this.vehicle,
+    this.model,
+    this.lastWash,
+    this.lastOil, {
+    this.lastFuel,
+  });
   final VehicleStatus vehicle;
   final String model;
-  final DateTime? lastWash, lastOil;
+  final DateTime? lastWash, lastOil, lastFuel;
 }
 
 /// 서버 차량 목록이 없는 상태에서 사용하는 예시 등록 양식.
@@ -18,10 +25,11 @@ class CaronVehicleForm extends StatefulWidget {
     required this.model,
     this.lastWash,
     this.lastOil,
+    this.lastFuel,
   });
   final VehicleStatus vehicle;
   final String model;
-  final DateTime? lastWash, lastOil;
+  final DateTime? lastWash, lastOil, lastFuel;
   @override
   State<CaronVehicleForm> createState() => _CaronVehicleFormState();
 }
@@ -33,6 +41,7 @@ class _CaronVehicleFormState extends State<CaronVehicleForm> {
   late final _model = TextEditingController(text: widget.model);
   late VehicleType _type = widget.vehicle.vehicleType;
   late DateTime? _wash = widget.lastWash, _oil = widget.lastOil;
+  late DateTime? _fuelDate = widget.lastFuel;
   String _brand = '현대';
   String _fuel = '휘발유';
   int _step = 1;
@@ -166,6 +175,11 @@ class _CaronVehicleFormState extends State<CaronVehicleForm> {
                     validator: _required,
                   ),
                   _dateRow(
+                    '마지막 주유일',
+                    _fuelDate,
+                    (date) => setState(() => _fuelDate = date),
+                  ),
+                  _dateRow(
                     '마지막 세차일',
                     _wash,
                     (date) => setState(() => _wash = date),
@@ -188,6 +202,18 @@ class _CaronVehicleFormState extends State<CaronVehicleForm> {
               child: FilledButton(
                 onPressed: () {
                   if (!_form.currentState!.validate()) return;
+                  if ([
+                    _wash,
+                    _oil,
+                    _fuelDate,
+                  ].whereType<DateTime>().any(isFutureCareDay)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('미래 날짜에는 관리 기록을 등록할 수 없어요.'),
+                      ),
+                    );
+                    return;
+                  }
                   final old = widget.vehicle;
                   Navigator.pop(
                     context,
@@ -208,6 +234,7 @@ class _CaronVehicleFormState extends State<CaronVehicleForm> {
                       _model.text.trim(),
                       _wash,
                       _oil,
+                      lastFuel: _fuelDate,
                     ),
                   );
                 },
@@ -236,9 +263,11 @@ class _CaronVehicleFormState extends State<CaronVehicleForm> {
     onTap: () async {
       final date = await showDatePicker(
         context: context,
-        initialDate: value ?? DateTime.now(),
-        firstDate: DateTime(2000),
-        lastDate: DateTime(2100),
+        initialDate: value == null || isFutureCareDay(value)
+            ? careDay(DateTime.now())
+            : value,
+        firstDate: DateTime(1980),
+        lastDate: careDay(DateTime.now()),
       );
       if (date != null && mounted) onChanged(date);
     },
