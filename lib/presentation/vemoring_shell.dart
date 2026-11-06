@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/care_history.dart';
 
 import '../shared/models/vehicle_status.dart';
+import '../shared/services/vehicle_service.dart';
 import 'logic/vemoring_condition.dart';
 import 'screens/vemoring_calendar_screen.dart';
 import 'screens/vemoring_home_screen.dart';
@@ -28,6 +31,8 @@ class VemoringShell extends StatefulWidget {
 class _VemoringShellState extends State<VemoringShell> {
   int _tab = 0;
   final _visitedTabs = <int>{0};
+  final _vehicleService = VehicleService();
+  StreamSubscription<int>? _batterySubscription;
 
   void _selectTab(int index) {
     if (_tab == index) return;
@@ -88,6 +93,7 @@ class _VemoringShellState extends State<VemoringShell> {
   void initState() {
     super.initState();
     _loadHistory();
+    _connectPleosVehicle();
     final data = widget.initialPersonal;
     if (data == null) return;
     final fuel = data['fuel'];
@@ -101,6 +107,74 @@ class _VemoringShellState extends State<VemoringShell> {
           : VehicleType.combustion,
       characterMessage: '오늘도 안전 운전하세요!',
     );
+  }
+
+  Future<void> _connectPleosVehicle() async {
+    final initialize = await _vehicleService.initialize();
+    if (!mounted) return;
+    if (initialize['status'] != 'ready') {
+      setState(() {
+        _vehicle = VehicleStatus(
+          vehicleName: _vehicle.vehicleName,
+          licensePlate: _vehicle.licensePlate,
+          vehicleType: _vehicle.vehicleType,
+          fuelLevelPercent: _vehicle.fuelLevelPercent,
+          batteryLevelPercent: null,
+          cleanlinessPercent: _vehicle.cleanlinessPercent,
+          characterMessage: _vehicle.characterMessage,
+          batteryDataSource: VehicleDataSource.unavailable,
+        );
+      });
+      return;
+    }
+
+    _vehicleService.startBatteryUpdates();
+    _batterySubscription?.cancel();
+    _batterySubscription = _vehicleService.batteryUpdates.listen((value) {
+      if (!mounted) return;
+      setState(() {
+        _vehicle = VehicleStatus(
+          vehicleName: _vehicle.vehicleName,
+          licensePlate: _vehicle.licensePlate,
+          vehicleType: _vehicle.vehicleType,
+          fuelLevelPercent: _vehicle.fuelLevelPercent,
+          batteryLevelPercent: value.toDouble(),
+          cleanlinessPercent: _vehicle.cleanlinessPercent,
+          characterMessage: _vehicle.characterMessage,
+          batteryDataSource: VehicleDataSource.pleos,
+        );
+      });
+    });
+
+    final battery = await _vehicleService.getBattery();
+    if (!mounted) return;
+    final status = battery['status'] as String?;
+    final value = battery['value'];
+    setState(() {
+      _vehicle = VehicleStatus(
+        vehicleName: _vehicle.vehicleName,
+        licensePlate: _vehicle.licensePlate,
+        vehicleType: _vehicle.vehicleType,
+        fuelLevelPercent: _vehicle.fuelLevelPercent,
+        batteryLevelPercent: status == 'ok' && value is num
+            ? value.toDouble()
+            : null,
+        cleanlinessPercent: _vehicle.cleanlinessPercent,
+        characterMessage: _vehicle.characterMessage,
+        batteryDataSource: status == 'ok'
+            ? VehicleDataSource.pleos
+            : status == 'unsupported'
+            ? VehicleDataSource.unsupported
+            : VehicleDataSource.unavailable,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _batterySubscription?.cancel();
+    _vehicleService.release();
+    super.dispose();
   }
 
   Future<void> _edit(bool nickname) async {
@@ -123,6 +197,7 @@ class _VemoringShellState extends State<VemoringShell> {
           batteryLevelPercent: old.batteryLevelPercent,
           cleanlinessPercent: old.cleanlinessPercent,
           characterMessage: old.characterMessage,
+          batteryDataSource: old.batteryDataSource,
         );
       } else {
         _model = result;
@@ -248,8 +323,12 @@ class _VemoringShellState extends State<VemoringShell> {
       batteryLevelPercent: _vehicle.batteryLevelPercent,
       cleanlinessPercent: _vehicle.cleanlinessPercent,
       characterMessage: condition.message,
+      batteryDataSource: _vehicle.batteryDataSource,
     );
-    final nav = VemoringNavigationBar(selectedIndex: _tab, onSelected: _selectTab);
+    final nav = VemoringNavigationBar(
+      selectedIndex: _tab,
+      onSelected: _selectTab,
+    );
     return IndexedStack(
       index: _tab,
       children: [

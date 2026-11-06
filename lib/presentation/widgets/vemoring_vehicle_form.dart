@@ -230,6 +230,7 @@ class _VemoringVehicleFormState extends State<VemoringVehicleForm> {
                             : old.batteryLevelPercent,
                         cleanlinessPercent: old.cleanlinessPercent,
                         characterMessage: old.characterMessage,
+                        batteryDataSource: old.batteryDataSource,
                       ),
                       _model.text.trim(),
                       _wash,

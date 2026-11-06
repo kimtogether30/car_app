@@ -1,9 +1,7 @@
 /// 차량 종류에 따라 연료와 배터리 항목의 표시 여부를 결정합니다.
-enum VehicleType {
-  combustion,
-  electric,
-  hybrid,
-}
+enum VehicleType { combustion, electric, hybrid }
+
+enum VehicleDataSource { example, pleos, unavailable, unsupported }
 
 /// 에너지 관리(feature_a)와 세차 관리(feature_b)가 함께 사용하는 차량 상태.
 ///
@@ -17,6 +15,7 @@ class VehicleStatus {
     this.batteryLevelPercent,
     this.cleanlinessPercent,
     this.characterMessage = '차량 상태를 확인하고 있어요.',
+    this.batteryDataSource = VehicleDataSource.example,
   }) : assert(
          fuelLevelPercent == null ||
              (fuelLevelPercent >= 0 && fuelLevelPercent <= 100),
@@ -50,4 +49,7 @@ class VehicleStatus {
 
   /// 공통 상태 판단 로직에서 결정할 캐릭터 멘트.
   final String characterMessage;
+
+  /// 배터리 값이 실제 SDK 값인지, 예시인지, 또는 미수신 상태인지 나타냅니다.
+  final VehicleDataSource batteryDataSource;
 }
