@@ -373,8 +373,13 @@ class VemoringHomeScreen extends StatelessWidget {
           value: vehicle.batteryLevelPercent,
           icon: Icons.battery_charging_full_outlined,
           color: _blue,
-          detail: '주행 가능 거리',
-          detailValue: rangeLabel,
+          detail: '데이터 출처',
+          detailValue: switch (vehicle.batteryDataSource) {
+            VehicleDataSource.pleos => 'Pleos 실데이터',
+            VehicleDataSource.example => '예시 데이터',
+            VehicleDataSource.unsupported => 'SDK 항목 미지원',
+            VehicleDataSource.unavailable => 'Pleos 미수신',
+          },
         ),
       _StatCard(
         title: '차량 청결도',
@@ -506,7 +511,9 @@ class _StatCard extends StatelessWidget {
         Text.rich(
           TextSpan(
             children: [
-              TextSpan(text: value == null ? '정보를 기다리고 있어요' : '$detail '),
+              TextSpan(
+                text: value == null ? '$detail · $detailValue' : '$detail ',
+              ),
               if (value != null)
                 TextSpan(
                   text: detailValue,
