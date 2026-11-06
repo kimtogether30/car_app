@@ -143,7 +143,7 @@ class _PersonalSetupScreenState extends State<PersonalSetupScreen> {
               padding: const EdgeInsets.all(24),
               children: [
                 const Text(
-                  'CAR:ON',
+                  'VEMORING',
                   style: TextStyle(
                     color: Color(0xFF335C81),
                     fontSize: 22,

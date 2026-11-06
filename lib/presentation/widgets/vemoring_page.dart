@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 
-const caronBlue = Color(0xFF335C81);
-const caronInk = Color(0xFF202C35);
-const caronNavy = Color(0xFF253F52);
-const caronMint = Color(0xFF387969);
-const caronOrange = Color(0xFFFF8A3D);
+const vemoringBlue = Color(0xFF335C81);
+const vemoringInk = Color(0xFF202C35);
+const vemoringNavy = Color(0xFF253F52);
+const vemoringMint = Color(0xFF387969);
+const vemoringOrange = Color(0xFFFF8A3D);
 
-BoxDecoration caronCard() => BoxDecoration(
+BoxDecoration vemoringCard() => BoxDecoration(
   color: Colors.white,
   borderRadius: BorderRadius.circular(14),
   border: Border.all(color: const Color(0xFFECECEF)),
 );
 
-class CaronPage extends StatelessWidget {
-  const CaronPage({
+class VemoringPage extends StatelessWidget {
+  const VemoringPage({
     super.key,
     required this.child,
     required this.navigationBar,
@@ -30,7 +30,7 @@ class CaronPage extends StatelessWidget {
           body: SafeArea(
             bottom: false,
             child: DefaultTextStyle.merge(
-              style: const TextStyle(color: caronInk, fontSize: 12),
+              style: const TextStyle(color: vemoringInk, fontSize: 12),
               child: child,
             ),
           ),
@@ -41,8 +41,8 @@ class CaronPage extends StatelessWidget {
   );
 }
 
-class CaronPageHeader extends StatelessWidget {
-  const CaronPageHeader({
+class VemoringPageHeader extends StatelessWidget {
+  const VemoringPageHeader({
     super.key,
     required this.eyebrow,
     required this.title,
@@ -65,7 +65,7 @@ class CaronPageHeader extends StatelessWidget {
                   fontSize: 12,
                   letterSpacing: 1.0,
                   fontWeight: FontWeight.w700,
-                  color: caronBlue,
+                  color: vemoringBlue,
                 ),
               ),
               const SizedBox(height: 4),
@@ -86,8 +86,8 @@ class CaronPageHeader extends StatelessWidget {
   );
 }
 
-class CaronSampleNotice extends StatelessWidget {
-  const CaronSampleNotice({super.key});
+class VemoringSampleNotice extends StatelessWidget {
+  const VemoringSampleNotice({super.key});
   @override
   Widget build(BuildContext context) => const Padding(
     padding: EdgeInsets.only(bottom: 12),
@@ -98,7 +98,7 @@ class CaronSampleNotice extends StatelessWidget {
   );
 }
 
-Future<T?> caronSheet<T>(BuildContext context, Widget child) =>
+Future<T?> vemoringSheet<T>(BuildContext context, Widget child) =>
     showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
@@ -121,8 +121,8 @@ Future<T?> caronSheet<T>(BuildContext context, Widget child) =>
       ),
     );
 
-class CaronSheetHeader extends StatelessWidget {
-  const CaronSheetHeader({super.key, required this.title});
+class VemoringSheetHeader extends StatelessWidget {
+  const VemoringSheetHeader({super.key, required this.title});
   final String title;
   @override
   Widget build(BuildContext context) => Row(
@@ -133,7 +133,7 @@ class CaronSheetHeader extends StatelessWidget {
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
-            color: caronInk,
+            color: vemoringInk,
           ),
         ),
       ),

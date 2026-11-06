@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../shared/models/vehicle_status.dart';
-import '../widgets/caron_car_character.dart';
-import '../widgets/caron_page.dart';
+import '../widgets/vemoring_car_character.dart';
+import '../widgets/vemoring_page.dart';
 
-class CaronProfileScreen extends StatefulWidget {
-  const CaronProfileScreen({
+class VemoringProfileScreen extends StatefulWidget {
+  const VemoringProfileScreen({
     super.key,
     required this.vehicle,
     required this.vehicleModel,
@@ -26,10 +26,10 @@ class CaronProfileScreen extends StatefulWidget {
   final Widget navigationBar;
   final VoidCallback onEditNickname, onEditModel, onRegister;
   @override
-  State<CaronProfileScreen> createState() => _CaronProfileScreenState();
+  State<VemoringProfileScreen> createState() => _VemoringProfileScreenState();
 }
 
-class _CaronProfileScreenState extends State<CaronProfileScreen> {
+class _VemoringProfileScreenState extends State<VemoringProfileScreen> {
   bool _notifications = true;
   late double _washAlert = (widget.initialPersonal?['washAlert'] as num? ?? 30)
       .toDouble();
@@ -57,26 +57,26 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => CaronPage(
+  Widget build(BuildContext context) => VemoringPage(
     navigationBar: widget.navigationBar,
     child: ListView(
       padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
       children: [
-        const CaronPageHeader(
+        const VemoringPageHeader(
           eyebrow: 'MY GARAGE',
           title: '내 차 설정',
           trailing: Icon(Icons.settings_outlined, color: Color(0xFF4C5572)),
         ),
-        const CaronSampleNotice(),
+        const VemoringSampleNotice(),
         Container(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
           decoration: BoxDecoration(
-            color: caronNavy,
+            color: vemoringNavy,
             borderRadius: BorderRadius.circular(23),
           ),
           child: Row(
             children: [
-              const SizedBox(width: 100, child: CaronCarCharacter()),
+              const SizedBox(width: 100, child: VemoringCarCharacter()),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -150,7 +150,7 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
           '알림 설정',
           SwitchListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-            secondary: _icon(Icons.notifications_none, caronOrange),
+            secondary: _icon(Icons.notifications_none, vemoringOrange),
             title: const Text(
               '관리 알림',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
@@ -160,13 +160,13 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
               style: TextStyle(fontSize: 10, color: Color(0xFF9A9DA7)),
             ),
             value: _notifications,
-            activeTrackColor: caronBlue,
+            activeTrackColor: vemoringBlue,
             onChanged: (value) => setState(() => _notifications = value),
           ),
         ),
         Container(
           padding: const EdgeInsets.all(14),
-          decoration: caronCard(),
+          decoration: vemoringCard(),
           child: Column(
             children: [
               const Row(
@@ -191,7 +191,7 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
                 '세차 알림 기준',
                 '${_washAlert.round()}% 이하',
                 Icons.local_car_wash_outlined,
-                caronBlue,
+                vemoringBlue,
                 _washAlert,
                 5,
                 50,
@@ -206,7 +206,7 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
                 '주유 알림 기준',
                 '${_fuelAlert.round()}% 이하',
                 Icons.local_gas_station_outlined,
-                caronOrange,
+                vemoringOrange,
                 _fuelAlert,
                 5,
                 40,
@@ -234,7 +234,7 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
         ),
         const SizedBox(height: 8),
         Container(
-          decoration: caronCard(),
+          decoration: vemoringCard(),
           clipBehavior: Clip.antiAlias,
           child: Material(color: Colors.transparent, child: child),
         ),
@@ -254,7 +254,7 @@ class _CaronProfileScreenState extends State<CaronProfileScreen> {
 
   Widget _row(IconData icon, String title, String value, VoidCallback onTap) =>
       ListTile(
-        leading: _icon(icon, caronBlue),
+        leading: _icon(icon, vemoringBlue),
         title: Text(
           title,
           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),

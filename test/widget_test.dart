@@ -9,12 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:car_app1/main.dart';
-import 'package:car_app1/presentation/screens/caron_calendar_screen.dart';
-import 'package:car_app1/presentation/screens/caron_profile_screen.dart';
+import 'package:vemoring/main.dart';
+import 'package:vemoring/presentation/screens/vemoring_calendar_screen.dart';
+import 'package:vemoring/presentation/screens/vemoring_profile_screen.dart';
 
 void main() {
-  testWidgets('App starts on the CAR:ON home screen', (tester) async {
+  testWidgets('App starts on the VEMORING home screen', (tester) async {
     SharedPreferences.setMockInitialValues({
       'vehicle_brand': '현대',
       'vehicle_model': '아반떼',
@@ -24,15 +24,15 @@ void main() {
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('CAR:ON'), findsOneWidget);
+    expect(find.text('VEMORING'), findsOneWidget);
     expect(find.text('남은 연료'), findsOneWidget);
     expect(find.text('차량 청결도'), findsOneWidget);
     expect(find.text('Flutter Demo Home Page'), findsNothing);
-    expect(find.byType(CaronCalendarScreen, skipOffstage: false), findsNothing);
-    expect(find.byType(CaronProfileScreen, skipOffstage: false), findsNothing);
+    expect(find.byType(VemoringCalendarScreen, skipOffstage: false), findsNothing);
+    expect(find.byType(VemoringProfileScreen, skipOffstage: false), findsNothing);
     await tester.tap(find.byKey(const ValueKey('tab-1')));
     await tester.pumpAndSettle();
-    expect(find.byType(CaronCalendarScreen), findsOneWidget);
+    expect(find.byType(VemoringCalendarScreen), findsOneWidget);
     await tester.tap(find.byTooltip('다음 달'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('tab-0')));

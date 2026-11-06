@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// Figma Make의 440 × 290 SVG를 같은 좌표계로 그린 캐릭터.
-class CaronCarCharacter extends StatelessWidget {
-  const CaronCarCharacter({super.key});
+class VemoringCarCharacter extends StatelessWidget {
+  const VemoringCarCharacter({super.key});
 
   @override
   Widget build(BuildContext context) => Semantics(

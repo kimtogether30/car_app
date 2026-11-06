@@ -4,17 +4,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'data/care_history.dart';
 
 import '../shared/models/vehicle_status.dart';
-import 'logic/caron_condition.dart';
-import 'screens/caron_calendar_screen.dart';
-import 'screens/caron_home_screen.dart';
-import 'screens/caron_profile_screen.dart';
-import 'widgets/caron_navigation_bar.dart';
-import 'widgets/caron_page.dart';
-import 'widgets/caron_vehicle_form.dart';
+import 'logic/vemoring_condition.dart';
+import 'screens/vemoring_calendar_screen.dart';
+import 'screens/vemoring_home_screen.dart';
+import 'screens/vemoring_profile_screen.dart';
+import 'widgets/vemoring_navigation_bar.dart';
+import 'widgets/vemoring_page.dart';
+import 'widgets/vemoring_vehicle_form.dart';
 
 /// UI 예시 상태의 소유자. 실제 API·친구의 기능과 독립적으로 동작합니다.
-class CaronShell extends StatefulWidget {
-  const CaronShell({
+class VemoringShell extends StatefulWidget {
+  const VemoringShell({
     super.key,
     this.initialModel = '현대 캐스퍼',
     this.initialPersonal,
@@ -22,10 +22,10 @@ class CaronShell extends StatefulWidget {
   final String initialModel;
   final Map<String, dynamic>? initialPersonal;
   @override
-  State<CaronShell> createState() => _CaronShellState();
+  State<VemoringShell> createState() => _VemoringShellState();
 }
 
-class _CaronShellState extends State<CaronShell> {
+class _VemoringShellState extends State<VemoringShell> {
   int _tab = 0;
   final _visitedTabs = <int>{0};
 
@@ -104,9 +104,9 @@ class _CaronShellState extends State<CaronShell> {
   }
 
   Future<void> _edit(bool nickname) async {
-    final result = await caronSheet<String>(
+    final result = await vemoringSheet<String>(
       context,
-      CaronTextEdit(
+      VemoringTextEdit(
         title: nickname ? '닉네임' : '차종',
         value: nickname ? _vehicle.vehicleName : _model,
       ),
@@ -131,9 +131,9 @@ class _CaronShellState extends State<CaronShell> {
   }
 
   Future<void> _register() async {
-    final result = await caronSheet<CaronVehicleEdit>(
+    final result = await vemoringSheet<VemoringVehicleEdit>(
       context,
-      CaronVehicleForm(
+      VemoringVehicleForm(
         vehicle: _vehicle,
         model: _model,
         lastWash: _lastWash,
@@ -163,7 +163,7 @@ class _CaronShellState extends State<CaronShell> {
     });
   }
 
-  void _notifications() => caronSheet<void>(
+  void _notifications() => vemoringSheet<void>(
     context,
     SingleChildScrollView(
       child: Padding(
@@ -171,8 +171,8 @@ class _CaronShellState extends State<CaronShell> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CaronSheetHeader(title: '알림 내역'),
-            const CaronSampleNotice(),
+            const VemoringSheetHeader(title: '알림 내역'),
+            const VemoringSampleNotice(),
             for (final item in const [
               (
                 Icons.local_gas_station_outlined,
@@ -191,7 +191,7 @@ class _CaronShellState extends State<CaronShell> {
               ),
             ])
               ListTile(
-                leading: Icon(item.$1, color: caronBlue),
+                leading: Icon(item.$1, color: vemoringBlue),
                 title: Text(
                   item.$2,
                   style: const TextStyle(
@@ -235,7 +235,7 @@ class _CaronShellState extends State<CaronShell> {
         ),
       );
     }
-    final condition = caronCondition(
+    final condition = vemoringCondition(
       _vehicle,
       fuelThreshold: _fuelThreshold,
       washThreshold: _washThreshold,
@@ -249,11 +249,11 @@ class _CaronShellState extends State<CaronShell> {
       cleanlinessPercent: _vehicle.cleanlinessPercent,
       characterMessage: condition.message,
     );
-    final nav = CaronNavigationBar(selectedIndex: _tab, onSelected: _selectTab);
+    final nav = VemoringNavigationBar(selectedIndex: _tab, onSelected: _selectTab);
     return IndexedStack(
       index: _tab,
       children: [
-        CaronHomeScreen(
+        VemoringHomeScreen(
           vehicle: displayedVehicle,
           rangeLabel: condition.exampleRangeKm == null
               ? '정보 없음'
@@ -277,7 +277,7 @@ class _CaronShellState extends State<CaronShell> {
           onNotifications: _notifications,
         ),
         if (_visitedTabs.contains(1))
-          CaronCalendarScreen(
+          VemoringCalendarScreen(
             navigationBar: nav,
             records: _history!.records,
             onSave: _saveRecord,
@@ -285,7 +285,7 @@ class _CaronShellState extends State<CaronShell> {
         else
           const SizedBox.shrink(),
         if (_visitedTabs.contains(2))
-          CaronProfileScreen(
+          VemoringProfileScreen(
             vehicle: _vehicle,
             vehicleModel: _model,
             navigationBar: nav,

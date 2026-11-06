@@ -1,17 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:car_app1/presentation/caron_shell.dart';
-import 'package:car_app1/presentation/screens/caron_profile_screen.dart';
-import 'package:car_app1/presentation/logic/caron_condition.dart';
-import 'package:car_app1/shared/models/vehicle_status.dart';
+import 'package:vemoring/presentation/vemoring_shell.dart';
+import 'package:vemoring/presentation/screens/vemoring_profile_screen.dart';
+import 'package:vemoring/presentation/logic/vemoring_condition.dart';
+import 'package:vemoring/shared/models/vehicle_status.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   testWidgets(
     'Home displays requested condition and sliders publish thresholds',
     (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: CaronShell()));
+      await tester.pumpWidget(const MaterialApp(home: VemoringShell()));
       await tester.pumpAndSettle();
       expect(
         find.text('컨디션 최고! 지금처럼 쭉 달려보자! 앞으로 420km 더 달릴 수 있어.'),
@@ -21,7 +21,7 @@ void main() {
       double? fuel, wash;
       await tester.pumpWidget(
         MaterialApp(
-          home: CaronProfileScreen(
+          home: VemoringProfileScreen(
             vehicle: const VehicleStatus(
               vehicleName: '테스트',
               licensePlate: '',
@@ -69,7 +69,7 @@ void main() {
         (68.0, 20.0, '달릴 준비는 됐는데, 몸이 좀 찝찝해! 300km 더 달릴 수 있지만 세차 한번 부탁해!', 300),
       ];
       for (final (fuel, clean, message, range) in cases) {
-        final result = caronCondition(
+        final result = vemoringCondition(
           vehicle(fuel, clean),
           fuelThreshold: 20,
           washThreshold: 30,
@@ -85,7 +85,7 @@ void main() {
     () {
       final status = vehicle(20, 30);
       expect(
-        caronCondition(
+        vemoringCondition(
           status,
           fuelThreshold: 20,
           washThreshold: 30,
@@ -93,7 +93,7 @@ void main() {
         50,
       );
       expect(
-        caronCondition(
+        vemoringCondition(
           status,
           fuelThreshold: 15,
           washThreshold: 25,
@@ -101,7 +101,7 @@ void main() {
         420,
       );
       expect(
-        caronCondition(
+        vemoringCondition(
           status,
           fuelThreshold: 20,
           washThreshold: 25,
@@ -109,7 +109,7 @@ void main() {
         85,
       );
       expect(
-        caronCondition(
+        vemoringCondition(
           status,
           fuelThreshold: 15,
           washThreshold: 30,
@@ -125,7 +125,7 @@ void main() {
       vehicle(68, null),
       vehicle(null, null),
     ]) {
-      final result = caronCondition(
+      final result = vemoringCondition(
         status,
         fuelThreshold: 20,
         washThreshold: 30,

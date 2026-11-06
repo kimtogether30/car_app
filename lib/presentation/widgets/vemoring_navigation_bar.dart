@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'caron_page.dart';
+import 'vemoring_page.dart';
 
-class CaronNavigationBar extends StatelessWidget {
-  const CaronNavigationBar({
+class VemoringNavigationBar extends StatelessWidget {
+  const VemoringNavigationBar({
     super.key,
     required this.selectedIndex,
     required this.onSelected,
@@ -42,7 +42,7 @@ class CaronNavigationBar extends StatelessWidget {
                           height: 3,
                           decoration: BoxDecoration(
                             color: selectedIndex == index
-                                ? caronBlue
+                                ? vemoringBlue
                                 : Colors.transparent,
                             borderRadius: const BorderRadius.vertical(
                               bottom: Radius.circular(5),
@@ -57,7 +57,7 @@ class CaronNavigationBar extends StatelessWidget {
                                 item.$2,
                                 size: 24,
                                 color: selectedIndex == index
-                                    ? caronBlue
+                                    ? vemoringBlue
                                     : const Color(0xFF66727D),
                               ),
                               const SizedBox(height: 3),
@@ -67,7 +67,7 @@ class CaronNavigationBar extends StatelessWidget {
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: selectedIndex == index
-                                      ? caronBlue
+                                      ? vemoringBlue
                                       : const Color(0xFF66727D),
                                 ),
                               ),

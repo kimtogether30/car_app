@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:car_app1/presentation/data/care_history.dart';
-import 'package:car_app1/presentation/caron_shell.dart';
-import 'package:car_app1/presentation/screens/caron_calendar_screen.dart';
+import 'package:vemoring/presentation/data/care_history.dart';
+import 'package:vemoring/presentation/vemoring_shell.dart';
+import 'package:vemoring/presentation/screens/vemoring_calendar_screen.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -144,7 +144,7 @@ void main() {
       }
       await tester.pumpWidget(
         MaterialApp(
-          home: CaronCalendarScreen(
+          home: VemoringCalendarScreen(
             navigationBar: const SizedBox.shrink(),
             records: history.records,
             onSave: history.put,
@@ -185,7 +185,7 @@ void main() {
     final nextMonth = DateTime(now.year, now.month + 1);
     await tester.pumpWidget(
       MaterialApp(
-        home: CaronCalendarScreen(
+        home: VemoringCalendarScreen(
           navigationBar: const SizedBox.shrink(),
           records: const [],
           onSave: (_) async {},
@@ -211,14 +211,14 @@ void main() {
     await history.put(
       CareRecord(id: 'wash', date: today, kind: CareKind.wash, title: '세차'),
     );
-    await tester.pumpWidget(const MaterialApp(home: CaronShell()));
+    await tester.pumpWidget(const MaterialApp(home: VemoringShell()));
     await tester.pumpAndSettle();
     expect(
       find.text('마지막 세차일: ${today.year}.${today.month}.${today.day}'),
       findsOneWidget,
     );
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpWidget(const MaterialApp(home: CaronShell()));
+    await tester.pumpWidget(const MaterialApp(home: VemoringShell()));
     await tester.pumpAndSettle();
     expect(
       find.text('마지막 세차일: ${today.year}.${today.month}.${today.day}'),
@@ -231,13 +231,13 @@ void main() {
     tester,
   ) async {
     final today = careDay(DateTime.now());
-    await tester.pumpWidget(const MaterialApp(home: CaronShell()));
+    await tester.pumpWidget(const MaterialApp(home: VemoringShell()));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('tab-1')));
     await tester.pumpAndSettle();
     for (final kind in CareKind.values) {
-      final calendar = tester.widget<CaronCalendarScreen>(
-        find.byType(CaronCalendarScreen),
+      final calendar = tester.widget<VemoringCalendarScreen>(
+        find.byType(VemoringCalendarScreen),
       );
       await calendar.onSave(
         CareRecord(id: kind.name, date: today, kind: kind, title: kind.label),

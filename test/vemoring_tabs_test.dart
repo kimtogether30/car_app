@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:car_app1/main.dart';
+import 'package:vemoring/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> tapTab(WidgetTester tester, int index) async {
@@ -129,7 +129,7 @@ void main() {
         find.widgetWithText(TextFormField, '차량 닉네임'),
         '전기 몽글이',
       );
-      await tapVisible(tester, find.text('CAR:ON 시작하기'));
+      await tapVisible(tester, find.text('VEMORING 시작하기'));
       await tapTab(tester, 0);
       expect(find.text('남은 배터리'), findsOneWidget);
       expect(find.text('남은 연료'), findsNothing);

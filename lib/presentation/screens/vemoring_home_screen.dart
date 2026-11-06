@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../shared/models/vehicle_status.dart';
-import '../widgets/caron_car_character.dart';
-import '../widgets/caron_navigation_bar.dart';
-import '../widgets/caron_page.dart';
+import '../widgets/vemoring_car_character.dart';
+import '../widgets/vemoring_navigation_bar.dart';
+import '../widgets/vemoring_page.dart';
 
-const _blue = caronBlue;
-const _ink = caronInk;
-const _navy = caronNavy;
+const _blue = vemoringBlue;
+const _ink = vemoringInk;
+const _navy = vemoringNavy;
 const _muted = Color(0xFF66727D);
-const _mint = caronMint;
+const _mint = vemoringMint;
 
 /// 차량 상태와 관리 일정을 보여주는 홈 화면.
 /// 화면 이동과 편집은 전달받은 콜백으로 연결합니다.
-class CaronHomeScreen extends StatelessWidget {
-  const CaronHomeScreen({
+class VemoringHomeScreen extends StatelessWidget {
+  const VemoringHomeScreen({
     super.key,
     this.vehicle = const VehicleStatus(
       vehicleName: '몽글이',
@@ -265,7 +265,7 @@ class CaronHomeScreen extends StatelessWidget {
       ),
       const SizedBox(width: 9),
       const Text(
-        'CAR:ON',
+        'VEMORING',
         style: TextStyle(
           color: _ink,
           fontSize: 19,
@@ -326,7 +326,7 @@ class CaronHomeScreen extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 310, child: CaronCarCharacter()),
+        const SizedBox(width: 310, child: VemoringCarCharacter()),
         Positioned(
           right: 13,
           top: 20,
@@ -402,7 +402,7 @@ class CaronHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _bottomNav(BuildContext context) => CaronNavigationBar(
+  Widget _bottomNav(BuildContext context) => VemoringNavigationBar(
     selectedIndex: 0,
     onSelected: (index) {
       if (index == 1) {
@@ -429,7 +429,7 @@ Widget _badge(
   child: Icon(icon, size: size == 29 ? 19 : 22, color: color),
 );
 
-BoxDecoration _cardDecoration() => caronCard();
+BoxDecoration _cardDecoration() => vemoringCard();
 
 class _StatCard extends StatelessWidget {
   const _StatCard({

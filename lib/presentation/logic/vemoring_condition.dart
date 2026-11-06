@@ -1,7 +1,7 @@
 import '../../shared/models/vehicle_status.dart';
 
 /// 주행거리는 요청된 멘트용 예시이며 실제 주행거리 예측이 아닙니다.
-({String message, int? exampleRangeKm}) caronCondition(
+({String message, int? exampleRangeKm}) vemoringCondition(
   VehicleStatus vehicle, {
   required double fuelThreshold,
   required double washThreshold,

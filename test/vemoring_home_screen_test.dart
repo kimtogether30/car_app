@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:car_app1/presentation/screens/caron_home_screen.dart';
-import 'package:car_app1/shared/models/vehicle_status.dart';
+import 'package:vemoring/presentation/screens/vemoring_home_screen.dart';
+import 'package:vemoring/shared/models/vehicle_status.dart';
 
 void main() {
   testWidgets('Home fits a narrow phone and opens the calendar callback', (
@@ -13,9 +13,9 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     var opened = false;
     await tester.pumpWidget(
-      MaterialApp(home: CaronHomeScreen(onCalendar: () => opened = true)),
+      MaterialApp(home: VemoringHomeScreen(onCalendar: () => opened = true)),
     );
-    expect(find.text('CAR:ON'), findsOneWidget);
+    expect(find.text('VEMORING'), findsOneWidget);
     expect(find.text('남은 연료'), findsOneWidget);
     expect(find.text('차량 청결도'), findsOneWidget);
     await tester.tap(find.text('관리 기록'));
@@ -34,7 +34,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: CaronHomeScreen(
+        home: VemoringHomeScreen(
           vehicle: VehicleStatus(
             vehicleName: '전기차',
             licensePlate: '12가 3456',
@@ -61,7 +61,7 @@ void main() {
               .copyWith(textScaler: const TextScaler.linear(1.5)),
           child: child!,
         ),
-        home: const CaronHomeScreen(
+        home: const VemoringHomeScreen(
           vehicle: VehicleStatus(
             vehicleName: '몽글이',
             licensePlate: '123가 4567',

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../shared/models/vehicle_catalog.dart';
-import '../caron_shell.dart';
+import '../vemoring_shell.dart';
 import 'personal_setup_screen.dart';
 
 class BrandSetupScreen extends StatefulWidget {
@@ -84,7 +84,7 @@ class _BrandSetupScreenState extends State<BrandSetupScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_complete) {
-      return CaronShell(
+      return VemoringShell(
         initialModel: '$_brand $_model',
         initialPersonal: _personal,
       );
@@ -111,7 +111,7 @@ class _BrandSetupScreenState extends State<BrandSetupScreen> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   const Text(
-                    'CAR:ON',
+                    'VEMORING',
                     style: TextStyle(
                       color: _blue,
                       fontSize: 22,

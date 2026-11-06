@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../shared/models/vehicle_status.dart';
-import 'caron_page.dart';
+import 'vemoring_page.dart';
 import '../data/care_history.dart';
 
-class CaronVehicleEdit {
-  const CaronVehicleEdit(
+class VemoringVehicleEdit {
+  const VemoringVehicleEdit(
     this.vehicle,
     this.model,
     this.lastWash,
@@ -18,8 +18,8 @@ class CaronVehicleEdit {
 }
 
 /// 서버 차량 목록이 없는 상태에서 사용하는 예시 등록 양식.
-class CaronVehicleForm extends StatefulWidget {
-  const CaronVehicleForm({
+class VemoringVehicleForm extends StatefulWidget {
+  const VemoringVehicleForm({
     super.key,
     required this.vehicle,
     required this.model,
@@ -31,10 +31,10 @@ class CaronVehicleForm extends StatefulWidget {
   final String model;
   final DateTime? lastWash, lastOil, lastFuel;
   @override
-  State<CaronVehicleForm> createState() => _CaronVehicleFormState();
+  State<VemoringVehicleForm> createState() => _VemoringVehicleFormState();
 }
 
-class _CaronVehicleFormState extends State<CaronVehicleForm> {
+class _VemoringVehicleFormState extends State<VemoringVehicleForm> {
   final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.vehicle.vehicleName);
   late final _plate = TextEditingController(text: widget.vehicle.licensePlate);
@@ -64,14 +64,14 @@ class _CaronVehicleFormState extends State<CaronVehicleForm> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CaronSheetHeader(title: '차량 정보 등록'),
-          const CaronSampleNotice(),
-          LinearProgressIndicator(value: _step / 2, color: caronBlue),
+          const VemoringSheetHeader(title: '차량 정보 등록'),
+          const VemoringSampleNotice(),
+          LinearProgressIndicator(value: _step / 2, color: vemoringBlue),
           const SizedBox(height: 24),
           Text(
             '$_step / 2 · ${_step == 1 ? '차량 선택' : '기본 정보'}',
             style: const TextStyle(
-              color: caronBlue,
+              color: vemoringBlue,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -217,7 +217,7 @@ class _CaronVehicleFormState extends State<CaronVehicleForm> {
                   final old = widget.vehicle;
                   Navigator.pop(
                     context,
-                    CaronVehicleEdit(
+                    VemoringVehicleEdit(
                       VehicleStatus(
                         vehicleName: _name.text.trim(),
                         licensePlate: _plate.text.trim(),
@@ -238,7 +238,7 @@ class _CaronVehicleFormState extends State<CaronVehicleForm> {
                     ),
                   );
                 },
-                child: const Text('CAR:ON 시작하기'),
+                child: const Text('VEMORING 시작하기'),
               ),
             ),
           ],
@@ -274,14 +274,14 @@ class _CaronVehicleFormState extends State<CaronVehicleForm> {
   );
 }
 
-class CaronTextEdit extends StatefulWidget {
-  const CaronTextEdit({super.key, required this.title, required this.value});
+class VemoringTextEdit extends StatefulWidget {
+  const VemoringTextEdit({super.key, required this.title, required this.value});
   final String title, value;
   @override
-  State<CaronTextEdit> createState() => _CaronTextEditState();
+  State<VemoringTextEdit> createState() => _VemoringTextEditState();
 }
 
-class _CaronTextEditState extends State<CaronTextEdit> {
+class _VemoringTextEditState extends State<VemoringTextEdit> {
   late final _controller = TextEditingController(text: widget.value);
   final _form = GlobalKey<FormState>();
   @override
@@ -299,8 +299,8 @@ class _CaronTextEditState extends State<CaronTextEdit> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CaronSheetHeader(title: '${widget.title} 변경'),
-            const CaronSampleNotice(),
+            VemoringSheetHeader(title: '${widget.title} 변경'),
+            const VemoringSampleNotice(),
             TextFormField(
               autofocus: true,
               controller: _controller,

@@ -1,6 +1,8 @@
-# car_app1
+# VEMORING
 
-A new Flutter project.
+**Vehicle + Emotion + Ring** — 차량의 감정을 운전자와 연결합니다.
+
+차량 상태를 표정 아이콘과 알림 메시지로 직관적으로 전달하고, 주유·세차·정비가 필요한 시점을 알려주는 차량 관리 앱입니다.
 
 ## Getting Started
 

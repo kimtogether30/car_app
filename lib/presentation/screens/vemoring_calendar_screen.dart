@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/care_history.dart';
-import '../widgets/caron_page.dart';
+import '../widgets/vemoring_page.dart';
 
 extension on CareKind {
   IconData get icon => switch (this) {
@@ -10,14 +10,14 @@ extension on CareKind {
     CareKind.oil => Icons.oil_barrel_outlined,
   };
   Color get color => switch (this) {
-    CareKind.wash => caronBlue,
-    CareKind.fuel => caronOrange,
-    CareKind.oil => caronMint,
+    CareKind.wash => vemoringBlue,
+    CareKind.fuel => vemoringOrange,
+    CareKind.oil => vemoringMint,
   };
 }
 
-class CaronCalendarScreen extends StatefulWidget {
-  const CaronCalendarScreen({
+class VemoringCalendarScreen extends StatefulWidget {
+  const VemoringCalendarScreen({
     super.key,
     required this.navigationBar,
     required this.records,
@@ -27,10 +27,10 @@ class CaronCalendarScreen extends StatefulWidget {
   final List<CareRecord> records;
   final Future<void> Function(CareRecord) onSave;
   @override
-  State<CaronCalendarScreen> createState() => _CaronCalendarScreenState();
+  State<VemoringCalendarScreen> createState() => _VemoringCalendarScreenState();
 }
 
-class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
+class _VemoringCalendarScreenState extends State<VemoringCalendarScreen> {
   late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _selected;
   bool _all = false;
@@ -46,7 +46,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
       );
       return;
     }
-    final result = await caronSheet<CareRecord>(
+    final result = await vemoringSheet<CareRecord>(
       context,
       CareRecordForm(
         initialDate: record?.date ?? _selected ?? careDay(DateTime.now()),
@@ -81,19 +81,19 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
         : _selected != null
         ? sorted.where((r) => DateUtils.isSameDay(r.date, _selected)).toList()
         : sorted.take(3).toList();
-    return CaronPage(
+    return VemoringPage(
       navigationBar: widget.navigationBar,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
         children: [
-          CaronPageHeader(
+          VemoringPageHeader(
             eyebrow: 'MY CAR LOG',
             title: '관리 기록',
             trailing: IconButton.filled(
               tooltip: '관리 기록 추가',
               onPressed: () => _edit(),
               style: IconButton.styleFrom(
-                backgroundColor: caronBlue,
+                backgroundColor: vemoringBlue,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -109,7 +109,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
             ),
           ),
           Container(
-            decoration: caronCard(),
+            decoration: vemoringCard(),
             padding: const EdgeInsets.all(13),
             child: Column(
               children: [
@@ -225,7 +225,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
             ],
           ),
           Container(
-            decoration: caronCard(),
+            decoration: vemoringCard(),
             child: Material(
               color: Colors.transparent,
               borderRadius: BorderRadius.circular(20),
@@ -267,7 +267,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
                               careDateLabel(record.date),
                               style: const TextStyle(fontSize: 10),
                             ),
-                            onTap: () => caronSheet<void>(
+                            onTap: () => vemoringSheet<void>(
                               context,
                               SingleChildScrollView(
                                 child: Padding(
@@ -277,7 +277,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
                                         CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      CaronSheetHeader(title: record.title),
+                                      VemoringSheetHeader(title: record.title),
                                       Text(careDateLabel(record.date)),
                                       if (record.detail.isNotEmpty) ...[
                                         const SizedBox(height: 12),
@@ -325,7 +325,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             color: selected ? const Color(0xFFF5F7FF) : null,
-            border: selected ? Border.all(color: caronBlue, width: 2) : null,
+            border: selected ? Border.all(color: vemoringBlue, width: 2) : null,
           ),
           padding: const EdgeInsets.only(top: 6),
           child: Column(
@@ -333,7 +333,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: today ? caronBlue : null,
+                  color: today ? vemoringBlue : null,
                   shape: BoxShape.circle,
                 ),
                 child: Text(
@@ -344,7 +344,7 @@ class _CaronCalendarScreenState extends State<CaronCalendarScreen> {
                         ? Colors.white
                         : isFutureCareDay(date)
                         ? Colors.grey
-                        : caronInk,
+                        : vemoringInk,
                   ),
                 ),
               ),
@@ -404,7 +404,7 @@ class _CareRecordFormState extends State<CareRecordForm> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CaronSheetHeader(
+            VemoringSheetHeader(
               title: widget.existing == null ? '관리 기록 추가' : '관리 기록 수정',
             ),
             DropdownButtonFormField<CareKind>(
