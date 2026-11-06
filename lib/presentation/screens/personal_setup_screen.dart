@@ -136,7 +136,7 @@ class _PersonalSetupScreenState extends State<PersonalSetupScreen> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
         child: Material(
-          color: const Color(0xFFF8F7F2),
+          color: const Color(0xFFF6F7F8),
           child: SafeArea(
             child: ListView(
               controller: _scroll,
@@ -145,7 +145,7 @@ class _PersonalSetupScreenState extends State<PersonalSetupScreen> {
                 const Text(
                   'CAR:ON',
                   style: TextStyle(
-                    color: Color(0xFF3157D5),
+                    color: Color(0xFF335C81),
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                   ),

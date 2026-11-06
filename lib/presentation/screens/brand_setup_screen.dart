@@ -14,7 +14,7 @@ class BrandSetupScreen extends StatefulWidget {
 }
 
 class _BrandSetupScreenState extends State<BrandSetupScreen> {
-  static const _blue = Color(0xFF3157D5);
+  static const _blue = Color(0xFF335C81);
   String? _brand, _model;
   bool _loading = true, _complete = false, _saving = false;
   bool _details = false;
@@ -76,7 +76,7 @@ class _BrandSetupScreenState extends State<BrandSetupScreen> {
     selected: selected,
     onSelected: _saving ? null : (_) => onTap(),
     selectedColor: const Color(0xFFEAF0FF),
-    labelStyle: TextStyle(color: selected ? _blue : const Color(0xFF18203B)),
+    labelStyle: TextStyle(color: selected ? _blue : const Color(0xFF202C35)),
   );
   @override
   Widget build(BuildContext context) {
@@ -105,7 +105,7 @@ class _BrandSetupScreenState extends State<BrandSetupScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
           child: ColoredBox(
-            color: const Color(0xFFF8F7F2),
+            color: const Color(0xFFF6F7F8),
             child: SafeArea(
               child: ListView(
                 padding: const EdgeInsets.all(24),
@@ -210,7 +210,7 @@ class _BrandSetupScreenState extends State<BrandSetupScreen> {
                       Text(
                         category.key,
                         style: const TextStyle(
-                          color: Color(0xFF858996),
+                          color: Color(0xFF66727D),
                           fontSize: 13,
                         ),
                       ),

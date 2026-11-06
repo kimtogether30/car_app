@@ -55,20 +55,20 @@ class CaronNavigationBar extends StatelessWidget {
                             children: [
                               Icon(
                                 item.$2,
-                                size: 22,
+                                size: 24,
                                 color: selectedIndex == index
                                     ? caronBlue
-                                    : const Color(0xFFA4A7B1),
+                                    : const Color(0xFF66727D),
                               ),
                               const SizedBox(height: 3),
                               Text(
                                 item.$1,
                                 style: TextStyle(
-                                  fontSize: 9,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: selectedIndex == index
                                       ? caronBlue
-                                      : const Color(0xFFA4A7B1),
+                                      : const Color(0xFF66727D),
                                 ),
                               ),
                             ],

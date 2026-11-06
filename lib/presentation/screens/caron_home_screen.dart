@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../../shared/models/vehicle_status.dart';
 import '../widgets/caron_car_character.dart';
+import '../widgets/caron_navigation_bar.dart';
+import '../widgets/caron_page.dart';
 
-const _blue = Color(0xFF3157D5);
-const _ink = Color(0xFF18203B);
-const _navy = Color(0xFF182E78);
-const _muted = Color(0xFF858996);
-const _mint = Color(0xFF20B486);
+const _blue = caronBlue;
+const _ink = caronInk;
+const _navy = caronNavy;
+const _muted = Color(0xFF66727D);
+const _mint = caronMint;
 
-/// Figma Make 홈 화면. 예시 값은 UI 확인용이며 실제 상태를 주입할 수 있습니다.
-/// 관리 기록·내 차 화면은 구현하지 않고 콜백으로 기존 기능에 연결합니다.
+/// 차량 상태와 관리 일정을 보여주는 홈 화면.
+/// 화면 이동과 편집은 전달받은 콜백으로 연결합니다.
 class CaronHomeScreen extends StatelessWidget {
   const CaronHomeScreen({
     super.key,
@@ -64,11 +66,11 @@ class CaronHomeScreen extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
           child: Scaffold(
-            backgroundColor: const Color(0xFFF8F7F2),
+            backgroundColor: const Color(0xFFF6F7F8),
             body: SafeArea(
               bottom: false,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(23, 18, 23, 16),
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -78,25 +80,25 @@ class CaronHomeScreen extends StatelessWidget {
                       dateLabel,
                       style: const TextStyle(
                         color: _blue,
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 1.8,
+                        letterSpacing: 1.0,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text.rich(
                       TextSpan(
                         children: [
-                          TextSpan(text: '오늘도 ${vehicle.vehicleName}와\n'),
+                          const TextSpan(text: '오늘의 차량 상태\n'),
                           const TextSpan(
-                            text: '기분 좋은 드라이브!',
+                            text: '가볍게 확인하고 출발해요.',
                             style: TextStyle(fontWeight: FontWeight.w800),
                           ),
                         ],
                       ),
                       style: const TextStyle(
-                        fontSize: 25,
-                        height: 1.4,
+                        fontSize: 24,
+                        height: 1.45,
                         letterSpacing: -.9,
                         color: _ink,
                       ),
@@ -158,14 +160,14 @@ class CaronHomeScreen extends StatelessWidget {
                           Text(
                             '마지막 세차일: $lastWashLabel',
                             key: const ValueKey('home-last-wash'),
-                            style: const TextStyle(fontSize: 10, color: _muted),
+                            style: const TextStyle(fontSize: 12, color: _muted),
                           ),
                           if (lastFuelLabel != null)
                             Text(
                               '마지막 주유일: $lastFuelLabel',
                               key: const ValueKey('home-last-fuel'),
                               style: const TextStyle(
-                                fontSize: 10,
+                                fontSize: 12,
                                 color: _muted,
                               ),
                             ),
@@ -174,7 +176,7 @@ class CaronHomeScreen extends StatelessWidget {
                               '마지막 엔진오일 교체일: $lastOilLabel',
                               key: const ValueKey('home-last-oil'),
                               style: const TextStyle(
-                                fontSize: 10,
+                                fontSize: 12,
                                 color: _muted,
                               ),
                             ),
@@ -185,9 +187,9 @@ class CaronHomeScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     Material(
                       color: _navy,
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(14),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(14),
                         onTap: () => _action(
                           context,
                           onCalendar,
@@ -214,8 +216,8 @@ class CaronHomeScreen extends StatelessWidget {
                                     const Text(
                                       '다가오는 관리 일정',
                                       style: TextStyle(
-                                        color: Color(0xAAFFFFFF),
-                                        fontSize: 9,
+                                        color: Color(0xDFFFFFFF),
+                                        fontSize: 12,
                                       ),
                                     ),
                                     Text(
@@ -310,7 +312,7 @@ class CaronHomeScreen extends StatelessWidget {
 
   Widget _hero() => SizedBox(
     width: double.infinity,
-    height: 218,
+    height: 204,
     child: Stack(
       alignment: Alignment.bottomCenter,
       children: [
@@ -320,7 +322,7 @@ class CaronHomeScreen extends StatelessWidget {
             child: SizedBox(
               width: 270,
               height: 145,
-              child: ColoredBox(color: Color(0xFFE5EAFF)),
+              child: ColoredBox(color: Color(0xFFE8EEF1)),
             ),
           ),
         ),
@@ -339,13 +341,6 @@ class CaronHomeScreen extends StatelessWidget {
                 bottomLeft: Radius.circular(15),
                 bottomRight: Radius.circular(3),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0x382543A3),
-                  offset: Offset(0, 7),
-                  blurRadius: 16,
-                ),
-              ],
             ),
             child: Text(
               vehicle.characterMessage,
@@ -384,7 +379,7 @@ class CaronHomeScreen extends StatelessWidget {
       _StatCard(
         title: '차량 청결도',
         value: vehicle.cleanlinessPercent,
-        icon: Icons.auto_awesome_outlined,
+        icon: Icons.local_car_wash_outlined,
         color: _mint,
         detail: '마지막 세차',
         detailValue: lastWashLabel,
@@ -392,48 +387,30 @@ class CaronHomeScreen extends StatelessWidget {
     ];
     return LayoutBuilder(
       builder: (context, constraints) => Wrap(
-        spacing: 11,
-        runSpacing: 11,
+        spacing: 12,
+        runSpacing: 12,
         children: [
           for (final card in cards)
-            SizedBox(width: (constraints.maxWidth - 11) / 2, child: card),
+            SizedBox(
+              width: MediaQuery.textScalerOf(context).scale(12) > 16
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - 12) / 2,
+              child: card,
+            ),
         ],
       ),
     );
   }
 
-  Widget _bottomNav(BuildContext context) => Container(
-    decoration: const BoxDecoration(
-      color: Color(0xF7FFFFFF),
-      border: Border(top: BorderSide(color: Color(0xFFE8E8E9))),
-    ),
-    child: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
-        child: Row(
-          children: [
-            _NavItem(
-              label: '홈',
-              icon: Icons.home_outlined,
-              selected: true,
-              onTap: () {},
-            ),
-            _NavItem(
-              label: '관리 기록',
-              icon: Icons.calendar_month_outlined,
-              onTap: () =>
-                  _action(context, onCalendar, '관리 기록 화면은 아직 연결되지 않았어요.'),
-            ),
-            _NavItem(
-              label: '내 차',
-              icon: Icons.person_outline,
-              onTap: () => _action(context, onProfile, '내 차 화면은 아직 연결되지 않았어요.'),
-            ),
-          ],
-        ),
-      ),
-    ),
+  Widget _bottomNav(BuildContext context) => CaronNavigationBar(
+    selectedIndex: 0,
+    onSelected: (index) {
+      if (index == 1) {
+        _action(context, onCalendar, '관리 기록 화면은 아직 연결되지 않았어요.');
+      } else if (index == 2) {
+        _action(context, onProfile, '내 차 화면은 아직 연결되지 않았어요.');
+      }
+    },
   );
 }
 
@@ -452,14 +429,7 @@ Widget _badge(
   child: Icon(icon, size: size == 29 ? 19 : 22, color: color),
 );
 
-BoxDecoration _cardDecoration() => BoxDecoration(
-  color: Colors.white,
-  borderRadius: BorderRadius.circular(20),
-  border: Border.all(color: const Color(0xFFEEEEF0)),
-  boxShadow: const [
-    BoxShadow(color: Color(0x0E212B4B), offset: Offset(0, 6), blurRadius: 20),
-  ],
-);
+BoxDecoration _cardDecoration() => caronCard();
 
 class _StatCard extends StatelessWidget {
   const _StatCard({
@@ -488,15 +458,15 @@ class _StatCard extends StatelessWidget {
               icon,
               color,
               color == _mint
-                  ? const Color(0xFFDEF7EF)
-                  : const Color(0xFFE9EDFF),
+                  ? const Color(0xFFE8F1ED)
+                  : const Color(0xFFE9EFF4),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF606578),
                 ),
@@ -547,7 +517,7 @@ class _StatCard extends StatelessWidget {
                 ),
             ],
           ),
-          style: const TextStyle(fontSize: 10, color: Color(0xFF999CA7)),
+          style: const TextStyle(fontSize: 12, color: _muted),
         ),
       ],
     ),
@@ -576,7 +546,7 @@ class _WeatherCard extends StatelessWidget {
               ),
               const Text(
                 '서울특별시',
-                style: TextStyle(fontSize: 9, color: Color(0xFFA0A3AD)),
+                style: TextStyle(fontSize: 12, color: _muted),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
@@ -586,7 +556,7 @@ class _WeatherCard extends StatelessWidget {
                 ),
                 child: const Text(
                   '목요일 세차는 피해주세요',
-                  style: TextStyle(fontSize: 9, color: Color(0xFF3760D6)),
+                  style: TextStyle(fontSize: 12, color: Color(0xFF3760D6)),
                 ),
               ),
             ],
@@ -618,8 +588,8 @@ class _WeatherCard extends StatelessWidget {
                       Text(
                         day.$1,
                         style: TextStyle(
-                          fontSize: 9,
-                          color: index == 0 ? _blue : const Color(0xFF9396A2),
+                          fontSize: 12,
+                          color: index == 0 ? _blue : _muted,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -636,7 +606,7 @@ class _WeatherCard extends StatelessWidget {
                       Text(
                         day.$3,
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -647,66 +617,6 @@ class _WeatherCard extends StatelessWidget {
           ],
         ),
       ],
-    ),
-  );
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    this.selected = false,
-  });
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: InkWell(
-      onTap: onTap,
-      child: Semantics(
-        selected: selected,
-        button: true,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 22,
-              height: 3,
-              decoration: BoxDecoration(
-                color: selected ? _blue : Colors.transparent,
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(5),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
-              child: Column(
-                children: [
-                  Icon(
-                    icon,
-                    size: 22,
-                    color: selected ? _blue : const Color(0xFFA4A7B1),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? _blue : const Color(0xFFA4A7B1),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     ),
   );
 }
