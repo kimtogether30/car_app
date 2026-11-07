@@ -1,52 +1,36 @@
 # VEMORING
 
-**Vehicle + Emotion + Ring** — 차량의 감정을 운전자와 연결합니다.
+현대자동차 앱 개발 공모전을 위해 Flutter 앱에서 Kotlin / Jetpack Compose로 이전한 Android 프로젝트입니다. Pleos Vehicle SDK 2.3.2를 사용합니다.
 
-차량 상태를 표정 아이콘과 알림 메시지로 직관적으로 전달하고, 주유·세차·정비가 필요한 시점을 알려주는 차량 관리 앱입니다.
+## 개발 환경 및 실행
 
-## Pleos Vehicle SDK 연동
+1. 저장소를 clone하고 Android Studio에서 저장소 루트 폴더를 엽니다.
+2. SDK Manager에서 프로젝트가 요구하는 Android SDK API 37을 설치하고 Gradle Sync를 실행합니다. Java 도구 체인은 Gradle 설정에 따라 준비됩니다.
+3. Android SDK 경로가 들어 있는 `local.properties`는 각자 환경에서 생성합니다. 다른 사람의 파일을 복사하거나 Git에 올리지 않습니다.
+4. 차량 연동을 확인할 때는 Pleos Connect 에뮬레이터를 설치하고 실행 기기로 선택합니다. 현재 검증 환경은 Pleos Connect 2.1.0 / API 34입니다.
+5. 실행 구성을 `app`으로 선택하고 Run을 누릅니다.
 
-### 확인된 공식 버전
-
-- Vehicle SDK: `2.3.2`
-- Vehicle Service: `2.3.21`
-- Android minimum SDK/API: 28 이상
-- Pleos Emulator 권장 플랫폼: Android API 34 Automotive/AIVD
-- 공식 Maven 저장소: `https://nexus-playground.pleos.ai/repository/maven-releases/`
-
-Android Gradle에서 Maven 저장소와 SDK 의존성이 설정되어 있습니다. EV 배터리 잔량 조회 API는
-`getEvBatteryStateOfCharge()`이며 반환값은 SDK 문서상 `Int`이며 0~100 범위의 상태 충전율로 사용합니다.
-운전석 문 검증 API는 공식 예제의 `DoorArea(DoorValue.ROW_1_LEFT)`와
-`getCurrentDoorPosition()`입니다.
-
-### 두 PC에서 실행하기
-
-1. Android Studio, Flutter SDK, Android SDK API 34 및 Android API 28+ SDK platform-tools를 설치합니다.
-2. `SDK Manager > SDK Update Sites`에 개발자에게 제공된 Pleos Connect Emulator system image URL을 추가합니다.
-3. API 34 Pleos Connect system image로 Automotive AVD를 만들고 cold boot 후 실행합니다.
-4. 저장소 루트에서 `git switch feature/pleos-vehicle-sdk`를 체크아웃합니다.
-5. 각 PC의 Android Studio에서 `File > Sync Project with Gradle Files`를 실행합니다.
-6. Pleos AVD를 선택하고 다음 명령으로 실행합니다.
+Windows에서 디버그 APK 빌드:
 
 ```powershell
-flutter pub get
-flutter run
-flutter analyze
-cd android
-.\\gradlew.bat :app:assembleDebug
+.\gradlew.bat :app:assembleDebug
 ```
 
-`android/local.properties`에는 각 PC의 개인 `flutter.sdk` 경로만 작성하고 Git에 커밋하지 않습니다.
-Pleos emulator URL, 서명 정보 및 SDK 인증키가 있다면 개인 로컬 설정에만 보관합니다.
+APK는 `app/build/outputs/apk/debug/app-debug.apk`에 생성됩니다.
 
-### 권한 및 데이터 상태
+## 함께 작업할 때
 
-- `pleos.car.permission.CAR_ENERGY`: EV 배터리 데이터 조회
-- `pleos.car.permission.CAR_DOORS`: 운전석 문 상태 검증
+- 저장소: https://github.com/kimtogether30/car_app
+- Android 전환 브랜치: `migration/native-android`. `main`에 반영되기 전에는 아래 명령으로 받습니다.
 
-앱은 SDK 미수신, 미지원 항목, 실제 0%를 구분합니다. 화면의 배터리 값 옆에는
-`Pleos 실데이터`, `예시 데이터`, `SDK 항목 미지원`, `Pleos 미수신` 출처가 표시됩니다.
-일반 Android, iOS, 웹, Windows 빌드에서는 Pleos 전용 채널을 호출하지 않아 앱이 충돌하지 않습니다.
+```powershell
+git clone --branch migration/native-android https://github.com/kimtogether30/car_app.git Vemoring
+```
 
-현재 세션에는 Pleos Emulator가 없으므로 실차 또는 Emulator 데이터 수신은 확인되지 않았습니다.
-Emulator에서 실행할 때 배터리가 미지원이면 운전석 문 조회로 연결 검증을 먼저 수행할 수 있습니다.
+- 기존 Flutter 작업 폴더를 보관하고, 전환된 저장소는 새 폴더에 clone해서 여는 것을 권장합니다. 로컬 작업이 있으면 먼저 커밋하거나 백업합니다.
+- Flutter SDK와 `flutter run` 대신 Android Studio와 Gradle을 사용합니다.
+- 개인별 작업 브랜치에서 수정하고 Pull Request로 합칩니다.
+- SDK 경로, 빌드 결과, 서명 키는 공유하지 않습니다.
+- 차량 프로필과 관리 기록은 기기별로 저장되며 Git으로 옮겨지지 않습니다.
+
+이전 범위와 검증 내역은 [MIGRATION.md](MIGRATION.md)를 참고하세요.
