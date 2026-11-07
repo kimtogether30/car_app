@@ -21,10 +21,10 @@ APK는 `app/build/outputs/apk/debug/app-debug.apk`에 생성됩니다.
 ## 함께 작업할 때
 
 - 저장소: https://github.com/kimtogether30/car_app
-- Android 전환 브랜치: `migration/native-android`. `main`에 반영되기 전에는 아래 명령으로 받습니다.
+- 기본 브랜치는 `main`이며 Kotlin / Jetpack Compose 프로젝트입니다. 아래 명령으로 받습니다.
 
 ```powershell
-git clone --branch migration/native-android https://github.com/kimtogether30/car_app.git Vemoring
+git clone https://github.com/kimtogether30/car_app.git Vemoring
 ```
 
 - 기존 Flutter 작업 폴더를 보관하고, 전환된 저장소는 새 폴더에 clone해서 여는 것을 권장합니다. 로컬 작업이 있으면 먼저 커밋하거나 백업합니다.
