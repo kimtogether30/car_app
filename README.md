@@ -34,3 +34,5 @@ git clone https://github.com/kimtogether30/car_app.git Vemoring
 - 차량 프로필과 관리 기록은 기기별로 저장되며 Git으로 옮겨지지 않습니다.
 
 이전 범위와 검증 내역은 [MIGRATION.md](MIGRATION.md)를 참고하세요.
+
+Pleos SDK 실행 및 다른 PC 검증: [OTHER_PC_TESTING.md](docs/OTHER_PC_TESTING.md). 기능별 구현/미검증: [SDK_FEATURE_MATRIX.md](docs/SDK_FEATURE_MATRIX.md).
