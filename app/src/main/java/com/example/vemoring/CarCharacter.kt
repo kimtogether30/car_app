@@ -13,7 +13,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 
 @Composable
-fun CarCharacter(modifier: Modifier = Modifier) {
+fun CarCharacter(modifier: Modifier = Modifier, concerned: Boolean = false) {
     Canvas(modifier.semantics { contentDescription = "반쯤 감긴 눈을 가진 파란색 자동차 캐릭터" }) {
         scale(size.width / 440f, size.height / 290f, Offset.Zero) {
             drawOval(Color(0x2410295A), Offset(56f,267f), Size(328f,20f))
@@ -31,6 +31,11 @@ fun CarCharacter(modifier: Modifier = Modifier) {
             drawPath(Path().apply { moveTo(53f, 207f); cubicTo(60f, 191f, 77f, 187f, 98f, 195f); lineTo(119f, 203f); cubicTo(135f, 210f, 136f, 229f, 122f, 238f); cubicTo(107f, 247f, 74f, 242f, 60f, 233f); cubicTo(50f, 226f, 48f, 216f, 53f, 207f); close() }, Color(0xFFFFDB50))
             drawPath(Path().apply { moveTo(387f, 207f); cubicTo(380f, 191f, 363f, 187f, 342f, 195f); lineTo(321f, 203f); cubicTo(305f, 210f, 304f, 229f, 318f, 238f); cubicTo(333f, 247f, 366f, 242f, 380f, 233f); cubicTo(390f, 226f, 392f, 216f, 387f, 207f); close() }, Color(0xFFFFDB50))
             drawPath(Path().apply { moveTo(158f, 237f); lineTo(282f, 237f); cubicTo(290f, 237f, 296f, 243f, 296f, 250f); cubicTo(296f, 257f, 290f, 263f, 282f, 263f); lineTo(158f, 263f); cubicTo(150f, 263f, 144f, 257f, 144f, 250f); cubicTo(144f, 243f, 150f, 237f, 158f, 237f); close() }, Color(0xFF086DCA))
+            if(concerned) {
+                drawPath(Path().apply {
+                    moveTo(180f,255f); quadraticTo(220f,225f,260f,255f)
+                }, Color(0xFF1B2D58), style=androidx.compose.ui.graphics.drawscope.Stroke(width=7f))
+            }
             drawPath(Path().apply { moveTo(55f, 266f); lineTo(385f, 266f); cubicTo(377f, 274f, 365f, 278f, 351f, 278f); lineTo(89f, 278f); cubicTo(75f, 278f, 63f, 274f, 55f, 266f); close() }, Color(0xFF0875D3))
         }
     }

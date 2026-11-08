@@ -3,6 +3,9 @@ package com.example.vemoring
 import android.app.DatePickerDialog
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
+import com.example.vemoring.vehicle.*
+import com.example.vemoring.integration.*
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -35,19 +38,24 @@ private val Muted = Color(0xFF66727D)
 val CareKind.color get() = when(this) { CareKind.WASH -> Blue; CareKind.FUEL -> Orange; CareKind.OIL -> Mint }
 
 class MainActivity : ComponentActivity() {
+    private val vehicleModel: VehicleViewModel by viewModels()
+    private val integrationModel: IntegrationViewModel by viewModels()
+    override fun onStart() { super.onStart(); vehicleModel.resume(); integrationModel.resume() }
+    override fun onStop() { vehicleModel.pause(); integrationModel.pause(); super.onStop() }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        integrationModel.observeVehicle(vehicleModel.state)
         setContent {
             MaterialTheme(colorScheme = lightColorScheme(primary = Blue, secondary = Mint,
                 surface = Color.White, background = Background, onSurface = Ink, onBackground = Ink)) {
-                GarageApp()
+                GarageApp(vehicleModel = vehicleModel, integrationModel = integrationModel)
             }
         }
     }
 }
 
 @Composable
-fun GarageApp(storeOverride: GarageStore? = null) {
+fun GarageApp(storeOverride: GarageStore? = null, vehicleModel: VehicleViewModel? = null, integrationModel: IntegrationViewModel? = null) {
     val context = LocalContext.current
     val store = remember(storeOverride) { storeOverride ?: GarageStore(context) }
     var data by remember { mutableStateOf(AppData()) }
@@ -56,10 +64,11 @@ fun GarageApp(storeOverride: GarageStore? = null) {
     var error by remember { mutableStateOf<String?>(null) }
     var retry by remember { mutableIntStateOf(0) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    var diagnostics by rememberSaveable { mutableStateOf(false) }
     var editCar by rememberSaveable { mutableStateOf(false) }
     var notifications by rememberSaveable { mutableStateOf(false) }
     var editName by rememberSaveable { mutableStateOf(false) }
-    var battery by remember { mutableStateOf(BatteryReading()) }
+    val vehicleSnapshot = vehicleModel?.state?.collectAsState()?.value ?: VehicleSnapshot()
     LaunchedEffect(retry) {
         runCatching { store.load() }.onSuccess { data = it; loaded = true; loadError = null }
             .onFailure { loadError = "저장 데이터를 불러오지 못했어요. 기존 데이터는 보존됩니다." }
@@ -68,10 +77,13 @@ fun GarageApp(storeOverride: GarageStore? = null) {
         runCatching { store.save(updated) }.fold(onSuccess = { data = updated; true },
             onFailure = { error = it.message ?: "저장하지 못했어요."; false })
     }
-    DisposableEffect(data.complete) {
-        val client = if (data.complete) runCatching { PleosVehicle(context) { battery = it } }.getOrNull() else null
-        client?.connect()
-        onDispose { client?.close() }
+    LaunchedEffect(data.complete, vehicleModel) { vehicleModel?.setEnabled(data.complete) }
+    if(diagnostics && integrationModel != null) {
+        BackHandler { diagnostics=false }
+        IntegrationScreen(integrationModel, vehicleSnapshot, { mode ->
+            integrationModel.switchMode(mode); vehicleModel?.setMode(mode)
+        }, data, { diagnostics=false })
+        return
     }
     Box(Modifier.fillMaxSize().background(Color(0xFFE8E9ED)), contentAlignment = Alignment.TopCenter) {
         Surface(Modifier.widthIn(max = 760.dp).fillMaxHeight().fillMaxWidth(), color = Background) {
@@ -93,7 +105,7 @@ fun GarageApp(storeOverride: GarageStore? = null) {
                 }) { padding ->
                     Box(Modifier.padding(padding)) {
                         when(tab) {
-                            0 -> HomeScreen(data, battery, { notifications = true }, { editName = true }, { tab = 1 })
+                            0 -> HomeScreen(data, vehicleSnapshot, { notifications = true }, { editName = true }, { tab = 1 }, { vehicleModel?.refresh() }, integrationModel, { diagnostics=true })
                             1 -> CalendarScreen(data.records) { record ->
                                 save(data.copy(records = (data.records.filter { it.id != record.id } + record).sortedByDescending { it.date }))
                             }
@@ -148,18 +160,19 @@ fun Panel(modifier: Modifier = Modifier, color: Color = Color.White, content: @C
 }
 
 @Composable
-fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit, edit: () -> Unit, calendar: () -> Unit) {
+fun HomeScreen(data: AppData, snapshot: VehicleSnapshot, notifications: () -> Unit, edit: () -> Unit, calendar: () -> Unit, refresh: () -> Unit, integrationModel: IntegrationViewModel? = null, diagnostics: () -> Unit = {}) {
     val p = data.profile
+    val battery = snapshot[VehicleField.SOC]
+    val fuel = snapshot[VehicleField.FUEL]
+    val energy = if (p.electric) battery else fuel
     PageColumn {
         Heading("VEHICLE + EMOTION + RING", "VEMORING") { TextButton(onClick = notifications) { Text("알림") } }
         Text(LocalDate.now().toString(), color = Blue, fontWeight = FontWeight.Bold)
         Text("오늘의 차량 상태\n가볍게 확인하고 출발해요.", fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Box(Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.BottomCenter) {
-            CarCharacter(Modifier.width(310.dp).height(205.dp))
+            CarCharacter(Modifier.width(310.dp).height(205.dp), concerned = snapshot.priorityWarning()!=null || (energy.state in setOf(ReadingState.Available,ReadingState.Demo) && (energy.value?.number ?: 101.0)<=p.fuelAlert))
             Surface(Modifier.align(Alignment.TopEnd), color = Navy, shape = RoundedCornerShape(16.dp)) {
-                Text(if (battery.value != null && (p.electric || p.hybrid)) {
-                    if (battery.value <= p.fuelAlert) "배터리가 부족해요. 충전이 필요해요!" else "오늘도 함께 안전하게 달려요!"
-                } else "차량 상태 정보를 확인하고 있어요", Modifier.padding(14.dp), color = Color.White)
+                Text(snapshot.priorityWarning() ?: if (energy.state in setOf(ReadingState.Available, ReadingState.Demo)) { if ((energy.value?.number ?: 100.0) <= p.fuelAlert) "에너지가 부족해요. 주유·충전이 필요해요!" else "오늘도 함께 안전하게 달려요!" } else "차량 상태 정보를 확인하고 있어요.", Modifier.padding(14.dp), color = Color.White)
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -170,15 +183,26 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
             TextButton(onClick = edit) { Text("수정") }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (!p.electric) Stat("남은 연료", null, "정보 없음", Blue, Modifier.weight(1f))
-            if (p.electric || p.hybrid) Stat("남은 배터리", battery.value, battery.status, Blue, Modifier.weight(1f))
+            if (!p.electric) Stat("남은 연료", fuel.value?.number?.toInt(), fuel.statusText(), Blue, Modifier.weight(1f))
+            if (p.electric || p.hybrid) Stat("남은 배터리", battery.value?.number?.toInt(), battery.statusText(), Blue, Modifier.weight(1f))
             Stat("차량 청결도", null, "마지막 세차 ${data.records.latest(CareKind.WASH) ?: "기록 없음"}", Mint, Modifier.weight(1f))
         }
-        CareKind.entries.forEach { kind -> Text("마지막 ${kind.label}일: ${data.records.latest(kind) ?: "기록 없음"}", color = Muted, fontSize = 13.sp) }
-        Panel {
-            Text("☀  세차하기 좋은 날씨", fontWeight = FontWeight.Bold)
-            Text("예시 날씨 · 실제 날씨 정보와 연결되지 않았어요.", color = Muted, fontSize = 13.sp)
+        VehicleDetails(snapshot, refresh)
+        integrationModel?.let { model ->
+            val mode by model.mode.collectAsState()
+            val weather by model.environment.collectAsState()
+            MaintenancePanel(data,snapshot,weather,false)
+            Panel {
+                Text("데이터 모드: ${mode.name} · 차량 프로필/관리 기록: User Input")
+                TextButton(onClick=diagnostics) { Text("주변 관리 장소 · 위치 · SDK 진단") }
+                weather.value?.let {
+                    Text("기온 ${it.temperature ?: "—"} °C · 강수 예보 ${it.forecastRainMm ?: "—"} mm")
+                    Text(it.attribution)
+                } ?: Text("날씨·대기질 미수신 · 위치 사용 후 진단 화면에서 조회해 주세요.")
+            }
         }
+        CareKind.entries.forEach { kind -> Text("마지막 ${kind.label}일: ${data.records.latest(kind) ?: "기록 없음"}", color = Muted, fontSize = 13.sp) }
+
         Panel(Modifier.clickable(onClick = calendar), Navy) {
             Text("다가오는 관리 일정", color = Color.White, fontWeight = FontWeight.Bold)
             Text("저장된 차량 관리 기록을 확인해 보세요  ›", color = Color.White)

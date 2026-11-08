@@ -18,3 +18,19 @@ local.properties
 *.jks
 *.keystore
 keystore.properties
+
+# Per-machine configuration, credentials and generated delivery artifacts
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.apk
+*.aab
+*.hprof
+*.log
+/.agents/
+/.codex/
+/.aws/
