@@ -62,7 +62,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         private val warningPoll = object : Runnable {
             override fun run() {
                 if(!active) return
-                if(pending == 0) runCatching { readSafety() }
+                if(pending == 0) runCatching { readTelltales() }
                 handler.postDelayed(this,30000)
             }
         }
@@ -85,7 +85,14 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
             if (!active) return
             pending++
             var done = false
-            val timeout = Runnable { if (!done && active) emit(field, Reading(ReadingState.Error, reason = "응답 시간 초과")) }
+            val timeout = Runnable {
+                if (!done) {
+                    done = true
+                    if (active) emit(field, Reading(ReadingState.Error, reason = "응답 시간 초과"))
+                    // Late callbacks are ignored; a closed session can now release after a bounded wait.
+                    finish()
+                }
+            }
             handler.postDelayed(timeout, 15000)
             fun complete(action: () -> Unit) { handler.post {
                 if (!done) {
@@ -200,6 +207,10 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
                 safety.registerLowWasherFluidWaringState(listener)
                 val remove: () -> Unit = { safety.unregisterLowWasherFluidWaringState(listener) }; remove
             })
+            readTelltales()
+        }
+        private fun readTelltales() {
+            val safety = vehicle.getSafety()
             if (!allowed(VehicleField.LOW_FUEL, "CAR_SAFETY")) { emit(VehicleField.OIL_PRESSURE, Reading(ReadingState.PermissionDenied)); return }
             request(VehicleField.LOW_FUEL, safety::checkTelltalesCapabilities) { config ->
                 if (!readable(config)) { emit(VehicleField.LOW_FUEL, Reading(ReadingState.Unsupported)); emit(VehicleField.OIL_PRESSURE, Reading(ReadingState.Unsupported)); return@request }

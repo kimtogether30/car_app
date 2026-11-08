@@ -1,0 +1,14 @@
+.git/
+.gradle/
+.kotlin/
+.idea/
+.codex/
+.agents/
+build/
+**/build/
+graphify-out/
+gradle/wrapper/
+local.properties
+*.jks
+*.keystore
+keystore.properties

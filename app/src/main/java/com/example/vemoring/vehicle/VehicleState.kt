@@ -37,12 +37,15 @@ data class VehicleSnapshot(val readings: Map<VehicleField, Reading> = VehicleFie
 }
 
 interface VehicleGateway {
+    /** Vehicle 2.3.2 has no confirmed brand/model/powertrain getter. Fail closed, without guessing from VIN/SOC. */
+    fun identify(publish: (VehicleIdentityReading) -> Unit) { publish(VehicleIdentityReading()) }
     fun start(publish: (VehicleField, Reading) -> Unit)
     fun refresh()
     fun close()
 }
 
 class VehicleRepository(private val gateway: VehicleGateway) {
+    fun identify(publish: (VehicleIdentityReading) -> Unit) = gateway.identify(publish)
     private val mutable = MutableStateFlow(VehicleSnapshot())
     val state: StateFlow<VehicleSnapshot> = mutable.asStateFlow()
     private var generation = 0

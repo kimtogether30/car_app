@@ -34,3 +34,6 @@ keystore.properties
 /.agents/
 /.codex/
 /.aws/
+# Local Graphify index/cache, never packaged into the app.
+/graphify-out/
+

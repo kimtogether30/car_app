@@ -10,6 +10,9 @@ import com.example.vemoring.*
 import com.example.vemoring.vehicle.*
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class MaintenanceConfig(val unit: String = "", val washId: String = "", val washKm: Double? = null,
     val oilId: String = "", val oilKm: Double? = null, val intervalKm: Double? = null)
@@ -25,6 +28,24 @@ class MaintenanceStore(context: Context, profile: CarProfile) {
         .putString(prefix+"washId",value.washId).putString(prefix+"washKm",value.washKm?.toString())
         .putString(prefix+"oilId",value.oilId).putString(prefix+"oilKm",value.oilKm?.toString())
         .putString(prefix+"intervalKm",value.intervalKm?.toString()).commit()
+    fun observe(changed: () -> Unit): () -> Unit {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key?.startsWith(prefix) == true) changed()
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        return { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+}
+
+@Composable
+fun rememberMaintenanceConfig(profile: CarProfile): State<MaintenanceConfig> {
+    val context = LocalContext.current.applicationContext
+    val store = remember(profile.fullModel, profile.plate) { MaintenanceStore(context, profile) }
+    return produceState(MaintenanceConfig(), store) {
+        val stop = store.observe { launch { value = withContext(Dispatchers.IO) { store.load() } } }
+        value = withContext(Dispatchers.IO) { store.load() }
+        awaitDispose { stop() }
+    }
 }
 fun confirmedKilometres(reading: Reading, userUnit: String): Double? {
     if(reading.state!=ReadingState.Available) return null
@@ -35,11 +56,13 @@ fun confirmedKilometres(reading: Reading, userUnit: String): Double? {
 fun MaintenancePanel(data: AppData, snapshot: VehicleSnapshot, weather: Result<EnvironmentData>, editable: Boolean) {
     val context=LocalContext.current
     val store=remember(data.profile.fullModel,data.profile.plate) { MaintenanceStore(context,data.profile) }
-    var config by remember(store) { mutableStateOf(store.load()) }
+    val config by rememberMaintenanceConfig(data.profile)
+    val scope = rememberCoroutineScope()
     var status by remember(store) { mutableStateOf("") }
     var oilInput by remember(store) { mutableStateOf("") }
     var washInput by remember(store) { mutableStateOf("") }
     var intervalInput by remember(store) { mutableStateOf(config.intervalKm?.toString() ?: "") }
+    LaunchedEffect(config.intervalKm) { intervalInput = config.intervalKm?.toString() ?: "" }
     val wash=data.records.filter { it.kind==CareKind.WASH }.maxByOrNull { it.date }
     val oil=data.records.filter { it.kind==CareKind.OIL }.maxByOrNull { it.date }
     val current=confirmedKilometres(snapshot[VehicleField.ODOMETER],config.unit)
@@ -49,7 +72,9 @@ fun MaintenancePanel(data: AppData, snapshot: VehicleSnapshot, weather: Result<E
         it.receivedAt?.let { at -> System.currentTimeMillis()-at in 0..3600000 }==true }?.value
     val clean=days?.let { CareEstimator.cleanliness(it,washDistance,null,realWeather?.pm10,realWeather?.dust) }
     fun persist(value: MaintenanceConfig) {
-        if(store.save(value)) { config=value; status="별도 SDK 관리 설정 저장됨 · User Input" } else status="저장 실패"
+        scope.launch {
+            status = if(withContext(Dispatchers.IO) { store.save(value) }) "관리 기준을 저장했어요" else "저장 실패"
+        }
     }
     Panel {
         Text("차량 관리 추정 · 실측 오염도/제조사 정비 진단 아님")

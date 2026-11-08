@@ -43,6 +43,7 @@ dependencies {
     implementation("ai.pleos.playground:navi-data:3.0.4")
     implementation("ai.pleos.playground:fused-location-data:0.0.3")
     implementation("ai.pleos.playground:vehicle-data:1.1.11")
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)

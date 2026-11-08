@@ -11,7 +11,13 @@ class VehicleViewModel(application: Application) : AndroidViewModel(application)
     private val mutable = kotlinx.coroutines.flow.MutableStateFlow(VehicleSnapshot())
     private var collector: kotlinx.coroutines.Job? = null
     private var demo = false
-    init { observe() }
+    private val mutableIdentity = kotlinx.coroutines.flow.MutableStateFlow(VehicleIdentityReading(ReadingState.Loading))
+    val identity = mutableIdentity.asStateFlow()
+    private var cleared = false
+    init {
+        observe()
+        repository.identify { if (!cleared) mutableIdentity.value = it }
+    }
     private fun observe() {
         collector?.cancel()
         collector = viewModelScope.launch { repository.state.collect { mutable.value = it } }
@@ -34,5 +40,5 @@ class VehicleViewModel(application: Application) : AndroidViewModel(application)
     fun pause() { foreground = false; updateConnection() }
     private fun updateConnection() { if (enabled && foreground) repository.start() else repository.close() }
     fun refresh() = repository.refresh()
-    override fun onCleared() { repository.close() }
+    override fun onCleared() { cleared = true; repository.close() }
 }

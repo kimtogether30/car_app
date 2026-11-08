@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name=".StatePreviewActivity" android:exported="true"
+            android:launchMode="singleTop" android:theme="@style/Theme.Vemoring"
+            android:label="VEMORING 상태 시뮬레이션" />
+        <activity
+            android:name=".SetupPreviewActivity"
+            android:exported="true"
+            android:label="VEMORING 시작 화면 미리보기"
+            android:theme="@style/Theme.Vemoring" />
+    </application>
+</manifest>
