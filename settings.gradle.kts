@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Vemoring"
 include(":app")
+include(":mobile-app")
