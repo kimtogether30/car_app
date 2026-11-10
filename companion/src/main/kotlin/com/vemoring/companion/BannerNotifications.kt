@@ -54,7 +54,7 @@ object BannerNotifications {
                 val cancel = PendingIntent.getBroadcast(c,event.eventId.hashCode(),Intent(c,CareCancelReceiver::class.java)
                     .setData(uri(event.vehicleId,event.visitId)).putExtra("vehicleId",event.vehicleId).putExtra("visitId",event.visitId),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-                builder.addAction(Notification.Action.Builder(null,"잘못 인식함",cancel).build())
+                builder.addAction(Notification.Action.Builder(null,"세차 안 했어요",cancel).build())
             }
             builder.addAction(Notification.Action.Builder(null,"알림 내역",open).build())
             val result = runCatching {

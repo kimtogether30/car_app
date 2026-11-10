@@ -70,7 +70,7 @@ object BannerCatalog {
         BannerDefinition("FUEL_FLUID", "주유와 오일·브레이크액 확인이 필요해!", "배도 고픈데 오일·브레이크 액량 경고등까지 켜졌어! 나 좀 챙겨줘!", "ANGRY", "banner_fuel_fluid"),
         BannerDefinition("WASH_FLUID", "세차와 오일·브레이크액 확인이 필요해!", "몸도 꼬질꼬질한데 오일·브레이크 액량 경고등까지 켜졌어! 나한테 관심 좀 줘!", "ANGRY", "banner_wash_fluid"),
         BannerDefinition("ALL_FLUID", "주유·세차·오일·브레이크액 확인이 필요해!", "배고프고, 꼬질꼬질하고, 오일·브레이크 액량 경고등까지... 나 좀 살려줘...", "EXHAUSTED", "banner_all_fluid"),
-        BannerDefinition("WASH_QUESTION", "세차하신 게 맞나요?", "세차장 방문을 감지해서 청결도를 초기화했어. 세차하지 않았다면 알려줘!", "NORMAL", null),
+        BannerDefinition("WASH_QUESTION", "세차한 것 같아!", "세차장 방문을 감지해서 청결도를 초기화했어. 세차하지 않았다면 알려줘!", "NORMAL", null),
         BannerDefinition("FUEL_WASH_NEEDED", "주유와 세차가 필요해!", "배고프고 꼬질꼬질해... 하나씩 챙겨줄래?", "ANGRY", null),
         BannerDefinition("VEHICLE_WARNING", "차량 경고 확인이 필요해!", "차량 경고가 있어. 계기판과 차량 안내를 확인해 줘!", "OIL", null),
         BannerDefinition("WASHER", "워셔액이 부족해!", "차량 안내에 따라 워셔액을 보충해 줘!", "OIL", null),

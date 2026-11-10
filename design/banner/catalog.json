@@ -1125,7 +1125,7 @@
     },
     {
       "key": "WASH_QUESTION",
-      "title": "세차하신 게 맞나요?",
+      "title": "세차한 것 같아!",
       "body": "세차장 방문을 감지해서 청결도를 초기화했어. 세차하지 않았다면 알려줘!",
       "mood": "NORMAL",
       "art": null

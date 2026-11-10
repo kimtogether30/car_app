@@ -111,9 +111,9 @@ class BannerNotificationSimulationTest {
         assertTrue(CareExchange.detected(base,id,DetectedWash("shared",Instant.now().minusSeconds(60))))
         assertEquals(100,journal.score(JSONArray(journal.authority()!!.records)).displayed)
         val question=awaitNotification("detected:shared")
-        assertEquals("세차하신 게 맞나요?",question.notification.extras.getString(Notification.EXTRA_TITLE))
+        assertEquals("세차한 것 같아!",question.notification.extras.getString(Notification.EXTRA_TITLE))
         assertNotNull(journal.pendingWashConfirmation())
-        question.notification.actions.single {it.title.toString()=="잘못 인식함"}.actionIntent.send()
+        question.notification.actions.single {it.title.toString()=="세차 안 했어요"}.actionIntent.send()
         val until=System.currentTimeMillis()+4000
         while(journal.pendingWashConfirmation()!=null && System.currentTimeMillis()<until) Thread.sleep(30)
         assertNull(journal.pendingWashConfirmation())
@@ -123,7 +123,7 @@ class BannerNotificationSimulationTest {
         assertTrue(CareExchange.detected(base,id,DetectedWash("separated",Instant.now(),WashCompletionEvidence.ClearFacilityPattern)))
         val done=awaitNotification("detected:separated")
         assertEquals(BannerCatalog["WASH_DONE"].title,done.notification.extras.getString(Notification.EXTRA_TITLE))
-        assertFalse(done.notification.actions.any {it.title.toString()=="잘못 인식함"})
+        assertFalse(done.notification.actions.any {it.title.toString()=="세차 안 했어요"})
         assertNull(journal.pendingWashConfirmation())
         assertEquals(100,journal.score(JSONArray(journal.authority()!!.records)).displayed)
     }

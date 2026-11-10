@@ -1,6 +1,6 @@
 # 정비·세차 기준 인계 문서
 
-2026-11-10 사용자 재확인: 시설별 업로드 기준을 충족하면 먼저 세차로 반영한다. 전용 셀프 세차장/주유와 명확히 분리된 세차 구역은 전체 조건 충족 후 ‘세차 완료!’, 구분이 애매한 적격 방문은 ‘세차하신 게 맞나요?’ / ‘잘못 인식함’으로 취소 가능. P 기반 정차식에 N단 조건을 강제하지 않는다. 시설 입장만으로 완료하지 않는다. 나중에 실행할 Bluetooth 검증은 [일괄 목록](BLUETOOTH_VALIDATION_CHECKLIST.md)에 모은다. [배너 구현·검증](BANNER_NOTIFICATIONS.md)을 참고한다.
+2026-11-10 사용자 재확인: 시설별 업로드 기준을 충족하면 먼저 세차로 반영한다. 전용 셀프 세차장/주유와 명확히 분리된 세차 구역은 전체 조건 충족 후 ‘세차 완료!’, 구분이 애매한 적격 방문은 ‘세차한 것 같아!’ / ‘세차 안 했어요’로 취소 가능. P 기반 정차식에 N단 조건을 강제하지 않는다. 시설 입장만으로 완료하지 않는다. 나중에 실행할 Bluetooth 검증은 [일괄 목록](BLUETOOTH_VALIDATION_CHECKLIST.md)에 모은다. [배너 구현·검증](BANNER_NOTIFICATIONS.md)을 참고한다.
 
 작성일/세부안 갱신일: 2026-11-09 · 확인한 앱 코드: `0c51dbb` · **합의된 제품 정책·최신 세부 처리안 및 구현·검증 지침**
 
@@ -36,7 +36,7 @@ git pull --ff-only origin main
 ## 범위
 
 - `app/`: Pleos 차량 앱, 차량 신호·위치·방문 근거 수집.
-- `mobile-app/`: Android 휴대폰 앱, 설정·관리기록·계산 결과의 최종 기준, 전달받은 상태·기록 기반 로컬 알림. 차량 앱은 데이터 수집과 설정 사본 보관.
+- `phone/`: Android 휴대폰 앱, 설정·관리기록·계산 결과의 최종 기준, 전달받은 상태·기록 기반 로컬 알림. 차량 앱은 데이터 수집과 설정 사본 보관.
 - 차량→휴대폰은 Bluetooth 연결을 목표로 하되 실제 Pleos 지원·권한을 먼저 검증합니다.
 - 세차 점수, 관리기록 반영, 세차 자동 추정·취소, 정비 경고 전달이 대상입니다.
 - 엔진오일 교체 추정·공식 교체 주기 기반 수명 퍼센트는 이번 정비 알림 범위에서 제외합니다.
@@ -55,7 +55,7 @@ git pull --ff-only origin main
 | `app/src/main/java/com/example/vemoring/integration/MaintenancePanel.kt` | 별도 관리 추정 화면·거리 기준 연결. 홈과 계산 결과가 갈라지지 않게 단일 계산기 사용 |
 | `app/src/main/java/com/example/vemoring/integration/ExternalData.kt` | 날씨·대기질·OSM 장소 조회. 기존 요약값만으로 구간별 이력 계산·세차 경계를 확보했다고 주장 금지 |
 | `app/src/main/java/com/example/vemoring/vehicle/PleosVehicleGateway.kt` | SDK 조회·구독·상태 처리. 경고 전체 및 변속기 액량 연결 여부 재확인 |
-| `mobile-app/` | 현재 별도 휴대폰 앱 모듈. 기준 코드에서는 시작 화면 위주이며 통신·알림 완료 상태 아님 |
+| `phone/` | 휴대폰 앱 모듈. 2026-11-10 merge에서 시작 화면 뼈대였던 `mobile-app/`을 대체함. 실기기 Bluetooth 검증은 미완료 |
 
 `CareCondition`과 `MaintenancePanel` 등 모든 화면에서 동일한 계산·기록을 사용해야 합니다. 기존 하루 2점 날짜 차감을 새 평균 20km/일 추정과 함께 적용하면 중복 차감입니다.
 

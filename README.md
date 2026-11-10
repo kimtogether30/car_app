@@ -1,6 +1,39 @@
 # VEMORING
 
-현대자동차 앱 개발 공모전을 위해 Flutter 앱에서 Kotlin / Jetpack Compose로 이전한 Android 프로젝트입니다. Pleos Vehicle SDK 2.3.2를 사용합니다.
+차량용 앱과 Android 휴대폰용 앱을 함께 관리하는 Kotlin / Jetpack Compose 저장소입니다.
+차량용 앱은 Flutter에서 이전했으며 Pleos Vehicle SDK 2.3.2를 사용합니다.
+
+## 앱별 작업 위치
+
+| 구분 | 폴더 / Gradle 모듈 | 실행 환경 |
+| --- | --- | --- |
+| 차량용 앱 | [app/](app/README.md) / `:app` | Pleos Connect |
+| 휴대폰용 앱 | [phone/](docs/PHONE_COMPANION_SYNC.md) / `:phone` | 일반 Android 휴대폰 또는 에뮬레이터 (API 28 이상) |
+
+집 컴퓨터와 노트북, 공동 작업자 모두 같은 저장소를 clone/pull합니다.
+Android Studio에서는 저장소 루트를 열고 작업할 앱의 실행 구성을 선택합니다.
+기존 `app/`은 차량용으로 유지하며 휴대폰 화면은 `phone/`에 작성합니다.
+두 앱은 서로 다른 applicationId로 별도 설치됩니다.
+휴대폰 앱은 Bluetooth로 차량 앱 데이터를 받아 상태 알림과 알림 내역을 제공합니다. 실기기 Bluetooth 검증 항목은 [일괄 목록](docs/BLUETOOTH_VALIDATION_CHECKLIST.md)에 남아 있습니다.
+
+## 정비·세차 기준 인계
+
+친구 PC에서 구현·시뮬레이션할 때는 [정비·세차 기준 인계 문서](docs/CARE_CRITERIA_HANDOFF.md)부터 읽습니다.
+세차 계산·자동 감지·수동 관리기록 반영, 정비 경고 대상, 실제 SDK 수신 및 Bluetooth 검증 절차를 정리했습니다.
+최신 [세부 처리안](docs/CARE_IMPLEMENTATION_DETAILS.md)에는 위치 초기 시험값, 3분 정의, 기록 중복 처리, 휴대폰 기준 설정 동기화, 장기 계산 장부, 경고별 규칙표도 포함합니다.
+해당 자료는 합의된 구현 기준이며, 문서 추가만으로 앱에 기능이 적용되거나 실수신 검증이 완료된 것은 아닙니다.
+
+```powershell
+# 작업 전 최신 변경 사항 받기 (로컬 작업은 먼저 커밋)
+git pull --ff-only
+# 차량용 앱 빌드
+.\gradlew.bat :app:assembleDebug
+# 휴대폰용 앱만 빌드 (Pleos 에뮬레이터 실행 불필요)
+.\gradlew.bat :phone:assembleDebug
+```
+
+앱의 데이터 모델이나 통신 규칙을 바꿀 때는 상대 앱에 미치는 영향도 함께 검토합니다.
+Git은 소스 코드를 공유하며 두 기기의 사용자 데이터를 동기화하지 않습니다.
 
 ## 개발 환경 및 실행
 
@@ -8,7 +41,7 @@
 2. SDK Manager에서 프로젝트가 요구하는 Android SDK API 37을 설치하고 Gradle Sync를 실행합니다. Java 도구 체인은 Gradle 설정에 따라 준비됩니다.
 3. Android SDK 경로가 들어 있는 `local.properties`는 각자 환경에서 생성합니다. 다른 사람의 파일을 복사하거나 Git에 올리지 않습니다.
 4. 차량 연동을 확인할 때는 Pleos Connect 에뮬레이터를 설치하고 실행 기기로 선택합니다. 현재 검증 환경은 Pleos Connect 2.1.0 / API 34입니다.
-5. 실행 구성을 `app`으로 선택하고 Run을 누릅니다.
+5. 차량용은 `app`, 휴대폰용은 `phone` 실행 구성을 선택하고 Run을 누릅니다.
 
 Windows에서 디버그 APK 빌드:
 

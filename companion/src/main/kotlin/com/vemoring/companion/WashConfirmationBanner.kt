@@ -47,7 +47,7 @@ fun WashConfirmationBanner(confirmation: WashConfirmation, busy: Boolean, onReje
             Row(horizontalArrangement=Arrangement.spacedBy(16.dp)) {
                 BannerArtwork("mascot_normal","",Modifier.size(if(vehicle) 96.dp else 64.dp),mascot=true)
                 Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Text("세차하신 게 맞나요?", fontSize = if(vehicle) 26.sp else 20.sp)
+                    Text("세차한 것 같아!", fontSize = if(vehicle) 26.sp else 20.sp)
                     Text("세차장 방문을 감지해서 청결도를 초기화했어. 주유만 했거나 세차하지 않았다면 알려줘!",
                         color=if(dark) Color(0xFFBAC3D0) else Color(0xFF64748B),fontSize = if(vehicle) 21.sp else 16.sp, lineHeight = if(vehicle) 30.sp else 24.sp)
                 }
@@ -55,7 +55,7 @@ fun WashConfirmationBanner(confirmation: WashConfirmation, busy: Boolean, onReje
             Row(Modifier.fillMaxWidth(),horizontalArrangement = Arrangement.spacedBy(12.dp,androidx.compose.ui.Alignment.End)) {
                 FilledTonalButton(enabled = !busy, onClick = onReject,shape=RoundedCornerShape(8.dp),
                     colors=ButtonDefaults.filledTonalButtonColors(containerColor=if(dark) Color(0xFF314762) else Color(0xFFDDEAFF),contentColor=if(dark) Color(0xFFE1ECFF) else Color(0xFF2563C7)),modifier = Modifier.heightIn(min = if(vehicle) 64.dp else 48.dp)
-                    .testTag("wash-reject")) { Text("잘못 인식함", fontSize = if(vehicle) 22.sp else 16.sp) }
+                    .testTag("wash-reject")) { Text("세차 안 했어요", fontSize = if(vehicle) 22.sp else 16.sp) }
                 TextButton(enabled = !busy, onClick = onDismiss, modifier = Modifier.heightIn(min = if(vehicle) 64.dp else 48.dp)
                     .testTag("wash-dismiss")) { Text("닫기", fontSize = if(vehicle) 22.sp else 16.sp) }
             }

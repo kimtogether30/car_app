@@ -197,8 +197,8 @@ class CareFlowTest {
             CareExchange.detected(base, a, wash); CareExchange.detected(base, b, wash)
             val first = manager.activeNotifications.first { it.tag == "$a:detected:${wash.visitId}" }.notification
             val other = manager.activeNotifications.first { it.tag == "$b:detected:${wash.visitId}" }.notification
-            assertEquals("세차하신 게 맞나요?", first.extras.getString(android.app.Notification.EXTRA_TITLE))
-            assertEquals("잘못 인식함", first.actions.first().title.toString())
+            assertEquals("세차한 것 같아!", first.extras.getString(android.app.Notification.EXTRA_TITLE))
+            assertEquals("세차 안 했어요", first.actions.first().title.toString())
             assertNotEquals(first.actions.first().actionIntent, other.actions.first().actionIntent)
             first.actions.first().actionIntent.send()
             val deadline = android.os.SystemClock.uptimeMillis() + 5000

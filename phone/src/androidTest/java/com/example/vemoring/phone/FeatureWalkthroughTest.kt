@@ -141,7 +141,7 @@ class FeatureWalkthroughTest {
         compose.onNodeWithTag("wash-reject").performScrollTo().performClick()
         compose.waitUntil(4000) {compose.onAllNodesWithTag("wash-confirmation").fetchSemanticsNodes().isEmpty()}
         assertFalse(CareExchange.detected(c,id,DetectedWash("shared-wash",Instant.now())))
-        scene("6. 잘못 인식함 → 취소·점수 복원","방금 실제 배너 버튼을 눌렀어요. 해당 방문을 취소했고 같은 방문의 재전송도 거절했어요.")
+        scene("6. 세차 안 했어요 → 취소·점수 복원","방금 실제 배너 버튼을 눌렀어요. 해당 방문을 취소했고 같은 방문의 재전송도 거절했어요.")
         scene("7. 확실한 세차 구역 → 완료 배너","전용 셀프 세차장의 P단 정차·체류·출차 조건을 모두 충족하는 시험이에요.",0)
         assertTrue(visit("self-wash",WashLocationEvidence.DedicatedSelfWash))
         assertNull(journal.pendingWashConfirmation())

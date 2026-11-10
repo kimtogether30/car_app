@@ -91,7 +91,7 @@ fun NotificationHistoryDialog(vehicleId: String? = null,initialSelection: Pair<S
                                 if(e.art!=null && LocalConfiguration.current.fontScale < 1.25f)
                                     BannerArtwork(e.art,"${e.title} ${e.body}",Modifier.fillMaxWidth().aspectRatio(1080f/340f).testTag("banner-art:${e.bannerKey}"))
                                 else {Text(e.title,style=MaterialTheme.typography.titleMedium);Text(e.body,style=MaterialTheme.typography.bodyMedium)}
-                                Text(if(e.cancelled) "잘못 인식함 · 취소됨" else deliveryLabel(e.delivery),fontSize=12.sp)
+                                Text(if(e.cancelled) "세차 안 했어요 · 취소됨" else deliveryLabel(e.delivery),fontSize=12.sp)
                             }
                         }
                     }
@@ -118,7 +118,7 @@ fun NotificationHistoryDialog(vehicleId: String? = null,initialSelection: Pair<S
                     catch(_:Exception) {failure="취소를 저장하지 못했어요. 다시 시도해 주세요."}
                     finally {busy=false}
                 }
-            }) {Text("잘못 인식함")}
+            }) {Text("세차 안 했어요")}
         })
     }
 }

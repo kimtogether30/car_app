@@ -69,7 +69,7 @@ class WashConfirmationUiTest {
         }
         compose.waitUntil(5000) { compose.onAllNodesWithText("청결도: 100%").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("청결도: 100%").assertExists()
-        compose.onNodeWithText("세차하신 게 맞나요?").assertIsDisplayed()
+        compose.onNodeWithText("세차한 것 같아!").assertIsDisplayed()
     }
 
     @After fun cleanup() { CareJournal(context, id).deleteVehicle() }
