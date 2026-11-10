@@ -42,7 +42,8 @@ class PleosLocationGateway(private val context: Context, private val publish: (R
                 override fun onChanged(location: LocationData?) { main.post {
                     if (generation != token) return@post
                     request++
-                    val point = location?.let { Coordinates(it.latitude, it.longitude, it.timestampMillis) }
+                    // confidence has no confirmed conversion to horizontal accuracy in meters.
+                    val point = location?.let { Coordinates(it.latitude, it.longitude, it.timestampMillis, it.confidence.toDouble()) }
                     publish(when {
                         point == null -> Result(ResultState.NoData, detail = "마지막 위치 없음")
                         !point.valid() -> Result(ResultState.Error, detail = "잘못된 위치 응답")

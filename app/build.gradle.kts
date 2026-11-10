@@ -34,6 +34,7 @@ android {
     buildFeatures {
         compose = true
     }
+    sourceSets.getByName("main").kotlin.directories.add(rootProject.file("companion/src/main/kotlin").path)
 }
 
 dependencies {

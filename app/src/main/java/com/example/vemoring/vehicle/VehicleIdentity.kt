@@ -19,6 +19,6 @@ fun setupSteps(info: ConfirmedVehicleInfo): List<Int> {
         if (verified.brand == null) add(0)
         if (verified.model == null) add(1)
         if (verified.fuel == null) add(2)
-        addAll(listOf(3, 4, 5))
+        addAll(listOf(3, 4, 6, 5))
     }
 }

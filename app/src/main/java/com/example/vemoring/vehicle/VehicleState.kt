@@ -6,7 +6,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 enum class ReadingState { Loading, Available, Unsupported, PermissionDenied, Disconnected, Error, Demo, NoData }
 
-data class SignalValue(val text: String, val number: Double? = null, val unit: String? = null, val warning: Boolean = false)
+data class SignalValue(val text: String, val number: Double? = null, val unit: String? = null, val warning: Boolean = false,
+    val rawState: String? = null, val color: Int? = null)
 data class Reading(val state: ReadingState, val value: SignalValue? = null, val reason: String = "", val receivedAtMillis: Long? = null) {
     init { require(state != ReadingState.Available || value != null) }
     companion object {
@@ -25,6 +26,7 @@ enum class VehicleField(val label: String) {
     ODOMETER("총 누적 주행거리"), TRIP_DISTANCE("트립 주행거리"), TRIP_TIME("트립 운행 시간"),
     HVAC_DIRECTION("공조 송풍 모드"), HVAC_AC("에어컨"), HVAC_TARGET("설정 온도"), HVAC_CURRENT("실내 센서 온도"),
     HVAC_FAN("바람 세기"), HVAC_AUTO("AUTO 모드"), HVAC_RECIRCULATION("내기 순환"), HVAC_CLEANER("공기청정"),
+    GEAR("현재 기어"), TRANSMISSION_OIL("변속기 오일량"), TELLTALES("정비 경고 원본"),
     ENGINE_OIL("엔진오일량 경고"), BRAKE_FLUID("브레이크액 경고"), WASHER("워셔액 부족 경고"),
     LOW_FUEL("연료 부족 경고"), OIL_PRESSURE("엔진오일 압력 경고"), SMART_KEY("스마트키 배터리 경고")
 }

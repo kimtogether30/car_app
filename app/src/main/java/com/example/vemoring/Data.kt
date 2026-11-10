@@ -12,9 +12,12 @@ enum class CareKind(val label: String, val key: String) {
 }
 
 data class CareRecord(val id: String = UUID.randomUUID().toString(), val date: LocalDate,
-    val kind: CareKind, val title: String, val detail: String = "") {
+    val kind: CareKind, val title: String, val detail: String = "", val completedAt: String? = null,
+    val visitId: String? = null, val cancelled: Boolean = false, val source: String = "Manual", val appliedAt: String? = null,
+    val washEvidence: String = "EstimatedVisit") {
     fun json() = JSONObject().put("id", id).put("date", date.toString()).put("kind", kind.wire)
-        .put("title", title).put("detail", detail)
+        .put("title", title).put("detail", detail).put("completedAt", completedAt).put("visitId", visitId)
+        .put("cancelled", cancelled).put("source", source).put("appliedAt", appliedAt).put("washEvidence",washEvidence)
 }
 
 data class CarProfile(val brand: String = "", val model: String = "", val nickname: String = "",
@@ -38,7 +41,7 @@ class GarageStore(context: Context) {
         val personal = legacyString("personal_setup_v1")?.let(::JSONObject) ?: return AppData()
         val recordsJson = legacyString("care_history_v1")?.let(::JSONArray)
         val records = if (recordsJson != null) readRecords(recordsJson) else CareKind.entries.mapNotNull { kind ->
-            parseDay(personal.optString(kind.key))?.takeUnless { it > LocalDate.now() }?.let {
+            parseDay(personal.optString(kind.key))?.takeUnless { it > LocalDate.now(java.time.ZoneId.of("Asia/Seoul")) }?.let {
                 CareRecord("setup-${kind.wire}", it, kind, kind.label)
             }
         }
@@ -48,7 +51,7 @@ class GarageStore(context: Context) {
         return AppData(profile, records.sortedByDescending { it.date }, profile.brand.isNotBlank() && profile.model.isNotBlank())
     }
     fun save(data: AppData) {
-        require(data.records.none { it.date > LocalDate.now() }) { "미래 날짜에는 관리 기록을 등록할 수 없어요." }
+        require(data.records.none { it.date > LocalDate.now(java.time.ZoneId.of("Asia/Seoul")) }) { "미래 날짜에는 관리 기록을 등록할 수 없어요." }
         require(!data.complete || (data.profile.nickname.isNotBlank() && data.profile.model.isNotBlank())) { "차량 정보를 입력해 주세요." }
         val p = data.profile
         val json = JSONObject().put("complete", data.complete).put("profile", JSONObject()
@@ -67,21 +70,26 @@ class GarageStore(context: Context) {
     }
     private fun readRecords(array: JSONArray) = (0 until array.length()).map { i ->
         val r = array.getJSONObject(i)
-        CareRecord(r.getString("id"), requireNotNull(parseDay(r.getString("date"))),
-            CareKind.entries.first { it.wire == r.getString("kind") }, r.getString("title"), r.optString("detail"))
+        careRecordFromJson(r)
     }.sortedByDescending { it.date }
 }
 
+fun careRecordFromJson(r: JSONObject) = CareRecord(r.getString("id"), requireNotNull(parseDay(r.getString("date"))),
+    CareKind.entries.first { it.wire == r.getString("kind") }, r.getString("title"), r.optString("detail"),
+    r.optString("completedAt").takeUnless { it.isBlank() || it == "null" },
+    r.optString("visitId").takeUnless { it.isBlank() || it == "null" }, r.optBoolean("cancelled"), r.optString("source", "Manual"),
+    r.optString("appliedAt").takeUnless { it.isBlank() || it == "null" },r.optString("washEvidence","EstimatedVisit"))
+
 fun parseDay(value: String): LocalDate? = runCatching { LocalDate.parse(value.take(10)) }.getOrNull()
-fun List<CareRecord>.latest(kind: CareKind) = filter { it.kind == kind }.maxByOrNull { it.date }?.date
+fun List<CareRecord>.latest(kind: CareKind) = filter { it.kind == kind && !it.cancelled }.maxByOrNull { it.date }?.date
 fun updateLatest(records: List<CareRecord>, dates: Map<CareKind, LocalDate?>): List<CareRecord> {
     val updated = records.toMutableList()
     dates.forEach { (kind, date) ->
         if (date != null && date != records.latest(kind)) {
-            require(date <= LocalDate.now())
-            val old = updated.filter { it.kind == kind }.maxByOrNull { it.date }
+            require(date <= LocalDate.now(java.time.ZoneId.of("Asia/Seoul")))
+            val old = updated.filter { it.kind == kind && !it.cancelled }.maxByOrNull { it.date }
             if (old != null) updated.remove(old)
-            updated.add(CareRecord(old?.id ?: "setup-${kind.wire}", date, kind, old?.title ?: kind.label, old?.detail ?: ""))
+            updated.add(old?.copy(date = date) ?: CareRecord("setup-${kind.wire}", date, kind, kind.label))
         }
     }
     return updated.sortedByDescending { it.date }

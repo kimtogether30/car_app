@@ -37,7 +37,9 @@ class SetupReadabilityTests {
         capture("05-nickname")
         compose.onNode(hasSetTextAction()).performTextInput("가독성 확인")
         compose.onNodeWithText("다음").performScrollTo().performClick()
-        capture("06-summary")
+        capture("06-dock-question")
+        compose.onNodeWithText("나중에 할게요").performScrollTo().performClick()
+        capture("07-summary")
         compose.onNodeWithText("VEMORING 시작하기").performScrollTo().performClick()
         compose.runOnIdle { assertTrue(finished) }
     }
@@ -65,7 +67,10 @@ class SetupReadabilityTests {
         compose.onNodeWithText("다음").performScrollTo().performClick()
         compose.onNode(hasSetTextAction()).performTextInput("몽글이 한글")
         compose.onNodeWithText("다음").performScrollTo().performClick()
+        compose.onNodeWithText("네, 추가 방법 볼게요").performScrollTo().performClick()
         compose.onNodeWithText("VEMORING 시작하기").performScrollTo().performClick()
+        compose.onNodeWithText("하단 바에 VEMORING 놓기").assertIsDisplayed()
+        compose.onNodeWithText("방법 확인했어요").performClick()
         compose.waitUntil(15000) { compose.onAllNodesWithText("차량 컨디션").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("홈", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("홈", useUnmergedTree = true).assertIsDisplayed()
@@ -77,6 +82,8 @@ class SetupReadabilityTests {
 
     private fun capture(name: String) {
         compose.waitForIdle()
+        // Compose idle does not wait for the system IME dismissal animation.
+        android.os.SystemClock.sleep(400)
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val bitmap = instrumentation.uiAutomation.takeScreenshot()
         val directory = File(instrumentation.targetContext.filesDir, "setup-previews")

@@ -3,10 +3,11 @@ package com.example.vemoring
 import com.example.vemoring.integration.*
 import com.example.vemoring.vehicle.*
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
+import com.vemoring.companion.*
+import java.time.Instant
 
 data class CareCondition(val signals: CareSignals = CareSignals(), val cleanliness: Int? = null,
-                         val oilRemainingKm: Double? = null)
+                         val oilRemainingKm: Double? = null, val syncStatus: String = "차량 임시 추정")
 
 fun Reading.realPercent(): Int? = value?.takeIf {
     state == ReadingState.Available && it.unit == "%"
@@ -14,7 +15,7 @@ fun Reading.realPercent(): Int? = value?.takeIf {
 
 /** Oil-level / pressure warnings are safety signals, not a scheduled oil change. */
 fun careCondition(data: AppData, snapshot: VehicleSnapshot, config: MaintenanceConfig,
-                  environment: Result<EnvironmentData> = Result(), today: LocalDate = LocalDate.now(),
+                  environment: Result<EnvironmentData> = Result(), today: LocalDate = LocalDate.now(java.time.ZoneId.of("Asia/Seoul")),
                   now: Long = System.currentTimeMillis()): CareCondition {
     val p = data.profile
     val fuel = snapshot[VehicleField.FUEL].realPercent().takeUnless { p.electric }
@@ -25,19 +26,25 @@ fun careCondition(data: AppData, snapshot: VehicleSnapshot, config: MaintenanceC
     val lowFuel = when { low == true || energy.any { it } -> true; energy.isNotEmpty() -> false; else -> low }
     val current = confirmedKilometres(snapshot[VehicleField.ODOMETER], config.unit)
     fun latest(kind: CareKind) = data.records.filter { it.kind == kind && it.date <= today }.maxByOrNull { it.date }
-    val wash = latest(CareKind.WASH)
-    val washDistance = if (wash != null && config.washId == "${wash.id}@${wash.date}" && current != null)
-        config.washKm?.takeIf { it.isFinite() && it >= 0 && it <= current }?.let { current - it } else null
-    val weather = environment.takeIf { it.state == ResultState.Available && it.source.startsWith("Real") &&
-        it.receivedAt?.let { time -> now - time in 0..3600000 } == true }?.value
     fun valid(value: Double?) = value?.takeIf { it.isFinite() && it >= 0 }
-    val clean = wash?.let { CareEstimator.cleanliness(ChronoUnit.DAYS.between(it.date, today),
-        washDistance, null, valid(weather?.pm10), valid(weather?.dust)) }
+    val clean = WashPolicy.score(data.records.filter { it.kind == CareKind.WASH }.map {
+        WashBaseline(it.id, it.date, it.completedAt?.let(Instant::parse), it.visitId, it.cancelled, it.source)
+    }, config.intervals, Instant.ofEpochMilli(now)).displayed
     val oil = latest(CareKind.OIL)
     val oilKm = valid(config.oilKm)
     val interval = valid(config.intervalKm)?.takeIf { it > 0 }
     val remaining = if (!p.electric && oil != null && config.oilId == "${oil.id}@${oil.date}" &&
         current != null && oilKm != null && interval != null && current >= oilKm)
         CareEstimator.oilRemaining(current, oilKm, interval) else null
-    return CareCondition(CareSignals(lowFuel, clean?.let { it <= p.washAlert }, remaining?.let { it <= 0 }), clean, remaining)
+    // Fuel warnings belong to yellow and must not count twice.
+    val warningFields = listOf(VehicleField.ENGINE_OIL, VehicleField.OIL_PRESSURE,
+        VehicleField.BRAKE_FLUID, VehicleField.TRANSMISSION_OIL, VehicleField.WASHER, VehicleField.SMART_KEY)
+        .filterNot { p.electric && (it == VehicleField.ENGINE_OIL || it == VehicleField.OIL_PRESSURE) }
+    val warnings = warningFields.map { snapshot[it] }.filter { it.state != ReadingState.Unsupported }
+    val vehicleWarning = when {
+        warnings.any { it.state == ReadingState.Available && it.value?.warning == true } -> true
+        warnings.isNotEmpty() && warnings.all { it.state == ReadingState.Available } -> false
+        else -> null
+    }
+    return CareCondition(CareSignals(lowFuel, clean?.let { it <= p.washAlert }, vehicleWarning), clean, remaining, config.syncStatus)
 }

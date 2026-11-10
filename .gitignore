@@ -37,3 +37,6 @@ keystore.properties
 # Local Graphify index/cache, never packaged into the app.
 /graphify-out/
 
+# Local validation screenshots and device data backups.
+/.tmp/
+

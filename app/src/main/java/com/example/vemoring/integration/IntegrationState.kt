@@ -10,7 +10,8 @@ data class Result<T>(val state: ResultState = ResultState.Idle, val value: T? = 
         fun <T> success(value: T, source: String = "Real") = Result(ResultState.Available, value, receivedAt = System.currentTimeMillis(), source = source)
     }
 }
-data class Coordinates(val latitude: Double, val longitude: Double, val timestamp: Long) {
+data class Coordinates(val latitude: Double, val longitude: Double, val timestamp: Long,
+    val confidence: Double? = null, val accuracyMeters: Double? = null) {
     fun valid() = latitude.isFinite() && longitude.isFinite() && latitude in -90.0..90.0 && longitude in -180.0..180.0
     fun fresh(now: Long = System.currentTimeMillis()) = valid() && timestamp > 0 && now - timestamp in -60000..900000
 }
@@ -37,19 +38,10 @@ fun distanceMeters(a: Coordinates, lat: Double, lon: Double): Double {
 }
 /** Product estimate, never a dirt sensor. Forecast rain cannot be supplied as observed rain. */
 object CareEstimator {
-    fun cleanliness(days: Long, distanceKm: Double?, observedRainMm: Double?, pm10: Double?, dust: Double?, roadWeight: Double = 0.0): Int {
-        require(days >= 0 && roadWeight.isFinite() && roadWeight >= 0)
-        listOfNotNull(distanceKm, observedRainMm, pm10, dust).forEach { require(it.isFinite() && it >= 0) }
-        val loss = days * 2.0 + (distanceKm ?: 0.0) * .025 +
-            (observedRainMm ?: 0.0).coerceAtMost(30.0) * .3 +
-            (pm10 ?: 0.0).coerceAtMost(200.0) * .04 + (dust ?: 0.0).coerceAtMost(200.0) * .03 + roadWeight
-        return (100-loss).roundToInt().coerceIn(0,100)
-    }
-    fun oilRemaining(currentKm: Double, replacedAtKm: Double, userIntervalKm: Double): Double {
-        require(currentKm.isFinite() && replacedAtKm.isFinite() && userIntervalKm.isFinite())
-        require(currentKm >= replacedAtKm && replacedAtKm >= 0 && userIntervalKm > 0)
-        return (userIntervalKm-(currentKm-replacedAtKm)).coerceAtLeast(0.0)
-    }
+    fun cleanliness(days: Long, distanceKm: Double?, observedRainMm: Double?, pm10: Double?, dust: Double?, roadWeight: Double = 0.0): Int =
+        com.vemoring.companion.CareEstimateFormula.cleanliness(days, distanceKm, observedRainMm, pm10, dust, roadWeight)
+    fun oilRemaining(currentKm: Double, replacedAtKm: Double, userIntervalKm: Double): Double =
+        com.vemoring.companion.CareEstimateFormula.oilRemaining(currentKm, replacedAtKm, userIntervalKm)
 }
 class DemoVehicleGateway : VehicleGateway {
     override fun start(publish: (VehicleField, Reading) -> Unit) {

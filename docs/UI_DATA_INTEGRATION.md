@@ -9,7 +9,7 @@ The automatic pre-merge stash 621d1a0 is retained as a recovery copy.
 - The existing home consumes VehicleSnapshot; no duplicate service subscription.
 - Data connection opens the contributor's location/weather/nearby/navigation and
   maintenance settings screen. Existing map selection stays installed-app-only.
-- Vehicle oil-level and pressure alerts are not interpreted as oil-change intervals.
+- Confirmed non-fuel vehicle telltales drive purple. Scheduled oil replacement stays separate; fuel warnings count only as yellow energy signals.
 - Maintenance preferences load/save on IO and notify the home through a preference
   listener; changing vehicle or the matching record invalidates old distance assumptions.
 - Missing values display no data and do not manufacture warnings. The default is blue

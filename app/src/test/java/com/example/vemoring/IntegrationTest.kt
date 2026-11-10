@@ -31,8 +31,8 @@ class IntegrationTest {
     @Test fun maintenanceUsesDistanceAndNeverForecastRain() {
         val clean=CareEstimator.cleanliness(3,null,null,null,null)
         assertTrue(CareEstimator.cleanliness(3,300.0,null,null,null)<clean)
-        assertTrue(CareEstimator.cleanliness(3,null,20.0,null,null)<clean)
-        assertTrue(CareEstimator.cleanliness(3,null,null,100.0,50.0,10.0)<clean)
+        assertEquals(clean,CareEstimator.cleanliness(3,null,20.0,null,null))
+        assertEquals(clean,CareEstimator.cleanliness(3,null,null,100.0,50.0,10.0))
         assertEquals(0,CareEstimator.cleanliness(1000,null,null,null,null))
         assertEquals(8000.0,CareEstimator.oilRemaining(12000.0,10000.0,10000.0),0.0)
         assertThrows(IllegalArgumentException::class.java) { CareEstimator.oilRemaining(9000.0,10000.0,10000.0) }

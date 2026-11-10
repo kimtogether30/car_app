@@ -30,6 +30,7 @@ class GarageUiTests {
         compose.onNodeWithText("다음").performScrollTo().performClick()
         compose.onNode(hasSetTextAction()).performTextInput("테스트 몽글이")
         compose.onNodeWithText("다음").performClick()
+        compose.onNodeWithText("나중에 할게요").performScrollTo().performClick()
         compose.onNodeWithText("VEMORING 시작하기").performScrollTo().performClick()
         compose.onNodeWithText("관리 기록", useUnmergedTree = true).performClick()
         compose.onNodeWithText("＋ 추가").performClick()

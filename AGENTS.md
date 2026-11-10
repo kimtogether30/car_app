@@ -7,6 +7,12 @@
 - Design readable vehicle-screen interfaces: generous text and touch targets, balanced positioning, bounded content widths, and scrolling for long forms. Check actual Pleos screenshots after visual changes. Preserve user data when reinstalling or testing; do not wipe profiles.
 - Official sources: https://appdevchallenge.auto-hmg.io/faq and https://document.pleos.ai/en/docs/connect/guide/getting-started/application-development/setup-connect-sdk-emulator and https://document.pleos.ai/en/docs/connect/guide/getting-started/application-development/configure-pleos-connect-emulator
 
+## Deferred Bluetooth validation and wash policy
+
+- Keep deferred physical-device Bluetooth checks together in `docs/BLUETOOTH_VALIDATION_CHECKLIST.md`; append new cases there and do not treat emulator/injected-frame results as radio validation. The user currently has emulators only and wants to run these checks together later.
+- Follow the uploaded facility-specific wash criteria: conveyor N/motion/D and stationary confirmed dwell/exit are different patterns. Never impose an N-only rule on stationary/P-based washes. Once the criteria qualify an estimated wash, apply it and show “세차하신 게 맞나요?” with “잘못 인식함” to reverse that visit; uncertainty about whether actual washing occurred is not an extra veto.
+- For a verified dedicated self-wash facility or wash area clearly separated from fuel pumps, the full qualifying visit pattern can use “세차 완료!” instead of a question. Shared/uncertain layouts keep the correction question. Facility entry, a nearby POI, or P/N alone never constitutes completion. This certainty is a product inference, not a claimed SDK water-wash signal.
+
 ## Graphify usage
 
 - Graphify is a development-only local navigation aid; do not add it to Android dependencies or change contest runtime requirements for it.

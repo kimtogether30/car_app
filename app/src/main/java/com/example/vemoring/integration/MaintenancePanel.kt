@@ -13,17 +13,27 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.vemoring.companion.*
 
 data class MaintenanceConfig(val unit: String = "", val washId: String = "", val washKm: Double? = null,
-    val oilId: String = "", val oilKm: Double? = null, val intervalKm: Double? = null)
+    val oilId: String = "", val oilKm: Double? = null, val intervalKm: Double? = null,
+    val intervals: List<TravelInterval> = emptyList(), val syncStatus: String = "차량 임시 추정", val phoneSyncPending: Boolean = false)
+fun vehicleCareId(profile: CarProfile): String = java.security.MessageDigest.getInstance("SHA-256")
+    .digest((profile.fullModel + "|" + profile.plate).toByteArray()).joinToString("") { "%02x".format(it) }
 class MaintenanceStore(context: Context, profile: CarProfile) {
+    private val journal = CareJournal(context, vehicleCareId(profile))
+    private val carePrefs = context.getSharedPreferences("care_journal_v1", Context.MODE_PRIVATE)
     private val prefs=context.getSharedPreferences("vemoring_sdk_care_v1",Context.MODE_PRIVATE)
     private val prefix=java.security.MessageDigest.getInstance("SHA-256").digest((profile.fullModel+"|"+profile.plate).toByteArray())
         .joinToString("") { "%02x".format(it) } + "."
-    fun load() = MaintenanceConfig(prefs.getString(prefix+"unit","") ?: "",
-        prefs.getString(prefix+"washId","") ?: "", prefs.getString(prefix+"washKm",null)?.toDoubleOrNull(),
-        prefs.getString(prefix+"oilId","") ?: "",prefs.getString(prefix+"oilKm",null)?.toDoubleOrNull(),
-        prefs.getString(prefix+"intervalKm",null)?.toDoubleOrNull())
+    fun distanceUnit(): String = prefs.getString(prefix+"unit", "") ?: ""
+    fun load(): MaintenanceConfig {
+        val care = journal.configState()
+        return MaintenanceConfig(prefs.getString(prefix+"unit","") ?: "",
+            prefs.getString(prefix+"washId","") ?: "", prefs.getString(prefix+"washKm",null)?.toDoubleOrNull(),
+            prefs.getString(prefix+"oilId","") ?: "",prefs.getString(prefix+"oilKm",null)?.toDoubleOrNull(),
+            prefs.getString(prefix+"intervalKm",null)?.toDoubleOrNull(), care.intervals, care.syncStatus, care.pending)
+    }
     fun save(value: MaintenanceConfig): Boolean = prefs.edit().putString(prefix+"unit",value.unit)
         .putString(prefix+"washId",value.washId).putString(prefix+"washKm",value.washKm?.toString())
         .putString(prefix+"oilId",value.oilId).putString(prefix+"oilKm",value.oilKm?.toString())
@@ -33,7 +43,12 @@ class MaintenanceStore(context: Context, profile: CarProfile) {
             if (key?.startsWith(prefix) == true) changed()
         }
         prefs.registerOnSharedPreferenceChangeListener(listener)
-        return { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+        // Other vehicles' journals do not affect this config. A null key means the file was cleared.
+        val careListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == null || key == journal.key) changed()
+        }
+        carePrefs.registerOnSharedPreferenceChangeListener(careListener)
+        return { prefs.unregisterOnSharedPreferenceChangeListener(listener); carePrefs.unregisterOnSharedPreferenceChangeListener(careListener) }
     }
 }
 
@@ -60,17 +75,12 @@ fun MaintenancePanel(data: AppData, snapshot: VehicleSnapshot, weather: Result<E
     val scope = rememberCoroutineScope()
     var status by remember(store) { mutableStateOf("") }
     var oilInput by remember(store) { mutableStateOf("") }
-    var washInput by remember(store) { mutableStateOf("") }
     var intervalInput by remember(store) { mutableStateOf(config.intervalKm?.toString() ?: "") }
     LaunchedEffect(config.intervalKm) { intervalInput = config.intervalKm?.toString() ?: "" }
     val wash=data.records.filter { it.kind==CareKind.WASH }.maxByOrNull { it.date }
     val oil=data.records.filter { it.kind==CareKind.OIL }.maxByOrNull { it.date }
     val current=confirmedKilometres(snapshot[VehicleField.ODOMETER],config.unit)
-    val washDistance=if(wash?.let { it.id+"@"+it.date }==config.washId && current!=null) config.washKm?.let { (current-it).takeIf { distance -> distance>=0 } } else null
-    val days=wash?.let { ChronoUnit.DAYS.between(it.date,LocalDate.now()).coerceAtLeast(0) }
-    val realWeather=weather.takeIf { it.state==ResultState.Available && !it.source.startsWith("Demo") &&
-        it.receivedAt?.let { at -> System.currentTimeMillis()-at in 0..3600000 }==true }?.value
-    val clean=days?.let { CareEstimator.cleanliness(it,washDistance,null,realWeather?.pm10,realWeather?.dust) }
+    val clean=careCondition(data, snapshot, config).cleanliness
     fun persist(value: MaintenanceConfig) {
         scope.launch {
             status = if(withContext(Dispatchers.IO) { store.save(value) }) "관리 기준을 저장했어요" else "저장 실패"
@@ -79,7 +89,7 @@ fun MaintenancePanel(data: AppData, snapshot: VehicleSnapshot, weather: Result<E
     Panel {
         Text("차량 관리 추정 · 실측 오염도/제조사 정비 진단 아님")
         Text("청결도: ${clean?.let { "$it %" } ?: "세차 기록 필요"}")
-        Text("날짜 기반${if(washDistance!=null) " + 확인 단위 거리" else " · 거리 기준 미연결"}${if(realWeather!=null) " + 모델 대기질" else ""}")
+        Text("실제 거리 우선 · 미확인 구간은 하루 20km 기준 추정")
         Text("누적 거리: ${current?.let { "%.1f km".format(it) } ?: "단위 확인/실제 수신 필요"} · 단위 근거: User Input")
         val remaining=if(current!=null && oil?.let { it.id+"@"+it.date }==config.oilId && config.oilKm!=null && config.intervalKm!=null && current>=config.oilKm!!)
             CareEstimator.oilRemaining(current,config.oilKm!!,config.intervalKm!!) else null
@@ -91,11 +101,7 @@ fun MaintenancePanel(data: AppData, snapshot: VehicleSnapshot, weather: Result<E
                     FilterChip(selected=config.unit==unit,onClick={persist(config.copy(unit=unit))},label={Text(label)})
                 }
             }
-            OutlinedTextField(value=washInput,onValueChange={washInput=it},label={Text("마지막 세차 당시 누적 거리 (km, 사용자 입력)")})
-            TextButton(enabled=wash!=null && washInput.toDoubleOrNull()?.let { it.isFinite() && it>=0 }==true,onClick={
-                persist(config.copy(washId=wash!!.id+"@"+wash.date,washKm=washInput.toDouble()))
-            }) { Text("현재 마지막 세차 기록에 연결") }
-            TextButton(enabled=wash?.date==LocalDate.now() && current!=null,onClick={persist(config.copy(washId=wash!!.id+"@"+wash.date,washKm=current))}) { Text("오늘 세차 기록에 현재 수신 거리 연결") }
+            Text("세차 점수는 관리기록과 확인된 주행 구간으로 계산해요.")
             OutlinedTextField(value=oilInput,onValueChange={oilInput=it},label={Text("마지막 엔진오일 교체 당시 누적 거리 (km)")})
             OutlinedTextField(value=intervalInput,onValueChange={intervalInput=it},label={Text("사용 설명서로 확인한 교체 주기 (km)")})
             TextButton(enabled=oil!=null && oilInput.toDoubleOrNull()?.let { it.isFinite() && it>=0 }==true &&

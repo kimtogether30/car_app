@@ -34,6 +34,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
+import com.vemoring.companion.WashConfirmationBanner
+import com.vemoring.companion.rememberWashConfirmation
 
 val Blue = Color(0xFF087BBF)
 val Ink = Color(0xFF182F43)
@@ -42,22 +44,18 @@ val Mint = Color(0xFF147D72)
 val Orange = Color(0xFFB76120)
 private val Background = Color(0xFFF0F4F8)
 private val Muted = Color(0xFF526678)
+// Parsed once instead of on every recomposition (vehicle signals recompose the home screen often).
+private val SeoulZone = java.time.ZoneId.of("Asia/Seoul")
+private val HomeDateFormat = java.time.format.DateTimeFormatter.ofPattern("yyyy. MM. dd")
 val CareKind.color get() = when(this) { CareKind.WASH -> Blue; CareKind.FUEL -> Orange; CareKind.OIL -> Mint }
 
 class MainActivity : ComponentActivity() {
     private val vehicleModel: VehicleViewModel by viewModels()
     private val integrationModel: IntegrationViewModel by viewModels()
-    private var pendingLauncherMood: MascotMood? = null
-    override fun onStart() { super.onStart(); vehicleModel.resume(); integrationModel.resume() }
+    override fun onStart() { super.onStart(); IconMonitorVisibility.visible.value = true; vehicleModel.resume(); integrationModel.resume() }
     override fun onStop() {
-        val next = pendingLauncherMood
-        pendingLauncherMood = null
         vehicleModel.pause(); integrationModel.pause(); super.onStop()
-        // Disabling a launcher alias can remove its task on Pleos. Never do this over a visible screen.
-        if (next != null) lifecycleScope.launch(Dispatchers.IO) {
-            runCatching { MascotLauncher.sync(applicationContext, next) }
-                .onFailure { android.util.Log.w("MascotLauncher", "Unable to update launcher", it) }
-        }
+        IconMonitorVisibility.visible.value = false
     }
     private var homeLaunchRequest by mutableIntStateOf(0)
 
@@ -76,7 +74,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(typography = com.example.vemoring.ui.theme.Typography, colorScheme = GarageColors) {
                 GarageApp(homeLaunchRequest = homeLaunchRequest, vehicleModel = vehicleModel,
-                    integrationModel = integrationModel, onLauncherMood = { pendingLauncherMood = it })
+                    integrationModel = integrationModel)
             }
         }
     }
@@ -96,10 +94,14 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     var tab by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(homeLaunchRequest) { if (homeLaunchRequest > 0) tab = 0 }
     var setupRequested by rememberSaveable { mutableStateOf(startWithSetup) }
+    var dockGuideAfterSetup by rememberSaveable { mutableStateOf(false) }
+    var showDockGuide by rememberSaveable { mutableStateOf(false) }
     var editCar by rememberSaveable { mutableStateOf(false) }
     var notifications by rememberSaveable { mutableStateOf(false) }
     var editName by rememberSaveable { mutableStateOf(false) }
     var diagnostics by rememberSaveable { mutableStateOf(false) }
+    var proposedWash by remember { mutableStateOf<CareRecord?>(null) }
+    var proposedWashSaved by remember { mutableStateOf<(() -> Unit)?>(null) }
     val snapshot = vehicleModel?.state?.collectAsState()?.value ?: VehicleSnapshot()
     val identity = vehicleModel?.identity?.collectAsState()?.value ?: VehicleIdentityReading()
     val mode = integrationModel?.mode?.collectAsState()?.value ?: DataMode.Real
@@ -107,6 +109,9 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     val maintenance by rememberMaintenanceConfig(data.profile)
     val condition = remember(data, snapshot, maintenance, environment) { careCondition(data, snapshot, maintenance, environment) }
     val mood = (careSignals ?: condition.signals).mood()
+    // Same list instance across vehicle-signal recompositions, so the calendar tab can skip recomposing.
+    val activeRecords = remember(data.records) { data.records.filterNot { it.cancelled } }
+    PublishVehicleMirror(data, loaded, snapshot, condition, mood, mode)
     val hasResolvedVehicleData = snapshot.readings.values.any { it.state != ReadingState.Loading && it.state != ReadingState.Disconnected }
     LaunchedEffect(mood, mode, loaded, hasResolvedVehicleData) {
         if (loaded && mode == DataMode.Real && vehicleModel != null && hasResolvedVehicleData) onLauncherMood(mood)
@@ -117,12 +122,21 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
         runCatching { withContext(Dispatchers.IO) { store.load() } }.onSuccess { data = it; loaded = true; loadError = null }
             .onFailure { loadError = "저장 데이터를 불러오지 못했어요. 기존 데이터는 보존됩니다." }
     }
-    fun save(updated: AppData, onSaved: () -> Unit = {}) {
+    fun save(updated: AppData, fromPhone: Boolean = false, onSaved: () -> Unit = {}) {
         if (saving) return
         saving = true
         scope.launch {
             try {
-                withContext(Dispatchers.IO) { store.save(updated) }
+                withContext(Dispatchers.IO) {
+                    store.save(updated)
+                    if (!fromPhone) {
+                        val profile = org.json.JSONObject().put("nickname", updated.profile.nickname).put("model", updated.profile.fullModel)
+                            .put("plate", updated.profile.plate).put("fuel", updated.profile.fuel).put("fuelAlert", updated.profile.fuelAlert)
+                            .put("washAlert", updated.profile.washAlert).put("notifications", updated.profile.notifications)
+                        val records = org.json.JSONArray().also { a -> updated.records.forEach { a.put(it.json()) } }
+                        com.vemoring.companion.CareJournal(context, vehicleCareId(updated.profile)).queueRequest(profile, records)
+                    }
+                }
                 data = updated
                 onSaved()
             } catch (cancelled: CancellationException) {
@@ -134,7 +148,32 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
             }
         }
     }
+    val phoneAuthority by com.vemoring.companion.CareExchange.canonical.collectAsState()
+    val washConfirmation by rememberWashConfirmation(if(loaded && data.complete) vehicleCareId(data.profile) else null, phoneAuthority)
+    LaunchedEffect(loaded, data.profile.fullModel, data.profile.plate) {
+        if (loaded && data.complete) com.vemoring.companion.CareExchange.loadVehicle(context, vehicleCareId(data.profile))
+    }
+    LaunchedEffect(phoneAuthority, loaded, saving, maintenance.phoneSyncPending) {
+        val authority = phoneAuthority
+        if (loaded && !saving && !maintenance.phoneSyncPending && authority != null && authority.vehicleId == vehicleCareId(data.profile)) {
+            val p = org.json.JSONObject(authority.profile)
+            val a = org.json.JSONArray(authority.records)
+            val next = data.copy(profile = data.profile.copy(washAlert = p.getInt("washAlert"), notifications = p.getBoolean("notifications")),
+                records = (0 until a.length()).map { careRecordFromJson(a.getJSONObject(it)) })
+            if (next != data) save(next, fromPhone = true)
+        }
+    }
     LaunchedEffect(data.complete, vehicleModel) { vehicleModel?.setEnabled(data.complete) }
+    LaunchedEffect(loaded, data.complete, mode) {
+        if (vehicleModel != null && loaded) {
+            val enabled = withContext(Dispatchers.IO) {
+                context.getSharedPreferences(VehicleIconMonitor.PREFS, android.content.Context.MODE_PRIVATE)
+                    .getBoolean(VehicleIconMonitor.ENABLED, true)
+            }
+            if (data.complete && mode == DataMode.Real && enabled) VehicleIconMonitor.start(context)
+            else context.stopService(android.content.Intent(context, VehicleIconMonitor::class.java))
+        }
+    }
     if (diagnostics && integrationModel != null) {
         BackHandler { diagnostics = false }
         IntegrationScreen(integrationModel, snapshot, { next ->
@@ -149,10 +188,13 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
                     Text(loadError!!); Button(onClick = { retry++ }) { Text("다시 시도") }
                 }
                 !loaded -> Box(contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                !data.complete || setupRequested -> SetupScreen(detected = identity) { profile, dates ->
+                !data.complete || setupRequested -> SetupScreen(detected = identity,
+                    onDockChoice = { dockGuideAfterSetup = it }) { profile, dates ->
                     save(data.copy(profile = profile, records = updateLatest(data.records, dates), complete = true)) {
                         setupRequested = false
                         tab = 0
+                        showDockGuide = dockGuideAfterSetup
+                        dockGuideAfterSetup = false
                     }
                 }
                 else -> Scaffold(containerColor = Background, bottomBar = {
@@ -163,9 +205,24 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
                             0 -> HomeScreen(data, BatteryReading(snapshot[VehicleField.SOC].realPercent(),
                                 snapshot[VehicleField.SOC].statusText()), { notifications = true }, mood,
                                 snapshot, condition, if (integrationModel != null) ({ diagnostics = true }) else null,
-                                mode == DataMode.Demo)
-                            1 -> CalendarScreen(data.records) { record, onSaved ->
-                                save(data.copy(records = (data.records.filter { it.id != record.id } + record).sortedByDescending { it.date }), onSaved)
+                                mode == DataMode.Demo, confirmationBanner = {
+                                    washConfirmation?.takeIf { candidate -> mode == DataMode.Real &&
+                                        data.records.any { it.visitId == candidate.visitId && !it.cancelled } }?.let { candidate ->
+                                        WashConfirmationBanner(candidate, saving, vehicle = true, onReject = {
+                                            save(data.copy(records = data.records.map {
+                                                if(it.visitId == candidate.visitId) it.copy(cancelled = true) else it
+                                            }))
+                                        }, onDismiss = { scope.launch {
+                                            runCatching { com.vemoring.companion.CareExchange.dismissConfirmation(context, candidate.vehicleId, candidate.visitId) }
+                                                .onFailure { error = "배너를 닫지 못했어요. 다시 시도해 주세요." }
+                                        } })
+                                    }
+                                })
+                            1 -> CalendarScreen(activeRecords) { record, onSaved ->
+                                if (record.kind == CareKind.WASH && data.records.none { it.id == record.id } &&
+                                    data.records.any { it.kind == CareKind.WASH && it.visitId != null && !it.cancelled && it.date == record.date }) {
+                                    proposedWash = record; proposedWashSaved = onSaved
+                                } else save(data.copy(records = (data.records.filter { it.id != record.id } + record).sortedByDescending { it.date }), onSaved = onSaved)
                             }
                             else -> ProfileScreen(data.profile, { editCar = true }, { editName = true }) {
                                 save(data.copy(profile = it))
@@ -176,6 +233,27 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
             }
         }
     }
+    if (showDockGuide) GnbPinGuide { showDockGuide = false }
+    proposedWash?.let { proposed ->
+        AlertDialog(onDismissRequest = { proposedWash = null; proposedWashSaved = null },
+            title = { Text("같은 날 자동 세차 기록이 있어요") }, text = {
+                Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("기존 기록을 보완하거나 별도 세차로 남겨 주세요.")
+                    data.records.filter { it.kind == CareKind.WASH && it.visitId != null && !it.cancelled && it.date == proposed.date }.forEach { old ->
+                        OutlinedButton(enabled = !saving, onClick = {
+                            val merged = old.copy(title = proposed.title, detail = proposed.detail)
+                            save(data.copy(records = data.records.map { if(it.id == old.id) merged else it })) {
+                                proposedWashSaved?.invoke(); proposedWash = null; proposedWashSaved = null
+                            }
+                        }, modifier = Modifier.heightIn(min = 64.dp)) { Text("기존 기록 보완: ${old.title}") }
+                    }
+                }
+            }, confirmButton = { TextButton(enabled = !saving, onClick = {
+                save(data.copy(records = (data.records + proposed).sortedByDescending { it.date })) {
+                    proposedWashSaved?.invoke(); proposedWash = null; proposedWashSaved = null
+                }
+            }) { Text("별도 세차 추가") } }, dismissButton = { TextButton(onClick = { proposedWash = null; proposedWashSaved = null }) { Text("돌아가기") } })
+    }
     if (editCar) VehicleDialog(data.profile, data.records, { editCar = false }) { p, dates ->
         save(data.copy(profile = p, records = updateLatest(data.records, dates))) { editCar = false }
     }
@@ -184,10 +262,9 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     }
     if (notifications) AlertDialog(onDismissRequest = { notifications = false }, title = { Text("알림 내역") },
         text = { Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("예시 알림 · 실제 알림은 발송되지 않습니다.", color = Muted)
-            Text("연료를 확인해주세요\n연료가 ${data.profile.fuelAlert}% 이하가 되면 알려드릴게요.")
-            Text("엔진오일 교체가 다가와요\n예시 · 교체 예정일까지 12일 남았습니다.")
-            Text("세차하기 좋은 날이에요\n예시 · 오늘은 맑고 미세먼지가 적어요.")
+            Text("관리 알림은 연결된 휴대폰에서 확인해요.", color = Muted)
+            Text("세차 알림 기준: 청결도 ${data.profile.washAlert}% 이하 · 주기마다 한 번")
+            Text("차량 정비 경고는 실제 수신과 차종별 규칙 확인이 필요해요. 확인되지 않은 경고는 자동 알림을 보류해요.")
         } }, confirmButton = { TextButton(onClick = { notifications = false }) { Text("모두 확인했어요") } })
     error?.let { message -> AlertDialog(onDismissRequest = { error = null }, title = { Text("저장 확인") },
         text = { Text(message) }, confirmButton = { TextButton(onClick = { error = null }) { Text("확인") } }) }
@@ -233,15 +310,16 @@ fun Panel(modifier: Modifier = Modifier, color: Color = Color.White, compact: Bo
 @Composable
 fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit, mood: MascotMood = MascotMood.NORMAL,
                snapshot: VehicleSnapshot = VehicleSnapshot(), condition: CareCondition = CareCondition(),
-               diagnostics: (() -> Unit)? = null, demo: Boolean = false) {
+               diagnostics: (() -> Unit)? = null, demo: Boolean = false, confirmationBanner: (@Composable () -> Unit)? = null) {
     val p = data.profile
     val latest = remember(data.records) { CareKind.entries.associateWith { data.records.latest(it) } }
     HomePage { compact ->
+        confirmationBanner?.invoke()
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("VEMORING", fontSize = 40.sp, lineHeight = 48.sp,
                     fontWeight = FontWeight.ExtraBold, color = Blue, letterSpacing = 1.sp)
-                Text(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy. MM. dd")),
+                Text(LocalDate.now(SeoulZone).format(HomeDateFormat),
                     color = Muted, fontSize = 22.sp)
             }
             if (diagnostics != null) TextButton(onClick = diagnostics, modifier = Modifier.heightIn(min = 64.dp)) { Text("데이터 연결") }
@@ -277,7 +355,7 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
                         snapshot[VehicleField.FUEL].statusText(), Blue, Modifier.weight(1f), compact)
                     if (p.electric || p.hybrid) Stat("남은 배터리", battery.value, battery.status, Blue, Modifier.weight(1f), compact)
                     Stat("차량 청결도", condition.cleanliness, if (condition.cleanliness != null)
-                        "관리 기록 기반 추정" else "세차 기록이 필요해요", Mint, Modifier.weight(1f), compact)
+                        condition.syncStatus else "세차 기록이 필요해요", Mint, Modifier.weight(1f), compact)
                 }
                 SplitContent(first = { modifier -> Panel(modifier, compact = compact) {
                     Text("최근 관리", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Ink)
@@ -337,6 +415,12 @@ fun ProfileScreen(p: CarProfile, edit: () -> Unit, editName: () -> Unit, save: (
         }, second = { modifier ->
             Column(modifier, verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 Panel {
+                    IconMonitorSetting()
+                }
+                Panel {
+                    PhoneConnectionCard()
+                }
+                Panel {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("관리 알림", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Ink)
@@ -390,7 +474,7 @@ fun CalendarScreen(records: List<CareRecord>, save: (CareRecord, () -> Unit) -> 
     PageColumn {
         Heading("MY CAR LOG", "관리 기록") {
             Button(onClick = {
-                if (selected != null && selected > LocalDate.now()) futureError = true
+                if (selected != null && selected > LocalDate.now(SeoulZone)) futureError = true
                 else { editing = null; showEditor = true }
             }) { Text("＋ 추가") }
         }
@@ -408,6 +492,7 @@ fun CalendarScreen(records: List<CareRecord>, save: (CareRecord, () -> Unit) -> 
             } }
             val offset = month.atDay(1).dayOfWeek.value % 7
             val cells = ((offset + month.lengthOfMonth() + 6) / 7) * 7
+            val today = LocalDate.now(SeoulZone)
             repeat(cells / 7) { week ->
                 Row {
                     repeat(7) { column ->
@@ -420,8 +505,8 @@ fun CalendarScreen(records: List<CareRecord>, save: (CareRecord, () -> Unit) -> 
                                 .background(if(selected == date) Color(0xFFD9EDFA) else Color.Transparent, RoundedCornerShape(10.dp))
                                 .clickable { selectedValue = if(selected == date) null else date.toString(); all = false },
                                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Text("$day", color = when { date == LocalDate.now() -> Blue; date > LocalDate.now() -> Muted; else -> Ink },
-                                    fontWeight = if(date == LocalDate.now()) FontWeight.Bold else FontWeight.Normal)
+                                Text("$day", color = when { date == today -> Blue; date > today -> Muted; else -> Ink },
+                                    fontWeight = if(date == today) FontWeight.Bold else FontWeight.Normal)
                                 if (matching.isNotEmpty()) Text(if(matching.size > 1) "${matching.size}건" else matching.first().kind.label,
                                     fontSize = 16.sp, color = matching.first().kind.color, maxLines = 1)
                             }
@@ -460,7 +545,7 @@ fun CalendarScreen(records: List<CareRecord>, save: (CareRecord, () -> Unit) -> 
         }
         })
     }
-    if (showEditor) RecordDialog(editing, selected ?: LocalDate.now(), { showEditor = false }) {
+    if (showEditor) RecordDialog(editing, selected ?: LocalDate.now(SeoulZone), { showEditor = false }) {
         save(it) { monthValue = YearMonth.from(it.date).toString(); selectedValue = it.date.toString(); showEditor = false }
     }
     if (futureError) AlertDialog(onDismissRequest = { futureError = false }, text = { Text("미래 날짜에는 관리 기록을 등록할 수 없어요.") },
@@ -472,12 +557,12 @@ fun DateInput(label: String, date: LocalDate?, update: (LocalDate?) -> Unit, all
     val context = LocalContext.current
     Column {
         OutlinedButton(onClick = {
-            val start = date ?: LocalDate.now()
+            val start = date ?: LocalDate.now(SeoulZone)
             DatePickerDialog(context, { _, y, m, d -> update(LocalDate.of(y,m+1,d)) }, start.year, start.monthValue-1, start.dayOfMonth)
                 .apply { datePicker.maxDate = System.currentTimeMillis(); datePicker.minDate = java.util.GregorianCalendar(1980,0,1).timeInMillis }.show()
         }, modifier = Modifier.fillMaxWidth()) { Text("$label: ${date ?: "날짜 선택"}") }
         if(allowUnknown) Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = date == null, onCheckedChange = { if(it) update(null) else update(LocalDate.now()) })
+            Checkbox(checked = date == null, onCheckedChange = { if(it) update(null) else update(LocalDate.now(SeoulZone)) })
             Text("기억이 안 나요 / 기록 없음", fontSize = 12.sp)
         }
     }
@@ -489,15 +574,21 @@ fun RecordDialog(existing: CareRecord?, initial: LocalDate, close: () -> Unit, s
     var detail by rememberSaveable { mutableStateOf(existing?.detail ?: "") }
     var kindValue by rememberSaveable { mutableStateOf(existing?.kind?.name ?: CareKind.WASH.name) }
     var dateValue by rememberSaveable { mutableStateOf((existing?.date ?: initial).toString()) }
+    var manual by rememberSaveable { mutableStateOf(false) }
     val kind = CareKind.valueOf(kindValue)
     AlertDialog(onDismissRequest = close, title = { Text(if(existing == null) "관리 기록 추가" else "관리 기록 수정") },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            ChoiceRow(CareKind.entries.map { it.label }, kind.label) { label -> kindValue = CareKind.entries.first { it.label == label }.name }
+            if (existing?.completedAt == null || manual) ChoiceRow(CareKind.entries.map { it.label }, kind.label) { label -> kindValue = CareKind.entries.first { it.label == label }.name }
             OutlinedTextField(title, { title = it }, label = { Text("기록 이름") }, singleLine = true)
             OutlinedTextField(detail, { detail = it }, label = { Text("상세 내용 (장소·금액 등)") })
-            DateInput("관리 날짜", LocalDate.parse(dateValue), { if(it != null) dateValue = it.toString() }, false)
-        } }, confirmButton = { TextButton(enabled = title.isNotBlank() && LocalDate.parse(dateValue) <= LocalDate.now(), onClick = {
-            save(CareRecord(existing?.id ?: java.util.UUID.randomUUID().toString(), LocalDate.parse(dateValue), kind, title.trim(), detail.trim()))
+            if (existing?.completedAt == null || manual) DateInput("관리 날짜", LocalDate.parse(dateValue), { if(it != null) dateValue = it.toString() }, false)
+            if (existing?.completedAt != null) Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(manual, { manual = it }); Text("수동 기록으로 전환 (다음 날부터 계산)")
+            }
+        } }, confirmButton = { TextButton(enabled = title.isNotBlank() && LocalDate.parse(dateValue) <= LocalDate.now(SeoulZone), onClick = {
+            save(existing?.copy(date = LocalDate.parse(dateValue), kind = kind, title = title.trim(), detail = detail.trim(),
+                completedAt = if(manual) null else existing.completedAt, source = if(manual) "Manual" else existing.source)
+                ?: CareRecord(date = LocalDate.parse(dateValue), kind = kind, title = title.trim(), detail = detail.trim()))
         }) { Text("기록 저장") } }, dismissButton = { TextButton(onClick = close) { Text("취소") } })
 }
 

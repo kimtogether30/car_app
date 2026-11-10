@@ -32,21 +32,36 @@ class CareConditionTest {
         assertEquals(MascotMood.FUEL, evaluate(ev, snapshot(VehicleField.SOC to Reading.percent(0))).signals.mood())
         assertEquals(MascotMood.FUEL, evaluate(AppData(profile.copy(fuel = "하이브리드")), vehicle).signals.mood())
     }
-    @Test fun oilLevelOrPressureDoesNotMeanScheduledReplacement() {
+    @Test fun oilLevelOrPressureTriggersVehicleWarning() {
         val warning = Reading.available(SignalValue("부족", warning = true))
         val condition = evaluate(vehicle = snapshot(VehicleField.ENGINE_OIL to warning, VehicleField.OIL_PRESSURE to warning))
-        assertNull(condition.signals.oilChangeDue)
-        assertEquals(MascotMood.NORMAL, condition.signals.mood())
+        assertEquals(true, condition.signals.vehicleWarning)
+        assertEquals(MascotMood.OIL, condition.signals.mood())
+    }
+    @Test fun onlyConfirmedNonFuelTelltalesTriggerPurple() {
+        for (state in ReadingState.entries.filter { it != ReadingState.Available }) {
+            assertNull(evaluate(vehicle = snapshot(VehicleField.BRAKE_FLUID to
+                Reading(state, SignalValue("warning", warning = true)))).signals.vehicleWarning)
+        }
+        for (field in listOf(VehicleField.BRAKE_FLUID, VehicleField.WASHER, VehicleField.SMART_KEY)) {
+            assertEquals(MascotMood.OIL, evaluate(vehicle = snapshot(field to
+                Reading.available(SignalValue("warning", warning = true)))).signals.mood())
+        }
+        assertEquals(MascotMood.FUEL, evaluate(vehicle = snapshot(VehicleField.LOW_FUEL to
+            Reading.available(SignalValue("low", warning = true)))).signals.mood())
+        val clear = VehicleSnapshot(VehicleField.entries.associateWith {
+            Reading.available(SignalValue("clear", warning = false)) })
+        assertEquals(false, evaluate(vehicle = clear).signals.vehicleWarning)
     }
     @Test fun approvedMileageAndMatchingRecordAreRequiredForOilChange() {
         val oil = CareRecord("oil", today.minusDays(100), CareKind.OIL, "교체")
         val data = AppData(profile, listOf(oil))
         val vehicle = snapshot(VehicleField.ODOMETER to Reading.available(SignalValue("15000", 15000.0)))
         val config = MaintenanceConfig("km", oilId = "oil@${oil.date}", oilKm = 10000.0, intervalKm = 5000.0)
-        assertEquals(MascotMood.OIL, evaluate(data, vehicle, config).signals.mood())
-        assertNull(evaluate(data, vehicle, config.copy(unit = "")).signals.oilChangeDue)
-        assertNull(evaluate(data, vehicle, config.copy(oilId = "old")).signals.oilChangeDue)
-        assertNull(evaluate(data, vehicle, config.copy(intervalKm = Double.NaN)).signals.oilChangeDue)
+        assertEquals(MascotMood.NORMAL, evaluate(data, vehicle, config).signals.mood())
+        assertNull(evaluate(data, vehicle, config.copy(unit = "")).oilRemainingKm)
+        assertNull(evaluate(data, vehicle, config.copy(oilId = "old")).oilRemainingKm)
+        assertNull(evaluate(data, vehicle, config.copy(intervalKm = Double.NaN)).oilRemainingKm)
     }
     @Test fun recordsAndEnergyComposeIntoRedThenCharcoalAndClearAfterCare() {
         val wash = CareRecord("wash", today.minusDays(40), CareKind.WASH, "세차")
@@ -56,7 +71,10 @@ class CareConditionTest {
         val data = AppData(profile, listOf(wash, oil))
         assertEquals(MascotMood.ANGRY, evaluate(data, vehicle).signals.mood())
         val config = MaintenanceConfig("km", oilId = "oil@${oil.date}", oilKm = 10000.0, intervalKm = 5000.0)
-        assertEquals(MascotMood.EXHAUSTED, evaluate(data, vehicle, config).signals.mood())
+        assertEquals(MascotMood.ANGRY, evaluate(data, vehicle, config).signals.mood())
+        val warned = VehicleSnapshot(vehicle.readings + (VehicleField.BRAKE_FLUID to
+            Reading.available(SignalValue("warning", warning = true))))
+        assertEquals(MascotMood.EXHAUSTED, evaluate(data, warned, config).signals.mood())
         assertEquals(false, evaluate(data.copy(records = listOf(wash.copy(date = today))), vehicle).signals.needsWash)
     }
 }

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <receiver android:name=".IconMonitorPreviewReceiver" android:exported="true" />
         <activity android:name=".StatePreviewActivity" android:exported="true"
             android:launchMode="singleTop" android:theme="@style/Theme.Vemoring"
             android:label="VEMORING 상태 시뮬레이션" />

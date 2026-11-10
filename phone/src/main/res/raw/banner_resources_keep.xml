@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Catalog names are resolved at runtime for paired themes and optional shared-module artwork. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/banner_*,@drawable/ic_care_notification" />

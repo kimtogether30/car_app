@@ -29,25 +29,24 @@ class StatePreviewActivity : ComponentActivity() {
             var saved by remember { mutableStateOf(AppData()) }
             LaunchedEffect(Unit) { saved = withContext(Dispatchers.IO) { GarageStore(applicationContext).load() } }
             val values = listOf(
-                Triple(80, 100, 3000.0), Triple(10, 100, 3000.0), Triple(80, 20, 3000.0),
-                Triple(80, 100, 0.0), Triple(10, 20, 3000.0), Triple(10, 20, 0.0))
-            val labels = listOf("정상", "연료 부족", "세차 필요", "오일 교체", "두 가지 문제", "세 가지 문제")
-            val (fuel, clean, remaining) = values[stage]
-            val today = LocalDate.now()
+                Triple(80, 100, false), Triple(10, 100, false), Triple(80, 20, false),
+                Triple(80, 100, true), Triple(10, 20, false), Triple(10, 20, true))
+            val labels = listOf("정상", "연료 부족", "세차 필요", "차량 경고등", "두 가지 문제", "세 가지 문제")
+            val (fuel, clean, warning) = values[stage]
+            val today = LocalDate.now(java.time.ZoneId.of("Asia/Seoul"))
             val wash = CareRecord("preview-wash", today.minusDays((100-clean)/2L), CareKind.WASH, "시뮬레이션 세차")
-            val oil = CareRecord("preview-oil", today.minusDays(100), CareKind.OIL, "시뮬레이션 교체")
-            val data = saved.copy(profile = saved.profile.copy(fuel = "휘발유"), records = listOf(wash, oil), complete = true)
+            val data = saved.copy(profile = saved.profile.copy(fuel = "휘발유", fuelAlert = 20, washAlert = 30), records = listOf(wash), complete = true)
             val snapshot = VehicleSnapshot(VehicleSnapshot().readings + mapOf(
                 VehicleField.FUEL to Reading.percent(fuel),
+                    VehicleField.BRAKE_FLUID to Reading.available(SignalValue("경고", warning = warning)),
                 VehicleField.ODOMETER to Reading.available(SignalValue("15000", 15000.0))))
-            val config = MaintenanceConfig("km", oilId = "${oil.id}@${oil.date}",
-                oilKm = 10000.0 + remaining, intervalKm = 5000.0)
+            val config = MaintenanceConfig()
             val condition = careCondition(data, snapshot, config)
             MaterialTheme(typography = com.example.vemoring.ui.theme.Typography, colorScheme = GarageColors) {
                 Scaffold(topBar = {
                     Surface(color = MaterialTheme.colorScheme.secondaryContainer) {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp)) {
-                            Text("시뮬레이션 · ${labels[stage]} · 연료 $fuel% / 청결 $clean% / 오일 ${remaining.toInt()} km",
+                            Text("시뮬레이션 · ${labels[stage]} · 연료 $fuel% / 청결 ${condition.cleanliness}% / 차량 경고 ${if(warning) "ON" else "OFF"}",
                                 Modifier.weight(1f))
                             TextButton(onClick = { stage = (stage + 1) % 6 }) { Text("다음 상태") }
                             TextButton(onClick = { finish() }) { Text("실제 화면으로") }

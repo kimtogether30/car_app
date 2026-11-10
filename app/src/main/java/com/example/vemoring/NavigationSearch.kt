@@ -3,6 +3,7 @@ package com.example.vemoring
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.vemoring.companion.SupportedMapApp
 import android.os.Handler
 import android.os.Looper
 import ai.pleos.playground.navi.constants.NaviErrorCode
@@ -21,14 +22,11 @@ enum class NavigationApp(val title: String, val packageName: String) {
 
     fun searchIntent(keyword: String, callerPackage: String): Intent {
         require(this != PLEOS) { "Pleos searches use the official NaviHelper SDK." }
-        val uri = when (this) {
-            NAVER -> Uri.Builder().scheme("nmap").authority("search")
-                .appendQueryParameter("query", keyword).appendQueryParameter("appname", callerPackage).build()
-            KAKAO -> Uri.Builder().scheme("kakaomap").authority("search")
-                .appendQueryParameter("q", keyword).build()
+        return when (this) {
+            NAVER -> SupportedMapApp.NAVER.searchIntent(keyword, callerPackage)
+            KAKAO -> SupportedMapApp.KAKAO.searchIntent(keyword, callerPackage)
             else -> error("Unsupported navigation app")
         }
-        return Intent(Intent.ACTION_VIEW, uri).setPackage(packageName).addCategory(Intent.CATEGORY_BROWSABLE)
     }
 
     fun isAvailable(context: Context, keyword: String): Boolean = try {

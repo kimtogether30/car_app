@@ -13,6 +13,9 @@ import ai.pleos.playground.vehicle.api.model.capability.AreaBounds
 import ai.pleos.playground.vehicle.callback.exception.a as SdkVehicleException
 import ai.pleos.playground.vehicle.constant.ErrorCode
 import ai.pleos.playground.vehicle.constant.control.OilLevelState
+import ai.pleos.playground.vehicle.constant.control.VehicleGear
+import org.json.JSONArray
+import org.json.JSONObject
 import ai.pleos.playground.vehicle.constant.telltale.TelltaleState
 import ai.pleos.playground.vehicle.constant.telltale.TelltaleType
 import ai.pleos.playground.vehicle.constant.unit.TemperatureUnit
@@ -70,7 +73,9 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         fun emit(field: VehicleField, reading: Reading) {
             handler.post { if (active) {
                 publish(field, reading)
-                if (field == VehicleField.LOW_FUEL && reading.state in setOf(ReadingState.Error, ReadingState.PermissionDenied, ReadingState.Disconnected, ReadingState.Unsupported, ReadingState.NoData)) publish(VehicleField.OIL_PRESSURE, reading)
+                if (field == VehicleField.LOW_FUEL && reading.state in setOf(ReadingState.Error, ReadingState.PermissionDenied, ReadingState.Disconnected, ReadingState.Unsupported, ReadingState.NoData)) {
+                    publish(VehicleField.OIL_PRESSURE, reading); publish(VehicleField.TELLTALES, reading)
+                }
             } }
         }
         private fun finish() {
@@ -164,6 +169,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
                 read(VehicleField.EV_EFFICIENCY, "CAR_ENERGY", ev::checkCurrentEvEfficiencyCapabilities, ev::getCurrentEvEfficiency, ::rawFloat)
                 read(VehicleField.CHARGE_SWITCH, "CAR_ENERGY", ev::checkEvChargeSwitchCapabilities, ev::getEvChargeSwitchState, ::booleanValue)
                 val odo = vehicle.getOdometer()
+                readGear()
                 read(VehicleField.ODOMETER, "CAR_DRIVE", odo::checkCurrentDistanceDrivenCapabilities, odo::getCurrentDistanceDriven, ::rawFloat, {
                     val listener = object : DistanceDrivenListener {
                         override fun onDistanceDrivenUpdated(value: Float?) {
@@ -183,6 +189,14 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         }
         private fun readSafety() {
             val safety = vehicle.getSafety()
+            read(VehicleField.TRANSMISSION_OIL, "CAR_SAFETY", { ok, fail -> safety.checkTransmissionOilLevelStateCapabilities({ config, _ -> ok(config) }, fail) }, safety::getTransmissionOilLevelState, ::oilValue, {
+                val listener = object : OilLevelStateListener {
+                    override fun onOilLevelUpdated(value: OilLevelState?) = emitOil(VehicleField.TRANSMISSION_OIL, value)
+                    override fun onFailed(error: Exception) = emit(VehicleField.TRANSMISSION_OIL, sdkFailure(error))
+                }
+                safety.registerTransmissionOilLevelState(listener)
+                val remove: () -> Unit = { safety.unregisterTransmissionOilLevelState(listener) }; remove
+            })
             read(VehicleField.ENGINE_OIL, "CAR_SAFETY", { ok, fail -> safety.checkEngineOilLevelStateCapabilities({ config, _ -> ok(config) }, fail) }, safety::getEngineOilLevelState, ::oilValue, {
                 val listener = object : OilLevelStateListener {
                     override fun onOilLevelUpdated(value: OilLevelState?) { emitOil(VehicleField.ENGINE_OIL, value) }
@@ -215,12 +229,37 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
             request(VehicleField.LOW_FUEL, safety::checkTelltalesCapabilities) { config ->
                 if (!readable(config)) { emit(VehicleField.LOW_FUEL, Reading(ReadingState.Unsupported)); emit(VehicleField.OIL_PRESSURE, Reading(ReadingState.Unsupported)); return@request }
                 fun update(info: ai.pleos.playground.vehicle.api.model.telltale.Telltales?) {
+                    val raw = info?.let { JSONArray().also { array -> it.telltales.forEach { t ->
+                        array.put(JSONObject().put("type", t.type.name).put("state", t.state.name)
+                            .put("color", t.color).put("priority", t.priority))
+                    } }.toString() }
+                    emit(VehicleField.TELLTALES, raw?.let { Reading.available(SignalValue(it, rawState = it)) }
+                        ?: Reading(ReadingState.NoData))
                     for ((field, type) in listOf(VehicleField.LOW_FUEL to TelltaleType.LOW_FUEL, VehicleField.OIL_PRESSURE to TelltaleType.ENGINE_OIL_PRESSURE)) {
                         val value = info?.telltales?.firstOrNull { it.type == type }
-                        emit(field, if (value == null) Reading(ReadingState.NoData) else Reading.available(warningValue(value.state != TelltaleState.OFF)))
+                        emit(field, if (value == null) Reading(ReadingState.NoData) else Reading.available(
+                            warningValue(value.state != TelltaleState.OFF).copy(rawState = value.state.name, color = value.color)))
                     }
                 }
                 request(VehicleField.LOW_FUEL, safety::getTelltalesInfo) { update(it) }
+            }
+        }
+        private fun readGear() {
+            if (!allowed(VehicleField.GEAR, "CAR_DRIVE")) return
+            val gear = vehicle.getGear()
+            if (!unsubscribe.containsKey(VehicleField.GEAR)) {
+                val listener = object : GearSelectionListener {
+                    override fun onSelected(value: VehicleGear?) = emit(VehicleField.GEAR,
+                        value?.let { Reading.available(SignalValue(it.name, rawState = it.name)) } ?: Reading(ReadingState.NoData))
+                    override fun onFailed(error: Exception) = emit(VehicleField.GEAR, sdkFailure(error))
+                }
+                runCatching { gear.registerGearSelection(listener) }.onSuccess {
+                    unsubscribe[VehicleField.GEAR] = { gear.unregisterGearSelection(listener) }
+                }.onFailure { emit(VehicleField.GEAR, sdkFailure(it as? Exception ?: Exception(it))) }
+            }
+            request<VehicleGear>(VehicleField.GEAR, gear::getCurrentGearSelectionState) { value ->
+                emit(VehicleField.GEAR, value?.let { Reading.available(SignalValue(it.name, rawState = it.name)) }
+                    ?: Reading(ReadingState.NoData))
             }
         }
         private fun emitOil(field: VehicleField, value: OilLevelState?) {
@@ -266,5 +305,5 @@ private fun booleanValue(value: Boolean) = SignalValue(if (value) "켜짐" else 
 private fun warningValue(value: Boolean) = SignalValue(if (value) "경고 있음" else "경고 없음", warning = value)
 private fun oilValue(value: OilLevelState): SignalValue {
     require(value != OilLevelState.ERROR)
-    return SignalValue(when(value) { OilLevelState.NORMAL -> "정상"; OilLevelState.LOW -> "부족"; OilLevelState.HIGH -> "과다"; OilLevelState.CRITICALLY_LOW -> "매우 부족"; else -> "미확인" }, warning = value != OilLevelState.NORMAL)
+    return SignalValue(when(value) { OilLevelState.NORMAL -> "정상"; OilLevelState.LOW -> "부족"; OilLevelState.HIGH -> "과다"; OilLevelState.CRITICALLY_LOW -> "매우 부족"; else -> "미확인" }, warning = value != OilLevelState.NORMAL, rawState = value.name)
 }

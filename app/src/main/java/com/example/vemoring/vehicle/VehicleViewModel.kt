@@ -7,7 +7,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.asStateFlow
 
 class VehicleViewModel(application: Application) : AndroidViewModel(application) {
-    private var repository = VehicleRepository(PleosVehicleGateway(application))
+    private var repository = SharedVehicleConnection.repository(application)
     private val mutable = kotlinx.coroutines.flow.MutableStateFlow(VehicleSnapshot())
     private var collector: kotlinx.coroutines.Job? = null
     private var demo = false
@@ -25,9 +25,10 @@ class VehicleViewModel(application: Application) : AndroidViewModel(application)
     fun setMode(value: com.example.vemoring.integration.DataMode) {
         val next = value == com.example.vemoring.integration.DataMode.Demo
         if(next == demo) return
-        repository.close()
+        if (demo) repository.close() else SharedVehicleConnection.release(this)
         demo = next
-        repository = VehicleRepository(if(demo) com.example.vemoring.integration.DemoVehicleGateway() else PleosVehicleGateway(getApplication()))
+        repository = if (demo) VehicleRepository(com.example.vemoring.integration.DemoVehicleGateway())
+            else SharedVehicleConnection.repository(getApplication())
         mutable.value = VehicleSnapshot()
         observe()
         updateConnection()
@@ -38,7 +39,14 @@ class VehicleViewModel(application: Application) : AndroidViewModel(application)
     fun setEnabled(value: Boolean) { enabled = value; updateConnection() }
     fun resume() { foreground = true; updateConnection() }
     fun pause() { foreground = false; updateConnection() }
-    private fun updateConnection() { if (enabled && foreground) repository.start() else repository.close() }
+    private fun updateConnection() {
+        if (demo) { if (enabled && foreground) repository.start() else repository.close() }
+        else if (enabled && foreground) SharedVehicleConnection.acquire(getApplication(), this)
+        else SharedVehicleConnection.release(this)
+    }
     fun refresh() = repository.refresh()
-    override fun onCleared() { cleared = true; repository.close() }
+    override fun onCleared() {
+        cleared = true
+        if (demo) repository.close() else SharedVehicleConnection.release(this)
+    }
 }
