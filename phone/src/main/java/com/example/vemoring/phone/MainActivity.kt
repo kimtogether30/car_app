@@ -67,7 +67,7 @@ private val DarkColors = darkColorScheme(
     surfaceVariant = Color(0xFF2A3B49), onSurfaceVariant = Color(0xFFB6C9D8),
     secondary = Color(0xFF89D7C7), outlineVariant = Color(0xFF435867)
 )
-private val kinds = listOf("세차", "주유", "엔진오일 교체")
+private val kinds = listOf("세차", "주유", MAINTENANCE)
 // Parsed once instead of on every recomposition.
 private val SeoulZone = java.time.ZoneId.of("Asia/Seoul")
 private val HomeDateFormat = DateTimeFormatter.ofPattern("yyyy. MM. dd")
@@ -105,7 +105,7 @@ private fun ReceivedMirror.phoneData(): PhoneData {
     val records = content.getJSONArray("records")
     return PhoneData(p.getString("nickname"), p.getString("model"), p.getString("plate"),
         (0 until records.length()).map { i -> records.getJSONObject(i).let { r ->
-            Entry(r.getString("id"), when (r.getString("kind")) { "wash" -> "세차"; "fuel" -> "주유"; else -> "엔진오일 교체" },
+            Entry(r.getString("id"), when (r.getString("kind")) { "wash" -> "세차"; "fuel" -> "주유"; else -> MAINTENANCE },
                 r.getString("title"), LocalDate.parse(r.getString("date")), r.getString("detail"),
                 r.optString("completedAt").takeUnless { it.isBlank() || it == "null" },
                 r.optString("visitId").takeUnless { it.isBlank() || it == "null" }, r.optBoolean("cancelled"), r.optString("source", "Manual"),
@@ -129,7 +129,7 @@ private class PhoneStore(context: android.content.Context) {
         val a = j.getJSONArray("entries")
         return PhoneData(j.getString("nickname"), j.getString("model"), j.getString("plate"),
             (0 until a.length()).map { i -> a.getJSONObject(i).let {
-                Entry(it.getString("id"), it.getString("kind"), it.getString("title"),
+                Entry(it.getString("id"), normalizeKind(it.getString("kind")), it.getString("title"),
                     LocalDate.parse(it.getString("date")), it.getString("detail"),
                     it.optString("completedAt").takeUnless { v -> v.isBlank() || v == "null" },
                     it.optString("visitId").takeUnless { v -> v.isBlank() || v == "null" }, it.optBoolean("cancelled"), it.optString("source", "Manual"),
@@ -228,17 +228,9 @@ class MainActivity : ComponentActivity() {
                         val fuel = content.optJSONObject("signals")?.optBoolean("lowFuel") == true
                         val warning = content.optJSONObject("signals")?.optBoolean("vehicleWarning") == true
                         val wash = score?.let { clean -> clean <= JSONObject(state.profile).getInt("washAlert") } == true
-                        val mood = when(listOf(fuel, wash, warning).count { active -> active }) {
-                            3 -> "EXHAUSTED"; 2 -> "ANGRY"; 1 -> if(fuel) "FUEL" else if(wash) "WASH" else "OIL"; else -> "NORMAL"
-                        }
-                        content.put("mood", mood).put("message", when(mood) {
-                            "FUEL" -> "배가 고파요…\n에너지를 채워줄래요?"
-                            "WASH" -> "꼬질꼬질해졌어요…\n깨끗하게 씻겨줄래요?"
-                            "OIL" -> "차량 경고등이 켜졌어요!\n계기판을 확인해 주세요."
-                            "ANGRY" -> "두 가지 관리가 필요해요!\n하나씩 챙겨줄래요?"
-                            "EXHAUSTED" -> "챙겨줄 게 세 가지예요…\n기운을 되찾게 도와줘요."
-                            else -> "안녕! 준비됐나요?\n오늘도 함께 달려요."
-                        })
+                        // Shared with the launcher icon so the character and the icon always agree.
+                        val mood = moodFor(fuel, wash, warning)
+                        content.put("mood", mood).put("message", moodMessage(mood))
                     }
                     it.copy(snapshot = it.snapshot.copy(content = content.toString())).phoneData()
                 }
@@ -469,7 +461,7 @@ class MainActivity : ComponentActivity() {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(kind, Modifier.weight(1f), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val remaining = mirrored?.oilRemainingKm
-                Text(if (kind == "엔진오일 교체" && remaining != null)
+                Text(if (kind == MAINTENANCE && remaining != null)
                     if (remaining <= 0) "교체 시기 · 설정 기준" else "약 ${remaining.toInt()} km 남음"
                     else data.entries.filter { it.kind == kind && !it.cancelled }.maxByOrNull { it.date }?.date?.toString() ?: "기록 없음", fontSize = 14.sp)
             }
@@ -517,10 +509,18 @@ class MainActivity : ComponentActivity() {
         }
 }
 
+// Same as the vehicle app: wash = blue, fuel = yellow, 정비 = purple (lighter tones for the dark theme).
 @Composable private fun careColor(kind: String): Color = when (kind) {
     "세차" -> MaterialTheme.colorScheme.primary
-    "주유" -> if (isSystemInDarkTheme()) Color(0xFFFFBE8A) else Color(0xFFB76120)
-    else -> MaterialTheme.colorScheme.secondary
+    "주유" -> if (isSystemInDarkTheme()) Color(0xFFFFD25E) else Color(0xFFA97C00)
+    else -> if (isSystemInDarkTheme()) Color(0xFFC9A7FF) else Color(0xFF7B4FC4)
+}
+
+/** One colored dot per record (max 4) so a "2건" day shows which kinds they are. */
+@Composable private fun CareDots(kinds: List<String>) {
+    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        kinds.take(4).forEach { Box(Modifier.size(6.dp).background(careColor(it), androidx.compose.foundation.shape.CircleShape)) }
+    }
 }
 
 @Composable private fun History(entries: List<Entry>, add: (LocalDate) -> Unit, edit: (String) -> Unit, lastSaved: Entry? = null) {
@@ -563,9 +563,11 @@ class MainActivity : ComponentActivity() {
                                 .clickable { selected = if (selected == date.toString()) null else date.toString(); all = false }.padding(vertical = 8.dp)) {
                             Text(number.toString(), fontSize = 14.sp, lineHeight = 20.sp, fontWeight = if (date == today) FontWeight.Bold else FontWeight.Normal)
                             val matching = byDate[date].orEmpty()
-                            if (matching.isNotEmpty()) {
-                                Text(if (matching.size > 1) "${matching.size}건" else when (matching.first().kind) { "엔진오일 교체" -> "오일"; else -> matching.first().kind },
-                                    fontSize = 10.sp, lineHeight = 14.sp, color = careColor(matching.first().kind))
+                            if (matching.size == 1) {
+                                Text(matching.first().kind, fontSize = 10.sp, lineHeight = 14.sp, color = careColor(matching.first().kind))
+                            } else if (matching.size > 1) {
+                                Text("${matching.size}건", fontSize = 10.sp, lineHeight = 14.sp)
+                                CareDots(matching.map { it.kind }.sortedBy { kinds.indexOf(it) })
                             }
                         }
                     }
@@ -713,12 +715,12 @@ class MainActivity : ComponentActivity() {
     var fuel by rememberSaveable { mutableStateOf(data.fuel) }
     var wash by rememberSaveable { mutableStateOf(data.entries.filter { it.kind == "세차" && !it.cancelled }.maxByOrNull { it.date }?.date?.toString()) }
     var lastFuel by rememberSaveable { mutableStateOf(data.entries.filter { it.kind == "주유" }.maxByOrNull { it.date }?.date?.toString()) }
-    var oil by rememberSaveable { mutableStateOf(data.entries.filter { it.kind == "엔진오일 교체" }.maxByOrNull { it.date }?.date?.toString()) }
+    var oil by rememberSaveable { mutableStateOf(data.entries.filter { it.kind == MAINTENANCE && !it.cancelled }.maxByOrNull { it.date }?.date?.toString()) }
     PhoneFormDialog("차량 정보 편집", busy, nickname.isNotBlank() && model.isNotBlank(), close, save = {
         val fullModel = if (brand.isBlank() || model.startsWith(brand)) model.trim() else "$brand ${model.trim()}"
         save(data.copy(nickname = nickname.trim(), model = fullModel, plate = plate.trim(), fuel = fuel,
             entries = updateLatestPhoneRecords(data.entries, mapOf("세차" to wash?.let(LocalDate::parse), "주유" to lastFuel?.let(LocalDate::parse),
-                "엔진오일 교체" to if (fuel == "전기차") null else oil?.let(LocalDate::parse)))))
+                MAINTENANCE to oil?.let(LocalDate::parse)))))
     }) { finishInput ->
             Text("제조사", fontWeight = FontWeight.Bold)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -743,7 +745,7 @@ class MainActivity : ComponentActivity() {
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }), modifier = Modifier.fillMaxWidth())
             OptionalCareDate("마지막 주유·충전일", lastFuel, !busy, finishInput) { lastFuel = it }
             OptionalCareDate("마지막 세차일", wash, !busy, finishInput) { wash = it }
-            if (fuel != "전기차") OptionalCareDate("마지막 엔진오일 교체일", oil, !busy, finishInput) { oil = it }
+            OptionalCareDate("마지막 정비일", oil, !busy, finishInput) { oil = it }
     }
 }
 

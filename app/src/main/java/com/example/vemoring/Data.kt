@@ -7,7 +7,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 enum class CareKind(val label: String, val key: String) {
-    WASH("세차", "lastWash"), FUEL("주유", "lastFuel"), OIL("엔진오일 교체", "lastOil");
+    WASH("세차", "lastWash"), FUEL("주유", "lastFuel"), OIL("정비", "lastOil");
     val wire: String get() = name.lowercase()
 }
 

@@ -221,11 +221,11 @@ fun VehicleDialog(profile: CarProfile, records: List<CareRecord>, close: () -> U
             OutlinedTextField(plate, { plate = it }, label = { Text("차량 번호") }, singleLine = true)
             DateInput("마지막 주유·충전일", lastFuel?.let(LocalDate::parse), { lastFuel = it?.toString() })
             DateInput("마지막 세차일", wash?.let(LocalDate::parse), { wash = it?.toString() })
-            if(fuel != "전기차") DateInput("마지막 엔진오일 교체일", oil?.let(LocalDate::parse), { oil = it?.toString() })
+            DateInput("마지막 정비일", oil?.let(LocalDate::parse), { oil = it?.toString() })
         }
     }, confirmButton = { TextButton(enabled = nickname.isNotBlank() && model.isNotBlank() && plate.isNotBlank(), onClick = {
         save(profile.copy(brand = brand, model = model.trim(), nickname = nickname.trim(), plate = plate.trim(), fuel = fuel),
             mapOf(CareKind.WASH to wash?.let(LocalDate::parse), CareKind.FUEL to lastFuel?.let(LocalDate::parse),
-                CareKind.OIL to if(fuel == "전기차") null else oil?.let(LocalDate::parse)))
+                CareKind.OIL to oil?.let(LocalDate::parse)))
     }) { Text("저장하기") } }, dismissButton = { TextButton(onClick = close) { Text("취소") } })
 }

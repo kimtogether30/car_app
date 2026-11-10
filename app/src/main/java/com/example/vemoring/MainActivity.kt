@@ -47,7 +47,18 @@ private val Muted = Color(0xFF526678)
 // Parsed once instead of on every recomposition (vehicle signals recompose the home screen often).
 private val SeoulZone = java.time.ZoneId.of("Asia/Seoul")
 private val HomeDateFormat = java.time.format.DateTimeFormatter.ofPattern("yyyy. MM. dd")
-val CareKind.color get() = when(this) { CareKind.WASH -> Blue; CareKind.FUEL -> Orange; CareKind.OIL -> Mint }
+// Matches the mascot colors: fuel = yellow, maintenance (resolved warning) = purple. Darkened for text contrast on white.
+val CareYellow = Color(0xFFA97C00)
+val CarePurple = Color(0xFF7B4FC4)
+val CareKind.color get() = when(this) { CareKind.WASH -> Blue; CareKind.FUEL -> CareYellow; CareKind.OIL -> CarePurple }
+
+/** One colored dot per record (max 4) so a "2건" day shows which kinds they are. */
+@Composable
+fun CareDots(colors: List<Color>, size: androidx.compose.ui.unit.Dp) {
+    Row(horizontalArrangement = Arrangement.spacedBy(size / 2)) {
+        colors.take(4).forEach { Box(Modifier.size(size).background(it, androidx.compose.foundation.shape.CircleShape)) }
+    }
+}
 
 class MainActivity : ComponentActivity() {
     private val vehicleModel: VehicleViewModel by viewModels()
@@ -507,8 +518,12 @@ fun CalendarScreen(records: List<CareRecord>, save: (CareRecord, () -> Unit) -> 
                                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                 Text("$day", color = when { date == today -> Blue; date > today -> Muted; else -> Ink },
                                     fontWeight = if(date == today) FontWeight.Bold else FontWeight.Normal)
-                                if (matching.isNotEmpty()) Text(if(matching.size > 1) "${matching.size}건" else matching.first().kind.label,
-                                    fontSize = 16.sp, color = matching.first().kind.color, maxLines = 1)
+                                if (matching.size == 1) Text(matching.first().kind.label,
+                                    fontSize = 16.sp, lineHeight = 20.sp, color = matching.first().kind.color, maxLines = 1)
+                                else if (matching.size > 1) {
+                                    Text("${matching.size}건", fontSize = 16.sp, lineHeight = 20.sp, color = Ink, maxLines = 1)
+                                    CareDots(matching.sortedBy { it.kind.ordinal }.map { it.kind.color }, 8.dp)
+                                }
                             }
                         }
                     }

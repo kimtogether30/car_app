@@ -3,6 +3,11 @@ package com.example.vemoring.phone
 import java.time.LocalDate
 import java.util.UUID
 
+/** Third record kind: a resolved vehicle warning. Wire value stays "oil" so vehicle data and history are unchanged. */
+internal const val MAINTENANCE = "정비"
+/** Records saved before the rename used "엔진오일 교체"; read them as 정비 without rewriting stored data. */
+internal fun normalizeKind(kind: String): String = if (kind == "엔진오일 교체") MAINTENANCE else kind
+
 internal data class Entry(val id: String = UUID.randomUUID().toString(), val kind: String,
     val title: String, val date: LocalDate, val detail: String, val completedAt: String? = null,
     val visitId: String? = null, val cancelled: Boolean = false, val source: String = "Manual", val appliedAt: String? = null,
@@ -10,7 +15,7 @@ internal data class Entry(val id: String = UUID.randomUUID().toString(), val kin
 
 /** Match the vehicle's date editor: unknown dates keep existing records; edited dates retain IDs and notes. */
 internal fun updateLatestPhoneRecords(entries: List<Entry>, dates: Map<String, LocalDate?>, today: LocalDate = LocalDate.now(java.time.ZoneId.of("Asia/Seoul"))): List<Entry> {
-    require(dates.keys.all { it in listOf("세차", "주유", "엔진오일 교체") })
+    require(dates.keys.all { it in listOf("세차", "주유", MAINTENANCE) })
     require(dates.values.filterNotNull().none { it > today })
     val result = entries.toMutableList()
     dates.forEach { (kind, date) ->
