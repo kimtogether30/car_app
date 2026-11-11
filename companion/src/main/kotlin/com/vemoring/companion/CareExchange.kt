@@ -14,6 +14,14 @@ object CareExchange {
     private val mutex = Mutex()
     val canonical = MutableStateFlow<CareAuthority?>(null)
     val confirmationRevision = MutableStateFlow(0L)
+    val weatherRevision = MutableStateFlow(0L)
+    suspend fun weatherChanged(context:Context,vehicleId:String) = withContext(Dispatchers.IO) {mutex.withLock {
+        val store=CareJournal(context,vehicleId);val state=store.authority() ?: return@withLock
+        val cached=MirrorBus.vehicles.value[vehicleId]?.snapshot
+        val snapshot=cached?.let {JSONObject(it.content).put("observedAt",it.capturedAt)}
+        CareNotifications.evaluate(context,store,state,store.score(JSONArray(state.records)),snapshot?.optJSONObject("care"),snapshot)
+        weatherRevision.value++
+    }}
     suspend fun registerPhone(context: Context,profile: JSONObject,records: JSONArray): CareAuthority = withContext(Dispatchers.IO) {
         mutex.withLock {
             val id=java.util.UUID.randomUUID().toString()
@@ -39,6 +47,7 @@ object CareExchange {
             if (state != null) {
                 val store = CareJournal(context, state.vehicleId)
                 CareNotifications.evaluate(context, store, state, store.score(JSONArray(state.records)), null)
+                DrivingWeatherSync.enqueue(context,state.vehicleId)
             }
         }
         CareDailyCheck.schedule(context)
@@ -116,7 +125,7 @@ object CareExchange {
             if (previous != null && snapshot.revision <= journal.receivedRevision()) {
                 canonical.value = previous
                 return@withLock JSONObject().put("schema", 2).put("vehicleId", snapshot.vehicleId)
-                    .put("ack", snapshot.revision).put("authority", previous.json()).put("intervalAck", intervalAck(j))
+                    .put("ack", snapshot.revision).put("authority", previous.json()).put("intervalAck", intervalAck(j)).put("weatherIntervals",journal.weatherReply())
             }
             var state = journal.authority()
             if (state == null) {
@@ -144,9 +153,11 @@ object CareExchange {
             val score = journal.score(JSONArray(state.records))
             BannerNotifications.recordChanges(context,previous,state)
             if (!j.optBoolean("demo")) CareNotifications.evaluate(context, journal, state, score, j.optJSONObject("care"),j.put("observedAt",snapshot.capturedAt))
+            DrivingWeatherSync.enqueue(context,snapshot.vehicleId)
             CareDailyCheck.schedule(context)
             JSONObject().put("schema", 2).put("vehicleId", snapshot.vehicleId).put("ack", snapshot.revision)
                 .put("authority", state.json()).put("cleanliness", score.displayed ?: JSONObject.NULL).put("intervalAck", intervalAck(j))
+                .put("weatherIntervals",journal.weatherReply())
         }
     }
 
@@ -158,6 +169,7 @@ object CareExchange {
             require(authority.vehicleId == response.getString("vehicleId"))
             validate(authority)
             val store = CareJournal(context, authority.vehicleId)
+            response.optJSONArray("weatherIntervals")?.let {store.importWeatherReply(it)}
             val records=JSONArray(authority.records)
             store.rememberDeletedRecords((0 until records.length()).map {records.getJSONObject(it)}.filter {it.optBoolean("deleted")}.map {it.getString("id")}.toSet())
             if ((store.authority()?.version ?: 0) <= authority.version) {

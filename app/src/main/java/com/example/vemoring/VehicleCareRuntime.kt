@@ -22,7 +22,7 @@ object VehicleCareRuntime {
             val journal = CareJournal(context, id)
             val unit = MaintenanceStore(context, data.profile).distanceUnit()
             if (!demo) journal.observeDistance(confirmedKilometres(snapshot[VehicleField.ODOMETER], unit),
-                snapshot[VehicleField.ODOMETER].receivedAtMillis, session, System.currentTimeMillis())
+                snapshot[VehicleField.ODOMETER].receivedAtMillis, session, System.currentTimeMillis(),SharedVehicleConnection.travelPoint.value)
             val warnings = JSONObject()
             listOf(VehicleField.ENGINE_OIL, VehicleField.BRAKE_FLUID, VehicleField.TRANSMISSION_OIL,
                 VehicleField.WASHER, VehicleField.TELLTALES, VehicleField.OIL_PRESSURE).forEach { field ->

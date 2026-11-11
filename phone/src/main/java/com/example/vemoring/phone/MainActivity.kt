@@ -247,6 +247,7 @@ class MainActivity : ComponentActivity() {
     val received by MirrorBus.received.collectAsState()
     val receivedVehicles by MirrorBus.vehicles.collectAsState()
     val authority by CareExchange.canonical.collectAsState()
+    val weatherRevision by CareExchange.weatherRevision.collectAsState()
     val link by MirrorBus.link.collectAsState()
     val directory by produceState<Pair<List<CareAuthority>,String?>>(emptyList<CareAuthority>() to null,authority,receivedVehicles.keys,retry) {
         runCatching {withContext(Dispatchers.IO) {
@@ -262,7 +263,7 @@ class MainActivity : ComponentActivity() {
     LaunchedEffect(selectedVehicleId) {selectedVehicleId?.let {withContext(Dispatchers.IO) {store.select(it)}}}
     val selectedAuthority=fleet.firstOrNull {it.vehicleId==selectedVehicleId}
     val selectedReceived=receivedVehicles[selectedVehicleId]
-    val vehicleData by produceState<PhoneData?>(null,selectedAuthority,selectedReceived) {
+    val vehicleData by produceState<PhoneData?>(null,selectedAuthority,selectedReceived,weatherRevision) {
         value=selectedAuthority?.let {state -> withContext(Dispatchers.IO) {phoneVehicleData(context,state,selectedReceived)}}
     }
     val viewingVehicle = vehicleData?.mirror!=null

@@ -32,7 +32,7 @@ data class WeeklyWeatherForecast(
 
 /** Shared by app/phone. Caller supplies location; this class neither obtains it nor schedules refreshes. */
 class WeeklyWeatherRepository(
-    private val request: (String) -> JSONObject = ::requestWeeklyWeather,
+    private val request: (String) -> JSONObject = ::requestWeatherJson,
     private val now: () -> Instant = Instant::now
 ) {
     /** Today through today+6 in Korea. Network/invalid response failures propagate; never invent a forecast. */
@@ -71,7 +71,7 @@ class WeeklyWeatherRepository(
     }
 }
 
-private fun requestWeeklyWeather(url: String): JSONObject {
+internal fun requestWeatherJson(url: String): JSONObject {
     val connection = URI(url).toURL().openConnection() as HttpURLConnection
     try {
         connection.connectTimeout = 10000

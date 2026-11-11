@@ -2,6 +2,8 @@
 
 작성일: 2026-11-11. 대상: 최신 Kotlin `app/`, `phone/`, 공통 `companion/` 소스.
 
+**후속 구현:** [DRIVING_WEATHER_IMPLEMENTATION.md](DRIVING_WEATHER_IMPLEMENTATION.md)의 연결 코드를 추가했다. 아래 ‘미구현/친구 구현 대상’은 최초 인계 당시 상태이며, 현재 코드 경로/추가된 내부 캐시·재시도·수신 공백 규칙은 후속 문서를 우선한다. SDK 실수신·물리 BT 검증은 여전히 별개다. 화면/추천/화면 갱신 정책은 보류 유지.
+
 ## 이번에 추가한 것과 친구가 할 것
 
 - **구현:** `companion/.../WeeklyWeatherRepository.kt`의 `suspend fetch(latitude, longitude)`로 오늘 포함 7일(오늘~+6일)의 일별 예보 조회. 두 앱에서 사용 가능한 공통 소스이며 IO에서 네트워크 실행. 휴대폰 INTERNET 권한 추가.

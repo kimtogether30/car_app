@@ -77,7 +77,7 @@ data class CareAuthority(val vehicleId: String, val version: Long, val profile: 
 
 private val CARE_JOURNAL_LOCK = Any()
 
-/** Caller uses Dispatchers.IO. One vehicle per preference key; no location copied into this journal. */
+/** Caller uses Dispatchers.IO. Per-vehicle journal; only travel endpoint location, never a route trace. */
 class CareJournal(private val context: Context, val vehicleId: String) {
     private val prefs = context.getSharedPreferences("care_journal_v1", Context.MODE_PRIVATE)
     /** Preference key of this vehicle's journal; listeners use it to ignore other vehicles' writes. */
@@ -217,7 +217,8 @@ class CareJournal(private val context: Context, val vehicleId: String) {
         return (0 until a.length()).map { i -> a.getJSONObject(i).let { j ->
             TravelInterval(j.getString("id"), Instant.parse(j.getString("start")), Instant.parse(j.getString("end")),
                 j.getDouble("km"), j.optBoolean("stationary"), located = j.optBoolean("located"),
-                weather = j.optJSONObject("weather")?.let(::weatherFromJson), source = j.optString("source", "Real"))
+                weather = j.optJSONObject("weather")?.let(::weatherFromJson), source = j.optString("source", "Real"),
+                policy=j.optInt("policy",CARE_POLICY_VERSION),point=j.optJSONObject("point")?.let(TravelPoint::from))
         } }
     }
     fun mergeIntervals(incoming: List<TravelInterval>) {
@@ -227,37 +228,34 @@ class CareJournal(private val context: Context, val vehicleId: String) {
     private fun mergeInto(j: JSONObject, incoming: List<TravelInterval>) {
         val all = intervals(j).associateBy { it.id }.toMutableMap()
         incoming.forEach { next ->
-            if (all.values.none { it.id != next.id && it.start < next.end && it.end > next.start }) all[next.id] = next
+            val old=all[next.id]
+            if(old!=null && (next.start!=old.start || next.end<old.end || (old.km>0 && next.km!=old.km))) return@forEach
+            if(old?.weather!=null && old.weather==next.weather && old.point==next.point) {
+                val delivered=j.optJSONObject("weatherDelivered") ?: JSONObject()
+                delivered.put(next.id,true);j.put("weatherDelivered",delivered)
+            }
+            if (all.values.none { it.id != next.id && it.start < next.end && it.end > next.start })
+                all[next.id] = if(old!=null && old.end==next.end && old.km==next.km && old.point==next.point && next.weather==null)
+                    next.copy(weather=old.weather) else next
         }
         val a = JSONArray()
         WashPolicy.coalesceParking(all.values.toList()).forEach { t -> a.put(JSONObject().put("id", t.id).put("start", t.start)
             .put("end", t.end).put("km", t.km).put("stationary", t.stationary).put("source", t.source)
-            .put("located", t.located).put("policy", t.policy).put("weather", t.weather?.let { w -> JSONObject()
+            .put("located", t.located).put("policy", t.policy).put("point",t.point?.json()).put("weather", t.weather?.let { w -> JSONObject()
                 .put("hourStart", w.hourStart).put("rainMm", w.rainMm).put("showersMm", w.showersMm)
                 .put("snowCm", w.snowCm).put("pm10", w.pm10).put("pm25", w.pm25)
-                .put("obtainedAt", w.obtainedAt).put("version", w.version) })) }
+                .put("obtainedAt", w.obtainedAt).put("version", w.version).put("precipitationKnown",w.precipitationKnown) })) }
         j.put("intervals", a)
     }
     /** Bounded raw mileage anchor. Unknown units, restarts and disconnects cannot become parked time. */
-    fun observeDistance(km: Double?, at: Long?, session: String, now: Long) {
+    fun observeDistance(km: Double?, at: Long?, session: String, now: Long, point: TravelPoint? = null) {
         synchronized(CARE_JOURNAL_LOCK) {
             val j = load()
-            if (km == null || at == null || !km.isFinite() || km < 0 || now - at !in 0..15000) {
-                if (j.has("anchor")) { j.remove("anchor"); save(j) }; return
-            }
-            val old = j.optJSONObject("anchor")
-            if (old != null && old.getString("session") == session && at <= old.getLong("at")) return
-            if (old != null && old.getString("session") == session && at > old.getLong("at")) {
-                val previous = old.getDouble("km"); val elapsed = at - old.getLong("at")
-                val delta = km - previous
-                // Broad sanity bound, not a vehicle driving/speed or wash motion threshold.
-                if (elapsed <= 15*60*1000 && delta >= 0 && delta <= elapsed / 3600000.0 * 300.0) {
-                    mergeInto(j, listOf(TravelInterval("$session:${old.getLong("at")}:$at",
-                        Instant.ofEpochMilli(old.getLong("at")), Instant.ofEpochMilli(at), delta, delta == 0.0)))
-                }
-            }
-            // One read and one write per mileage sample: interval merge and anchor share the loaded journal.
-            j.put("anchor", JSONObject().put("km", km).put("at", at).put("session", session)); save(j)
+            val old=j.optJSONObject("anchor")?.let(DistanceAnchor::from)
+            val step=DistanceAccumulator.observe(old,km,at?.let(Instant::ofEpochMilli),session,Instant.ofEpochMilli(now),point)
+            step.interval?.let {mergeInto(j,listOf(it))}
+            if(step.anchor==null) j.remove("anchor") else j.put("anchor",step.anchor.json())
+            save(j)
         }
     }
     fun intervalJson(): JSONArray = load().optJSONArray("intervals") ?: JSONArray()
@@ -295,7 +293,8 @@ class CareJournal(private val context: Context, val vehicleId: String) {
         mergeIntervals((0 until a.length()).map { i -> a.getJSONObject(i).let { t ->
             TravelInterval(t.getString("id"), Instant.parse(t.getString("start")), Instant.parse(t.getString("end")),
                 t.getDouble("km"), t.optBoolean("stationary"), located = t.optBoolean("located"),
-                weather = t.optJSONObject("weather")?.let(::weatherFromJson), source = t.optString("source", "Real"))
+                weather = t.optJSONObject("weather")?.let(::weatherFromJson), source = t.optString("source", "Real"),
+                policy=t.optInt("policy",CARE_POLICY_VERSION),point=t.optJSONObject("point")?.let(TravelPoint::from))
         } })
     }
     fun baselines(records: JSONArray): List<WashBaseline> = (0 until records.length()).mapNotNull { i ->
@@ -335,7 +334,31 @@ class CareJournal(private val context: Context, val vehicleId: String) {
     private fun weatherFromJson(w: JSONObject) = HourWeather(Instant.parse(w.getString("hourStart")),
         w.getDouble("rainMm"), w.getDouble("showersMm"), w.getDouble("snowCm"),
         w.takeUnless { it.isNull("pm10") }?.getDouble("pm10"), w.takeUnless { it.isNull("pm25") }?.getDouble("pm25"),
-        Instant.parse(w.getString("obtainedAt")), w.getString("version"))
+        Instant.parse(w.getString("obtainedAt")), w.getString("version"),w.optBoolean("precipitationKnown",true))
+
+    /** Enrichment can change only existing immutable travel evidence, never invent mileage. */
+    fun attachWeather(id: String,weather: HourWeather): Boolean = synchronized(CARE_JOURNAL_LOCK) {
+        val j=load(); val old=intervals(j).firstOrNull {it.id==id} ?: return@synchronized false
+        if(old.weather!=null || !DrivingWeatherPolicy.pending(old,weather.obtainedAt) ||
+            weather.hourStart!=DrivingWeatherPolicy.hourStart(old.start) || weather.obtainedAt<DrivingWeatherPolicy.readyAt(old)) return@synchronized false
+        mergeInto(j,listOf(old.copy(weather=weather))); save(j); true
+    }
+    fun weatherReply(): JSONArray = JSONArray().also {a ->
+        val j=load();val all=j.optJSONArray("intervals") ?: JSONArray();val delivered=j.optJSONObject("weatherDelivered")
+        for(n in 0 until all.length()) {
+            val t=all.getJSONObject(n)
+            if(t.optJSONObject("weather")!=null && delivered?.optBoolean(t.getString("id"))!=true) a.put(t)
+            if(a.length()>=128) break
+        }
+    }
+    fun importWeatherReply(a: JSONArray) {
+        require(a.length()<=128)
+        repeat(a.length()) {n -> val t=a.getJSONObject(n); val old=intervals().firstOrNull {it.id==t.getString("id")}
+            if(old!=null && old.start==Instant.parse(t.getString("start")) && old.end==Instant.parse(t.getString("end")) &&
+                old.km==t.getDouble("km") && t.optJSONObject("point")?.let(TravelPoint::from)==old.point)
+                t.optJSONObject("weather")?.let {attachWeather(old.id,weatherFromJson(it))}
+        }
+    }
 }
 
 internal fun intervalDigest(part: JSONObject): String = java.util.UUID.nameUUIDFromBytes(part.toString().toByteArray(Charsets.UTF_8)).toString()

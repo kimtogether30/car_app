@@ -179,11 +179,14 @@ class MirrorBluetoothService : Service() {
                     DataOutputStream(client.outputStream).apply { writeInt(bytes.size); write(bytes); flush() }
                 }
                 val settingsWriter = launch {
-                    CareExchange.canonical.drop(1).collect { authority ->
+                    kotlinx.coroutines.flow.combine(CareExchange.canonical,CareExchange.weatherRevision) {a,_ -> a}.drop(1).collect { candidate ->
                         val received = MirrorBus.received.value?.snapshot
+                        val authority=candidate?.takeIf {it.vehicleId==received?.vehicleId}
+                            ?: received?.let {CareJournal(this@MirrorBluetoothService,it.vehicleId).authority()}
                         if (authority != null && received?.vehicleId == authority.vehicleId)
                             send(JSONObject().put("schema", 2).put("vehicleId", authority.vehicleId)
-                                .put("ack", received.revision).put("authority", authority.json()))
+                                .put("ack", received.revision).put("authority", authority.json())
+                                .put("weatherIntervals",CareJournal(this@MirrorBluetoothService,authority.vehicleId).weatherReply()))
                     }
                 }
                 try { while (isActive) {

@@ -9,7 +9,7 @@ const val CARE_POLICY_VERSION = 1
 /** Long-lived, non-location journal. Never replace this with a final daily score. */
 data class TravelInterval(val id: String, val start: Instant, val end: Instant, val km: Double,
     val stationary: Boolean = false, val located: Boolean = false, val weather: HourWeather? = null,
-    val source: String = "Real", val policy: Int = CARE_POLICY_VERSION) {
+    val source: String = "Real", val policy: Int = CARE_POLICY_VERSION, val point: TravelPoint? = null) {
     init {
         require(id.isNotBlank() && end > start && km.isFinite() && km >= 0)
         require(!stationary || km == 0.0)
@@ -19,7 +19,7 @@ data class TravelInterval(val id: String, val start: Instant, val end: Instant, 
 /** Matching is explicit: hourly bins and actual travel only, never today's forecast on old mileage. */
 data class HourWeather(val hourStart: Instant, val rainMm: Double, val showersMm: Double,
     val snowCm: Double, val pm10: Double?, val pm25: Double?, val obtainedAt: Instant,
-    val version: String) {
+    val version: String, val precipitationKnown: Boolean = true) {
     init { require(listOfNotNull(rainMm, showersMm, snowCm, pm10, pm25).all { it.isFinite() && it >= 0 }) }
 }
 
@@ -77,7 +77,7 @@ object WashPolicy {
                     when {
                         w.snowCm >= .1 -> extra += part.km * .40
                         w.rainMm + w.showersMm >= .1 -> extra += part.km * .20
-                        else -> {
+                        else -> if (w.precipitationKnown && w.snowCm == 0.0 && w.rainMm + w.showersMm == 0.0) {
                             val factor = when {
                                 (w.pm10 ?: 0.0) > 150 || (w.pm25 ?: 0.0) > 75 -> .06
                                 (w.pm10 ?: 0.0) > 80 || (w.pm25 ?: 0.0) > 35 -> .03

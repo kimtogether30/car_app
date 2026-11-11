@@ -129,7 +129,7 @@ class PhoneApplication : Application() {
         })
         scope.launch {
             MirrorBus.load(this@PhoneApplication)
-            combine(MirrorBus.received, CareExchange.canonical, foreground) { received, authority, visible ->
+            combine(MirrorBus.received, CareExchange.canonical, foreground,CareExchange.weatherRevision) { received, authority, visible,_ ->
                 Triple(received, authority, visible)
             }.debounce(500).collectLatest { (received, authority, visible) ->
                 if (visible) return@collectLatest
