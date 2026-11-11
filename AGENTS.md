@@ -1,6 +1,7 @@
 # Project working requirements
 
 - Preserve the user's PC performance budget (16 GB RAM). Avoid unnecessary animations, polling, heavy dependencies, main-thread disk I/O, and repeated work during Compose recomposition. Keep Gradle worker limits unless measurements justify changing them.
+- Validate vehicle and phone emulators one at a time. Close the current emulator before starting the other unless a specific test actually requires both devices running together.
 - Develop and validate for the Hyundai Motor Group vehicle app development contest and its linked official Pleos documentation. Verify current official requirements before changing SDK, emulator, vehicle integration, or submission assumptions. Do not assume that generic Android emulator optimizations are compatible with Pleos.
 - Keep Pleos Connect v2.1.0 / API 34 emulator with its official device profile and 4 GB RAM. Use Cold Boot: official documentation states Quick Boot cannot use VHAL. Do not lower resolution or memory to mask performance problems.
 - Preserve the required Android minimum API 28 or higher, Java/Kotlin development, and Gradle 8 or higher. Check official documents for updates rather than interpreting these as permanently fixed versions.

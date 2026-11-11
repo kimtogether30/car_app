@@ -31,7 +31,7 @@ private enum class NearbyPlace(val label: String, val description: String, val c
 
 /** Three on-demand pages; no location polling, map instance, or automatic slideshow. */
 @Composable
-fun NearbyPlacesBanner(compact: Boolean = false, onSearch: ((String) -> Unit)? = null) {
+fun NearbyPlacesBanner(compact: Boolean = false, slim: Boolean = false, onSearch: ((String) -> Unit)? = null) {
     val context = LocalContext.current
     val pager = rememberPagerState(pageCount = { NearbyPlace.entries.size })
     val scope = rememberCoroutineScope()
@@ -46,7 +46,8 @@ fun NearbyPlacesBanner(compact: Boolean = false, onSearch: ((String) -> Unit)? =
         }
         pendingSearch = label
     }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    if(slim) com.vemoring.companion.NearbyQuickLinks(vehicle = true, onSearch = ::search)
+    else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth(),
             key = { NearbyPlace.entries[it].name }) { page ->
             val place = NearbyPlace.entries[page]

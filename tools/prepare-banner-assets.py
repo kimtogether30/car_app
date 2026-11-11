@@ -61,6 +61,7 @@ for group, (title, body, short, warning) in groups.items():
     light = 12 if group == "ENGINE_TEMPERATURE" else wash[group]+1
     add("WASH_"+group, f"세차와 {short}이 필요해!", f"몸도 꼬질꼬질한데 {warning} 경고등까지 켜졌어! 나한테 관심 좀 줘!", "ANGRY", wash[group], light)
     add("ALL_"+group, f"주유·세차·{short}이 필요해!", f"배고프고, 꼬질꼬질하고, {warning} 경고등까지... 나 좀 살려줘...", "EXHAUSTED", all_three[group], all_three[group]+1)
+add("MAINTENANCE_DONE", "정비 기록을 저장했어!", "관리해 줘서 고마워!", "NORMAL")
 add("WASH_QUESTION", "세차한 것 같아!", "세차장 방문을 감지해서 청결도를 초기화했어. 세차하지 않았다면 알려줘!", "NORMAL")
 add("FUEL_WASH_NEEDED", "주유와 세차가 필요해!", "배고프고 꼬질꼬질해... 하나씩 챙겨줄래?", "ANGRY")
 add("VEHICLE_WARNING", "차량 경고 확인이 필요해!", "차량 경고가 있어. 계기판과 차량 안내를 확인해 줘!", "OIL")

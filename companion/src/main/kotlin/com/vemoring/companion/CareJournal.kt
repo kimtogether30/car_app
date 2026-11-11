@@ -18,7 +18,7 @@ data class CareAuthority(val vehicleId: String, val version: Long, val profile: 
             acceptedRequests = (acceptedRequests.toList().takeLast(127) + id).toSet())
     }
     fun protectCancelledVisits(proposed: String): String {
-        val old = JSONArray(records); val next = JSONArray(proposed)
+        val old = JSONArray(records); val next = JSONArray(normalizeMaintenanceRecords(proposed))
         val tombstones = (0 until old.length()).map { old.getJSONObject(it) }.filter { record ->
             record.optBoolean("deleted") || (record.optBoolean("cancelled") &&
                 record.optString("visitId").let { it.isNotBlank() && it != "null" })
@@ -70,7 +70,7 @@ data class CareAuthority(val vehicleId: String, val version: Long, val profile: 
     }
     companion object {
         fun from(j: JSONObject) = CareAuthority(j.getString("vehicleId"), j.getLong("version"),
-            j.getJSONObject("profile").toString(), j.getJSONArray("records").toString(),
+            j.getJSONObject("profile").toString(), normalizeMaintenanceRecords(j.getJSONArray("records").toString()),
             j.optJSONArray("acceptedRequests")?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } ?: emptySet())
     }
 }
@@ -337,11 +337,19 @@ class CareJournal(private val context: Context, val vehicleId: String) {
         Instant.parse(w.getString("obtainedAt")), w.getString("version"),w.optBoolean("precipitationKnown",true))
 
     /** Enrichment can change only existing immutable travel evidence, never invent mileage. */
-    fun attachWeather(id: String,weather: HourWeather): Boolean = synchronized(CARE_JOURNAL_LOCK) {
-        val j=load(); val old=intervals(j).firstOrNull {it.id==id} ?: return@synchronized false
-        if(old.weather!=null || !DrivingWeatherPolicy.pending(old,weather.obtainedAt) ||
-            weather.hourStart!=DrivingWeatherPolicy.hourStart(old.start) || weather.obtainedAt<DrivingWeatherPolicy.readyAt(old)) return@synchronized false
-        mergeInto(j,listOf(old.copy(weather=weather))); save(j); true
+    fun attachWeather(id: String,weather: HourWeather): Boolean = attachWeather(listOf(id to weather))>0
+    /** Same per-interval checks as a single attach, but one journal read and one write for the whole batch. */
+    fun attachWeather(updates: List<Pair<String,HourWeather>>): Int = synchronized(CARE_JOURNAL_LOCK) {
+        if(updates.isEmpty()) return@synchronized 0
+        val j=load(); val current=intervals(j).associateBy {it.id}
+        val accepted=updates.mapNotNull {(id,weather) ->
+            val old=current[id] ?: return@mapNotNull null
+            if(old.weather!=null || !DrivingWeatherPolicy.pending(old,weather.obtainedAt) ||
+                weather.hourStart!=DrivingWeatherPolicy.hourStart(old.start) || weather.obtainedAt<DrivingWeatherPolicy.readyAt(old)) null
+            else old.copy(weather=weather)
+        }.distinctBy {it.id}
+        if(accepted.isNotEmpty()) {mergeInto(j,accepted); save(j)}
+        accepted.size
     }
     fun weatherReply(): JSONArray = JSONArray().also {a ->
         val j=load();val all=j.optJSONArray("intervals") ?: JSONArray();val delivered=j.optJSONObject("weatherDelivered")
@@ -353,11 +361,14 @@ class CareJournal(private val context: Context, val vehicleId: String) {
     }
     fun importWeatherReply(a: JSONArray) {
         require(a.length()<=128)
-        repeat(a.length()) {n -> val t=a.getJSONObject(n); val old=intervals().firstOrNull {it.id==t.getString("id")}
+        // Parse the journal once for matching, then attach every verified entry in a single write.
+        val current=intervals().associateBy {it.id}
+        val updates=(0 until a.length()).mapNotNull {n -> val t=a.getJSONObject(n); val old=current[t.getString("id")]
             if(old!=null && old.start==Instant.parse(t.getString("start")) && old.end==Instant.parse(t.getString("end")) &&
                 old.km==t.getDouble("km") && t.optJSONObject("point")?.let(TravelPoint::from)==old.point)
-                t.optJSONObject("weather")?.let {attachWeather(old.id,weatherFromJson(it))}
+                t.optJSONObject("weather")?.let {old.id to weatherFromJson(it)} else null
         }
+        attachWeather(updates)
     }
 }
 

@@ -33,7 +33,7 @@ data class MirrorSnapshot(val vehicleId: String, val revision: Long, val capture
             repeat(records.length()) { index ->
                 val r = records.getJSONObject(index)
                 require(r.getString("id").isNotBlank() && ids.add(r.getString("id")))
-                require(r.getString("kind") in listOf("wash", "fuel", "oil"))
+                require(r.getString("kind") in listOf("wash", "fuel", "oil", "maintenance"))
                 LocalDate.parse(r.getString("date"))
                 require(r.getString("title").length <= 4096 && r.getString("detail").length <= 32768)
                 r.optString("completedAt").takeUnless { it.isBlank() || it == "null" }?.let(java.time.Instant::parse)

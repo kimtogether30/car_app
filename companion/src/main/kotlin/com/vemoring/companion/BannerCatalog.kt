@@ -7,6 +7,7 @@ object BannerCatalog {
         BannerDefinition("FUEL_DONE", "주유 완료!", "배부르다! 밥 먹여줘서 고마워!", "NORMAL", "banner_fuel_done"),
         BannerDefinition("WASH_DONE", "세차 완료!", "와! 반짝반짝해졌어! 기분 최고야!", "NORMAL", "banner_wash_done"),
         BannerDefinition("OIL_DONE", "엔진오일 교체 완료!", "몸이 한결 가벼워졌어! 고마워!", "NORMAL", "banner_oil_done"),
+        BannerDefinition("MAINTENANCE_DONE", "정비 기록을 저장했어!", "관리해 줘서 고마워!", "NORMAL"),
         BannerDefinition("ALL_DONE", "모든 관리 완료!", "완전 새 차가 된 기분이야! 고마워!", "NORMAL", "banner_all_done"),
         BannerDefinition("FUEL_NEEDED", "주유할 시간이야!", "배고파졌어! 슬슬 밥 먹으러 가자!", "FUEL", "banner_fuel_needed"),
         BannerDefinition("WASH_NEEDED", "세차가 필요해!", "나 너무 꼬질꼬질해... 씻겨주면 안 돼?", "WASH", "banner_wash_needed"),

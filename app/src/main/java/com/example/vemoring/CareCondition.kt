@@ -30,7 +30,8 @@ fun careCondition(data: AppData, snapshot: VehicleSnapshot, config: MaintenanceC
     val clean = WashPolicy.score(data.records.filter { it.kind == CareKind.WASH }.map {
         WashBaseline(it.id, it.date, it.completedAt?.let(Instant::parse), it.visitId, it.cancelled, it.source)
     }, config.intervals, Instant.ofEpochMilli(now)).displayed
-    val oil = latest(CareKind.OIL)
+    val oil = data.records.filter { it.kind == CareKind.MAINTENANCE && !it.cancelled && it.date <= today &&
+        it.maintenanceType == com.vemoring.companion.MaintenanceType.ENGINE_OIL }.maxByOrNull { it.date }
     val oilKm = valid(config.oilKm)
     val interval = valid(config.intervalKm)?.takeIf { it > 0 }
     val remaining = if (!p.electric && oil != null && config.oilId == "${oil.id}@${oil.date}" &&

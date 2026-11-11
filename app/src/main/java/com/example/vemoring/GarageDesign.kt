@@ -52,9 +52,9 @@ fun HomePage(content: @Composable ColumnScope.(Boolean) -> Unit) {
             androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.15f
         val scroll = rememberScrollState()
         Column(Modifier.fillMaxSize()
-            .then(if (compact) Modifier else Modifier.verticalScroll(scroll))
-            .padding(start = 32.dp, top = if (compact) 28.dp else 12.dp, end = 32.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 24.dp)) {
+            .verticalScroll(scroll)
+            .padding(start = 32.dp, top = if (compact) 4.dp else 12.dp, end = 32.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 16.dp)) {
             content(compact)
         }
     }

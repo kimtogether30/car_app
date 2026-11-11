@@ -38,3 +38,11 @@ Instrumentation tests cover legacy data import, persistent profile/history, late
 - Final regular launch was visually verified outside instrumentation: the Korean brand-selection screen remains visible in the Pleos app panel.
 - Added singleTop and configuration-change handling for Pleos task-window changes. The emulator's built-in navigation also produced an ANR during initial verification; it was stopped temporarily while diagnosing the app panel. It was not uninstalled or disabled.
 - The active emulator user did not have the original Flutter preference file, so it starts at vehicle setup. Legacy import was verified with isolated test fixtures, without writing sample records into the user's actual garage.
+
+## Maintenance records (2026-11-11)
+
+The record category is now `maintenance`, with explicit `maintenanceType` values GENERAL, ENGINE_OIL, TIRE_PRESSURE, TIRES, BRAKES, BATTERY and OTHER. Both editors persist and exchange the selected item. Only explicit ENGINE_OIL replacements use the engine-oil completion banner or mileage estimate; general maintenance uses a native text banner without oil artwork.
+
+Legacy `oil` records migrate to general maintenance because that value also represented general repairs. IDs, dates, titles, notes and deletion/cancellation state remain intact. The old `lastOil` preference key and setup ID are read solely for migration compatibility. Existing notification history remains historical. Update both apps together; older builds do not understand the new wire category.
+
+Validation: vehicle and phone debug unit tests and APK builds passed. No device was connected for Pleos screenshot or UI instrumentation checks. Physical Bluetooth validation is deferred as BT-48 in `docs/BLUETOOTH_VALIDATION_CHECKLIST.md`.

@@ -173,13 +173,13 @@ object BannerNotifications {
             val prior = old[r.getString("id")]
             if(!manual || prior != null && prior.optString("date")==today && prior.optString("source","Manual")=="Manual") return@repeat
             val kind = r.getString("kind")
-            val key = when(kind) { "wash" -> "WASH_DONE"; "fuel" -> "FUEL_DONE"; "oil" -> "OIL_DONE"; else -> return@repeat }
-            val d = definition(key,p)
+            val completion = BannerPolicy.recordCompletion(kind,MaintenanceType.from(r.optString("maintenanceType"))) ?: return@repeat
+            val d = BannerPolicy.forProfile(completion,p)
             val eventId="record:${r.getString("id")}:$today"
             dispatch(c,CareNotificationEntry(after.vehicleId,eventId,d.key,d.title,d.body,d.mood,d.art,System.currentTimeMillis(),source=if(p.optBoolean("simulation")) "Simulation" else "UserRecord"),p.optBoolean("notifications",true))
-            completed += kind
+            completed += if(kind == "oil") "maintenance" else kind
         }
-        if(completed.toSet().containsAll(listOf("fuel","wash","oil"))) {
+        if(completed.toSet().containsAll(listOf("fuel","wash","maintenance"))) {
             val d=definition("ALL_DONE",p)
             dispatch(c,CareNotificationEntry(after.vehicleId,"all-done:${after.version}",d.key,d.title,d.body,d.mood,d.art,System.currentTimeMillis(),source=if(p.optBoolean("simulation")) "Simulation" else "UserRecord"),p.optBoolean("notifications",true))
         }
