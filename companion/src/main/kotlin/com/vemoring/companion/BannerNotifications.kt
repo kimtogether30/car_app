@@ -37,8 +37,7 @@ object BannerNotifications {
                 else -> null
             }
             if(blocked != null) { history.delivery(event.vehicleId,event.eventId,blocked); return blocked }
-            val launch = c.packageManager.getLaunchIntentForPackage(c.packageName)
-                ?: Intent().setClassName(c.packageName,"${c.packageName}.MainActivity")
+            val launch = notificationActivityIntent(c)
             val open = PendingIntent.getActivity(c,event.eventId.hashCode(),launch
                 .setData(uri(event.vehicleId,event.eventId)).putExtra("vehicleId",event.vehicleId).putExtra("careEvent",event.eventId),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)

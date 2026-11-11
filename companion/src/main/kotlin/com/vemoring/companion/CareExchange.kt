@@ -14,6 +14,15 @@ object CareExchange {
     private val mutex = Mutex()
     val canonical = MutableStateFlow<CareAuthority?>(null)
     val confirmationRevision = MutableStateFlow(0L)
+    suspend fun registerPhone(context: Context,profile: JSONObject,records: JSONArray): CareAuthority = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val id=java.util.UUID.randomUUID().toString()
+            val next=CareAuthority(id,1,JSONObject(profile.toString()).put("vehicleId",id).toString(),records.toString())
+            validate(next);CareJournal(context,id).saveAuthority(next);canonical.value=next
+            CareNotifications.evaluate(context,CareJournal(context,id),next,CareJournal(context,id).score(records),null)
+            next
+        }
+    }
     suspend fun dismissConfirmation(context: Context, vehicleId: String, visitId: String) = withContext(Dispatchers.IO) {
         mutex.withLock {
             CareJournal(context, vehicleId).dismissWashConfirmation(visitId)
@@ -72,13 +81,36 @@ object CareExchange {
             if (j.optBoolean("demo")) return@withLock JSONObject().put("schema", 2)
                 .put("vehicleId", snapshot.vehicleId).put("ack", snapshot.revision).put("demo", true)
             val journal = CareJournal(context, snapshot.vehicleId)
+            val versionBeforeFeedback=journal.authority()?.version
             // Negative feedback is terminal and commutative, independent of message/settings ordering.
-            val rejection = j.optJSONObject("care")?.optJSONObject("request")?.optJSONArray("rejectedVisits")
+            val rejection = j.optJSONObject("care")?.optJSONArray("rejectedVisits")
+                ?: j.optJSONObject("care")?.optJSONObject("request")?.optJSONArray("rejectedVisits")
             if(rejection != null) {
                 require(rejection.length() <= 5000)
                 journal.rememberRejectedVisits((0 until rejection.length()).map { rejection.getString(it) }.toSet())
-                repeat(rejection.length()) { BannerNotifications.cancelVisit(context,snapshot.vehicleId,rejection.getString(it)) }
+                repeat(rejection.length()) {
+                    BannerNotifications.cancelVisit(context,snapshot.vehicleId,rejection.getString(it))
+                    CareNotifications.cancelDetection(context,snapshot.vehicleId,rejection.getString(it))
+                }
                 journal.authority()?.let { current -> journal.saveAuthority(current.rejectVisits(journal.rejectedVisits())) }
+            }
+            val deletion=j.optJSONObject("care")?.optJSONArray("deletedRecords")
+                ?: j.optJSONObject("care")?.optJSONObject("request")?.optJSONArray("deletedRecords")
+            if(deletion!=null) {
+                require(deletion.length()<=5000)
+                val ids=(0 until deletion.length()).map {deletion.getString(it)}.toSet()
+                journal.rememberDeletedRecords(ids)
+                journal.authority()?.let {a ->
+                    val records=JSONArray(a.records)
+                    repeat(records.length()) {n -> val r=records.getJSONObject(n)
+                        val visit=r.optString("visitId").takeUnless {it.isBlank() || it=="null"}
+                        if(r.getString("id") in ids && visit!=null) {
+                            BannerNotifications.cancelVisit(context,snapshot.vehicleId,visit)
+                            CareNotifications.cancelDetection(context,snapshot.vehicleId,visit)
+                        }
+                    }
+                    journal.saveAuthority(a.deleteRecords(journal.deletedRecords()))
+                }
             }
             val previous = journal.authority()
             if (previous != null && snapshot.revision <= journal.receivedRevision()) {
@@ -88,28 +120,22 @@ object CareExchange {
             }
             var state = journal.authority()
             if (state == null) {
-                // Existing phone preferences win on first import. Never overwrite them with vehicle defaults.
+                // Registration IDs are authoritative. Blank/equal plates cannot identify the same car.
+                // Old phone-only records remain under phone-local and are never overwritten by an import.
                 val profile = j.getJSONObject("profile")
-                val local = context.getSharedPreferences("phone_ui_v1", Context.MODE_PRIVATE).getString("data", null)?.let(::JSONObject)
-                    ?.takeIf { it.optString("model") == profile.optString("model") && it.optString("plate") == profile.optString("plate") }
-                val records = if (local == null) j.getJSONArray("records") else JSONArray().also { a ->
-                    val entries = local.optJSONArray("entries") ?: JSONArray()
-                    repeat(entries.length()) { n -> val e = entries.getJSONObject(n)
-                        a.put(JSONObject(e.toString()).put("kind", when(e.getString("kind")) {
-                            "세차" -> "wash"; "주유" -> "fuel"; else -> "oil" }))
-                    }
-                    profile.put("washAlert", local.optInt("washAlert", 30)).put("notifications", local.optBoolean("notifications", true))
-                }
-                state = CareAuthority(snapshot.vehicleId, 1, profile.toString(), records.toString())
+                val firstRequest=j.optJSONObject("care")?.optJSONObject("request")
+                val accepted=if(firstRequest?.optLong("base",-1)==0L) setOf(firstRequest.getString("id").also {require(it.isNotBlank() && it.length<=128)}) else emptySet()
+                state = CareAuthority(snapshot.vehicleId, 1, profile.toString(), j.getJSONArray("records").toString(),accepted)
             } else {
                 val request = j.optJSONObject("care")?.optJSONObject("request")
                 if (request != null && !j.optBoolean("demo")) {
-                    state = state.request(request.getString("id"), request.getLong("base"),
+                    val base=request.getLong("base")
+                    state = state.request(request.getString("id"), if(base==versionBeforeFeedback) state.version else base,
                         (request.optJSONObject("profile") ?: j.getJSONObject("profile")).toString(),
                         (request.optJSONArray("records") ?: j.getJSONArray("records")).toString())
                 }
             }
-            state = state.rejectVisits(journal.rejectedVisits())
+            state = state.rejectVisits(journal.rejectedVisits()).deleteRecords(journal.deletedRecords())
             validate(state)
             j.optJSONObject("care")?.optJSONArray("intervals")?.let { journal.importIntervals(it) }
             journal.saveAuthority(state)
@@ -132,8 +158,11 @@ object CareExchange {
             require(authority.vehicleId == response.getString("vehicleId"))
             validate(authority)
             val store = CareJournal(context, authority.vehicleId)
+            val records=JSONArray(authority.records)
+            store.rememberDeletedRecords((0 until records.length()).map {records.getJSONObject(it)}.filter {it.optBoolean("deleted")}.map {it.getString("id")}.toSet())
             if ((store.authority()?.version ?: 0) <= authority.version) {
-                store.saveAuthority(authority); store.resolveRequest(authority); canonical.value = authority
+                val protected=authority.rejectVisits(store.rejectedVisits()).deleteRecords(store.deletedRecords()).copy(version=authority.version)
+                store.saveAuthority(protected); store.resolveRequest(authority); canonical.value = protected
             }
             response.optJSONArray("intervalAck")?.let { store.acknowledgeIntervals(it) }
             val sent = MirrorBus.outgoing.value?.takeIf { it.vehicleId == authority.vehicleId }
@@ -141,9 +170,10 @@ object CareExchange {
                 val content = JSONObject(sent.content)
                 val care = content.optJSONObject("care")
                 val next = store.outgoingIntervals()
-                if (care != null && (next.length() > 0 || (care.optJSONArray("intervals")?.length() ?: 0) > 0)) {
-                    care.put("intervals", next).put("request", store.pendingRequest())
-                    MirrorBus.publish(context, content.toString(), authority.vehicleId)
+                if (care != null) {
+                    val negative=store.negativeFeedback()
+                    care.put("intervals", next).put("request", store.pendingRequest()).put("rejectedVisits",negative.first).put("deletedRecords",negative.second)
+                    if(content.toString()!=sent.content) MirrorBus.publish(context, content.toString(), authority.vehicleId)
                 }
             }
         }
@@ -153,7 +183,10 @@ object CareExchange {
         withContext(Dispatchers.IO) { mutex.withLock {
             val store = CareJournal(context, vehicleId)
             val previous = requireNotNull(store.authority())
+            val ids=(0 until records.length()).map {records.getJSONObject(it)}.filter {it.optBoolean("deleted")}.map {it.getString("id")}.toSet()
+            store.rememberDeletedRecords(ids)
             val next = previous.copy(version = previous.version + 1, profile = profile.toString(), records = previous.protectCancelledVisits(records.toString()))
+                .deleteRecords(store.deletedRecords())
             validate(next)
             store.saveAuthority(next); canonical.value = next
             BannerNotifications.recordChanges(context,previous,next)

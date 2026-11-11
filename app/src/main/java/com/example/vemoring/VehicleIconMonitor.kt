@@ -14,7 +14,10 @@ import kotlinx.coroutines.flow.*
 /** Only lifecycle state is global. No Activity, user data, or additional SDK session is retained. */
 object IconMonitorVisibility {
     val visible = MutableStateFlow(false)
+    val viewedVehicleId=MutableStateFlow<String?>(null)
 }
+
+private data class MonitorEvaluation(val sample: IconMonitorSample,val visible: Boolean,val preview: Boolean,val viewingSource: Boolean)
 
 @OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class VehicleIconMonitor : Service() {
@@ -34,7 +37,7 @@ class VehicleIconMonitor : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_monitor)
             .setContentTitle("VEMORING 차량 상태 확인 중")
-            .setContentText("앱 밖에서도 상태 아이콘을 갱신해요 · 내 차 설정에서 끌 수 있어요")
+            .setContentText("다른 화면에서도 수신 가능한 차량 정보를 받아요 · 내 차 설정에서 끌 수 있어요")
             .setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true).build()
         if (Build.VERSION.SDK_INT >= 34) startForeground(ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         else startForeground(ID, notification)
@@ -46,30 +49,48 @@ class VehicleIconMonitor : Service() {
             listening = true
             reload.trySend(Unit)
             var lastKnown = CareSignals()
-            reload.receiveAsFlow().collectLatest {
-                val data = withContext(Dispatchers.IO) { runCatching { GarageStore(this@VehicleIconMonitor).load() }.getOrNull() }
-                if (data == null || !data.complete || !prefs.getBoolean(ENABLED, true)) {
+            var lastVehicleId: String?=null
+            val garage = withContext(Dispatchers.IO) { GarageStore(this@VehicleIconMonitor) }
+            // A selection write changes the garage, but not the receiving car. Keep its collectors alive.
+            reload.receiveAsFlow().mapLatest {
+                withContext(Dispatchers.IO) {
+                    val data = if (prefs.getBoolean(RECEIVE_ENABLED, true)) runCatching { garage.receiving() }.getOrNull() else null
+                    data to prefs.getBoolean(ENABLED, true)
+                }
+            }.distinctUntilChanged().collectLatest { (data, _) ->
+                if (data == null || !data.complete) {
                     stopSelf(); return@collectLatest
                 }
+                if(lastVehicleId!=data.profile.vehicleId) {lastKnown=CareSignals();lastVehicleId=data.profile.vehicleId;VehicleCareRuntime.resetSession()}
                 unsubscribe?.invoke()
                 val maintenance = withContext(Dispatchers.IO) { MaintenanceStore(this@VehicleIconMonitor, data.profile) }
                 // Journal writes (e.g. every mileage sample) only reload the maintenance config, not the
                 // stored profile or the whole pipeline. The latest load wins; equal configs are skipped.
                 val configChanges = MutableStateFlow(0)
                 unsubscribe = maintenance.observe { configChanges.value++ }
-                val configs = configChanges.mapLatest { withContext(Dispatchers.IO) { maintenance.load() } }.distinctUntilChanged()
+                var syncedState: Pair<com.vemoring.companion.CareAuthority?, Boolean>? = null
+                val configs = configChanges.mapLatest { withContext(Dispatchers.IO) { maintenance.load() } }
+                    .distinctUntilChanged().onEach { config ->
+                        val syncState = config.authority to config.phoneSyncPending
+                        if (syncState != syncedState) {
+                            if (!config.phoneSyncPending) config.authority?.let { authority ->
+                                withContext(Dispatchers.IO) { garage.syncFromPhone(authority) }
+                            }
+                            syncedState = syncState
+                        }
+                    }
                 val repository = SharedVehicleConnection.repository(this@VehicleIconMonitor)
                 if (!acquired) { SharedVehicleConnection.acquire(this@VehicleIconMonitor, this@VehicleIconMonitor); acquired = true }
                 // SDK callbacks arrive in batches. One evaluation after a short quiet period avoids intermediate icons.
-                combine(repository.state, IconMonitorVisibility.visible, IconMonitorTestSource.input, configs) { snapshot, visible, preview, config ->
-                    Triple(preview ?: IconMonitorSample(data, snapshot, config), visible, preview != null)
-                }.debounce(500).collect { (sample, visible, preview) ->
+                combine(repository.state, IconMonitorVisibility.visible, IconMonitorTestSource.input, configs,IconMonitorVisibility.viewedVehicleId) { snapshot, visible, preview, config,viewed ->
+                    MonitorEvaluation(preview ?: IconMonitorSample(data, snapshot, config),visible,preview!=null,viewed==data.profile.vehicleId)
+                }.debounce(500).collect { (sample, visible, preview,viewingSource) ->
                         val snapshot = sample.snapshot
                         val condition = careCondition(sample.data, snapshot, sample.config)
                         val signals = condition.signals
                         if (!preview) lastKnown = retainKnownSignals(lastKnown, signals)
                         val mood = (if (preview) signals else lastKnown).mood()
-                        if (!preview && !visible) {
+                        if (!preview && (!visible || !viewingSource)) {
                             val care = VehicleCareRuntime.payload(applicationContext, sample.data, snapshot, false)
                             withContext(Dispatchers.IO) {
                                 val content = org.json.JSONObject(mirrorContent(sample.data, snapshot, condition, mood, false)).put("care", care).toString()
@@ -80,7 +101,7 @@ class VehicleIconMonitor : Service() {
                         val energyKnown = if (sample.data.profile.electric) snapshot[VehicleField.SOC].realPercent() != null
                             else snapshot[VehicleField.FUEL].realPercent() != null ||
                                 snapshot[VehicleField.LOW_FUEL].state == ReadingState.Available
-                        if (!visible && energyKnown) {
+                        if (!visible && energyKnown && prefs.getBoolean(ENABLED,true)) {
                             withContext(Dispatchers.IO) {
                                 if (!IconMonitorVisibility.visible.value) runCatching {
                                     MascotLauncher.sync(applicationContext, mood)
@@ -106,6 +127,7 @@ class VehicleIconMonitor : Service() {
     companion object {
         const val PREFS = "vemoring_icon_monitor"
         const val ENABLED = "enabled"
+        const val RECEIVE_ENABLED="receive_enabled"
         private const val CHANNEL = "vehicle_status_monitor"
         private const val ID = 2101
         fun start(context: Context) {

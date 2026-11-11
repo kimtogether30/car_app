@@ -18,12 +18,16 @@ object MirrorBus {
     internal val outgoing = MutableStateFlow<MirrorSnapshot?>(null)
     private val cached = MutableStateFlow<ReceivedMirror?>(null)
     val received = cached.asStateFlow()
+    private val cachedVehicles=MutableStateFlow<Map<String,ReceivedMirror>>(emptyMap())
+    val vehicles=cachedVehicles.asStateFlow()
     private val mutex = Mutex()
 
     suspend fun load(context: Context) = withContext(Dispatchers.IO) {
         mutex.withLock {
             if (cached.value == null) {
-                cached.value = runCatching { MirrorCacheStore(context).load() }.getOrNull()
+                val store=MirrorCacheStore(context)
+                cachedVehicles.value=store.loadAll()
+                cached.value = store.load()
             }
         }
     }
@@ -49,11 +53,13 @@ object MirrorBus {
 
     internal suspend fun receive(context: Context, snapshot: MirrorSnapshot) = withContext(Dispatchers.IO) {
         mutex.withLock {
-            val journal = MirrorJournal(cached.value?.snapshot)
+            val journal = MirrorJournal(cachedVehicles.value[snapshot.vehicleId]?.snapshot)
             if (journal.accept(snapshot)) {
                 val now = System.currentTimeMillis()
-                MirrorCacheStore(context).save(ReceivedMirror(snapshot, now))
-                cached.value = ReceivedMirror(snapshot, now)
+                val next=ReceivedMirror(snapshot,now)
+                MirrorCacheStore(context).save(next)
+                cachedVehicles.value=cachedVehicles.value+(snapshot.vehicleId to next)
+                cached.value = next
             }
         }
     }
@@ -63,14 +69,35 @@ object MirrorBus {
 internal class MirrorCacheStore(context: Context, name: String = "companion_mirror_v1") {
     private val prefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
     fun load(): ReceivedMirror? {
+        prefs.getString("latestVehicleId",null)?.let {id -> loadVehicle(id)?.let {return it}}
         val raw = prefs.getString("snapshot", null) ?: return null
         val snapshot = MirrorSnapshot.decode(raw)
         return ReceivedMirror(snapshot, prefs.getLong("receivedAt", snapshot.capturedAt))
+    }
+    private fun key(id:String)="vehicle:"+java.security.MessageDigest.getInstance("SHA-256")
+        .digest(id.toByteArray()).joinToString("") {"%02x".format(it)}
+    private fun loadVehicle(id:String): ReceivedMirror? {
+        val raw=prefs.getString(key(id),null) ?: return null
+        return ReceivedMirror(MirrorSnapshot.decode(raw),prefs.getLong(key(id)+":at",0))
+    }
+    fun loadAll(): Map<String,ReceivedMirror> {
+        val values=prefs.getStringSet("vehicleIds",emptySet()).orEmpty().mapNotNull {id ->
+            runCatching {loadVehicle(id)?.let {id to it}}.getOrNull()
+        }.toMap().toMutableMap()
+        // Keep the original single-car cache readable without rewriting or deleting it.
+        prefs.getString("snapshot",null)?.let {raw -> runCatching {
+            val s=MirrorSnapshot.decode(raw)
+            values.putIfAbsent(s.vehicleId,ReceivedMirror(s,prefs.getLong("receivedAt",s.capturedAt)))
+        } }
+        return values
     }
     @android.annotation.SuppressLint("UseKtx") // Keep commit's success/failure result.
     fun save(received: ReceivedMirror) {
         val encoded = received.snapshot.encode()
         MirrorSnapshot.decode(encoded)
-        check(prefs.edit().putString("snapshot", encoded).putLong("receivedAt", received.receivedAt).commit())
+        val id=received.snapshot.vehicleId
+        val ids=prefs.getStringSet("vehicleIds",emptySet()).orEmpty()+id
+        check(prefs.edit().putString(key(id),encoded).putLong(key(id)+":at",received.receivedAt)
+            .putStringSet("vehicleIds",ids).putString("latestVehicleId",id).commit())
     }
 }

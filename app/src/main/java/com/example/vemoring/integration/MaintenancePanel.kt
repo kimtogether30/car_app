@@ -13,26 +13,29 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.mapLatest
 import com.vemoring.companion.*
 
 data class MaintenanceConfig(val unit: String = "", val washId: String = "", val washKm: Double? = null,
     val oilId: String = "", val oilKm: Double? = null, val intervalKm: Double? = null,
-    val intervals: List<TravelInterval> = emptyList(), val syncStatus: String = "차량 임시 추정", val phoneSyncPending: Boolean = false)
-fun vehicleCareId(profile: CarProfile): String = java.security.MessageDigest.getInstance("SHA-256")
-    .digest((profile.fullModel + "|" + profile.plate).toByteArray()).joinToString("") { "%02x".format(it) }
+    val intervals: List<TravelInterval> = emptyList(), val syncStatus: String = "차량 임시 추정", val phoneSyncPending: Boolean = false,
+    val authority: CareAuthority? = null)
+fun vehicleCareId(profile: CarProfile): String = profile.vehicleId
 class MaintenanceStore(context: Context, profile: CarProfile) {
     private val journal = CareJournal(context, vehicleCareId(profile))
     private val carePrefs = context.getSharedPreferences("care_journal_v1", Context.MODE_PRIVATE)
     private val prefs=context.getSharedPreferences("vemoring_sdk_care_v1",Context.MODE_PRIVATE)
-    private val prefix=java.security.MessageDigest.getInstance("SHA-256").digest((profile.fullModel+"|"+profile.plate).toByteArray())
-        .joinToString("") { "%02x".format(it) } + "."
+    private val prefix=profile.vehicleId+"."
     fun distanceUnit(): String = prefs.getString(prefix+"unit", "") ?: ""
     fun load(): MaintenanceConfig {
         val care = journal.configState()
         return MaintenanceConfig(prefs.getString(prefix+"unit","") ?: "",
             prefs.getString(prefix+"washId","") ?: "", prefs.getString(prefix+"washKm",null)?.toDoubleOrNull(),
             prefs.getString(prefix+"oilId","") ?: "",prefs.getString(prefix+"oilKm",null)?.toDoubleOrNull(),
-            prefs.getString(prefix+"intervalKm",null)?.toDoubleOrNull(), care.intervals, care.syncStatus, care.pending)
+            prefs.getString(prefix+"intervalKm",null)?.toDoubleOrNull(), care.intervals, care.syncStatus, care.pending,care.authority)
     }
     fun save(value: MaintenanceConfig): Boolean = prefs.edit().putString(prefix+"unit",value.unit)
         .putString(prefix+"washId",value.washId).putString(prefix+"washKm",value.washKm?.toString())
@@ -52,14 +55,18 @@ class MaintenanceStore(context: Context, profile: CarProfile) {
     }
 }
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Composable
 fun rememberMaintenanceConfig(profile: CarProfile): State<MaintenanceConfig> {
     val context = LocalContext.current.applicationContext
-    val store = remember(profile.fullModel, profile.plate) { MaintenanceStore(context, profile) }
+    val store = remember(profile.vehicleId) { MaintenanceStore(context, profile) }
     return produceState(MaintenanceConfig(), store) {
-        val stop = store.observe { launch { value = withContext(Dispatchers.IO) { store.load() } } }
-        value = withContext(Dispatchers.IO) { store.load() }
-        awaitDispose { stop() }
+        // Collapse bursts and cancel stale reads instead of launching an independent load per key.
+        callbackFlow {
+            val stop = store.observe { trySend(Unit) }
+            trySend(Unit)
+            awaitClose { stop() }
+        }.conflate().mapLatest { withContext(Dispatchers.IO) { store.load() } }.collect { value = it }
     }
 }
 fun confirmedKilometres(reading: Reading, userUnit: String): Double? {
@@ -70,7 +77,7 @@ fun confirmedKilometres(reading: Reading, userUnit: String): Double? {
 @Composable
 fun MaintenancePanel(data: AppData, snapshot: VehicleSnapshot, weather: Result<EnvironmentData>, editable: Boolean) {
     val context=LocalContext.current
-    val store=remember(data.profile.fullModel,data.profile.plate) { MaintenanceStore(context,data.profile) }
+    val store=remember(data.profile.vehicleId) { MaintenanceStore(context,data.profile) }
     val config by rememberMaintenanceConfig(data.profile)
     val scope = rememberCoroutineScope()
     var status by remember(store) { mutableStateOf("") }

@@ -14,7 +14,8 @@ import java.util.UUID
 
 object VehicleCareRuntime {
     private val mutex = Mutex()
-    private val session = UUID.randomUUID().toString()
+    private var session = UUID.randomUUID().toString()
+    suspend fun resetSession() = mutex.withLock {session=UUID.randomUUID().toString()}
     suspend fun payload(context: Context, data: AppData, snapshot: VehicleSnapshot, demo: Boolean): JSONObject =
         withContext(Dispatchers.IO) { mutex.withLock {
             val id = vehicleCareId(data.profile)
@@ -40,8 +41,9 @@ object VehicleCareRuntime {
                         .put("color",item.optInt("color")).put("eligible",false).put("source",if(demo) "Demo" else "Real"))
                 }
             }
-            JSONObject().put("protocol", 2).put("policy", CARE_POLICY_VERSION).put("session", session).put("intervals", journal.outgoingIntervals())
+            val outgoing=journal.outgoingState()
+            JSONObject().put("protocol", 2).put("policy", CARE_POLICY_VERSION).put("session", session).put("intervals", outgoing.intervals)
                 .put("warnings", warnings).put("automaticDetection", "Held: verified wash polygons, location accuracy and motion evidence required")
-                .put("request", journal.pendingRequest())
+                .put("request", outgoing.request).put("rejectedVisits",outgoing.rejectedVisits).put("deletedRecords",outgoing.deletedRecords)
         } }
 }

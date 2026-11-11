@@ -214,7 +214,7 @@ class MirrorBluetoothService : Service() {
         super.onDestroy()
     }
     private fun notification(message: String): Notification {
-        val open = PendingIntent.getActivity(this, 0, Intent().setClassName(packageName, "$packageName.MainActivity"), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val open = PendingIntent.getActivity(this, 0, notificationActivityIntent(this), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val stop = PendingIntent.getService(this, 1, Intent(this, MirrorBluetoothService::class.java).setAction(STOP), PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this, CHANNEL).setSmallIcon(android.R.drawable.stat_notify_sync).setContentTitle("베모링 기기 연결")
             .setContentText(message).setContentIntent(open).setOngoing(true).addAction(Notification.Action.Builder(null, "연결 종료", stop).build()).build()

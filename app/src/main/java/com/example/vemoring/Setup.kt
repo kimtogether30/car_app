@@ -68,6 +68,7 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo, onDockChoice: (Boolean) -
     fun previous() { step = steps[(position - 1).coerceAtLeast(0)] }
     var oil by rememberSaveable { mutableStateOf("") }
     var nickname by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
+    var plate by rememberSaveable {mutableStateOf(confirmed.plate.orEmpty())}
     val focusManager = LocalFocusManager.current
     var fuelDate by rememberSaveable { mutableStateOf<String?>(null) }
     var washDate by rememberSaveable { mutableStateOf<String?>(null) }
@@ -131,6 +132,8 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo, onDockChoice: (Boolean) -
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                         singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(plate,{plate=it},label={Text("번호판 (선택)")},singleLine=true,modifier=Modifier.fillMaxWidth(),
+                        supportingText={Text("입력하지 않아도 차량을 등록할 수 있어요.")})
                     Button(modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp), enabled = nickname.text.isNotBlank(), onClick = { focusManager.clearFocus(); next() }) { Text("다음") }
                 }
                 6 -> {
@@ -156,7 +159,7 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo, onDockChoice: (Boolean) -
                         Text("내 차 설정에서 변경할 수 있어요. 알림 발송과 날씨는 아직 예시 기능입니다.")
                     }
                     Button(onClick = {
-                        finish(CarProfile(brand, model, nickname.text.trim(), plate = confirmed.plate ?: "", fuel = fuel, oilEstimate = if(fuel == "전기차") "해당 없음" else oil),
+                        finish(CarProfile(brand, model, nickname.text.trim(), plate = plate.trim(), fuel = fuel, oilEstimate = if(fuel == "전기차") "해당 없음" else oil),
                             mapOf(CareKind.FUEL to fuelDate?.let(LocalDate::parse), CareKind.WASH to washDate?.let(LocalDate::parse)))
                     }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) { Text("VEMORING 시작하기") }
                 }
@@ -198,7 +201,7 @@ private fun SetupPage(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-fun VehicleDialog(profile: CarProfile, records: List<CareRecord>, close: () -> Unit,
+fun VehicleDialog(profile: CarProfile, records: List<CareRecord>, close: () -> Unit,register: Boolean = false,
     save: (CarProfile, Map<CareKind, LocalDate?>) -> Unit) {
     var brand by rememberSaveable { mutableStateOf(profile.brand) }
     var model by rememberSaveable { mutableStateOf(profile.model) }
@@ -208,7 +211,7 @@ fun VehicleDialog(profile: CarProfile, records: List<CareRecord>, close: () -> U
     var wash by rememberSaveable { mutableStateOf(records.latest(CareKind.WASH)?.toString()) }
     var lastFuel by rememberSaveable { mutableStateOf(records.latest(CareKind.FUEL)?.toString()) }
     var oil by rememberSaveable { mutableStateOf(records.latest(CareKind.OIL)?.toString()) }
-    AlertDialog(onDismissRequest = close, title = { Text("차량 정보 편집") }, text = {
+    AlertDialog(onDismissRequest = close, title = { Text(if(register) "차량 등록" else "차량 정보 편집") }, text = {
         Column(Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ChoiceRow(VehicleCatalog.brands, brand) { brand = it; model = "" }
             VehicleCatalog.categories(brand).forEach { (category, models) ->
@@ -218,12 +221,13 @@ fun VehicleDialog(profile: CarProfile, records: List<CareRecord>, close: () -> U
             OutlinedTextField(model, { model = it }, label = { Text("차종 (직접 입력 가능)") }, singleLine = true)
             ChoiceRow(listOf("휘발유", "경유", "하이브리드", "전기차"), fuel) { fuel = it }
             OutlinedTextField(nickname, { nickname = it }, label = { Text("차량 닉네임") }, singleLine = true)
-            OutlinedTextField(plate, { plate = it }, label = { Text("차량 번호") }, singleLine = true)
+            OutlinedTextField(plate, { plate = it }, label = { Text("번호판 (선택)") }, singleLine = true)
             DateInput("마지막 주유·충전일", lastFuel?.let(LocalDate::parse), { lastFuel = it?.toString() })
             DateInput("마지막 세차일", wash?.let(LocalDate::parse), { wash = it?.toString() })
             DateInput("마지막 정비일", oil?.let(LocalDate::parse), { oil = it?.toString() })
+            Text("날짜를 모르면 기존 기록을 유지해요. 삭제는 관리 기록에서 별도로 확인해 주세요.",fontSize=18.sp)
         }
-    }, confirmButton = { TextButton(enabled = nickname.isNotBlank() && model.isNotBlank() && plate.isNotBlank(), onClick = {
+    }, confirmButton = { TextButton(enabled = nickname.isNotBlank() && model.isNotBlank(), onClick = {
         save(profile.copy(brand = brand, model = model.trim(), nickname = nickname.trim(), plate = plate.trim(), fuel = fuel),
             mapOf(CareKind.WASH to wash?.let(LocalDate::parse), CareKind.FUEL to lastFuel?.let(LocalDate::parse),
                 CareKind.OIL to oil?.let(LocalDate::parse)))

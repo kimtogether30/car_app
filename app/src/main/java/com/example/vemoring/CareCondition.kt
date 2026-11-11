@@ -25,7 +25,7 @@ fun careCondition(data: AppData, snapshot: VehicleSnapshot, config: MaintenanceC
     val energy = listOfNotNull(fuel, soc).map { it <= p.fuelAlert }
     val lowFuel = when { low == true || energy.any { it } -> true; energy.isNotEmpty() -> false; else -> low }
     val current = confirmedKilometres(snapshot[VehicleField.ODOMETER], config.unit)
-    fun latest(kind: CareKind) = data.records.filter { it.kind == kind && it.date <= today }.maxByOrNull { it.date }
+    fun latest(kind: CareKind) = data.records.filter { it.kind == kind && !it.cancelled && it.date <= today }.maxByOrNull { it.date }
     fun valid(value: Double?) = value?.takeIf { it.isFinite() && it >= 0 }
     val clean = WashPolicy.score(data.records.filter { it.kind == CareKind.WASH }.map {
         WashBaseline(it.id, it.date, it.completedAt?.let(Instant::parse), it.visitId, it.cancelled, it.source)

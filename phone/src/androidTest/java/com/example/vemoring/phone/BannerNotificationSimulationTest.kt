@@ -182,6 +182,8 @@ class BannerNotificationSimulationTest {
             automation.executeShellCommand("cmd statusbar expand-notifications").let {
                 android.os.ParcelFileDescriptor.AutoCloseInputStream(it).use {input->input.readBytes()}
             }
+            // The expansion animation can move a heads-up notification after its node is found.
+            runCatching {automation.waitForIdle(500,4000)}
             val until=System.currentTimeMillis()+4000
             var clicked=false
             while(!clicked && System.currentTimeMillis()<until) {
@@ -218,10 +220,21 @@ class BannerNotificationSimulationTest {
                 }
             }
             assertTrue("Tap the real System UI notification instead of a background PendingIntent.send",clicked)
-            val activity=monitor.waitForActivityWithTimeout(5000)
+            var activity=monitor.waitForActivityWithTimeout(1000)
+            val openedUntil=System.currentTimeMillis()+4000
+            while((activity?.intent?.getStringExtra("careEvent")!="tap" || activity?.intent?.getStringExtra("vehicleId")!=id)
+                && System.currentTimeMillis()<openedUntil) {
+                InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                    // singleTop can deliver to an existing activity instead of creating one for ActivityMonitor.
+                    activity=androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                        .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED).filterIsInstance<MainActivity>()
+                        .firstOrNull {it.intent.getStringExtra("careEvent")=="tap" && it.intent.getStringExtra("vehicleId")==id}
+                }
+                if(activity==null) Thread.sleep(50)
+            }
             assertNotNull("Notification activity must resolve with applicationIdSuffix",activity)
-            assertEquals("tap",activity.intent.getStringExtra("careEvent"))
-            assertEquals(id,activity.intent.getStringExtra("vehicleId"))
+            assertEquals("tap",activity!!.intent.getStringExtra("careEvent"))
+            assertEquals(id,activity!!.intent.getStringExtra("vehicleId"))
             val readUntil=System.currentTimeMillis()+4000
             while(!NotificationHistory(base).use {it.get(id,"tap")!!.read} && System.currentTimeMillis()<readUntil) Thread.sleep(50)
             assertTrue("The selected history detail should open and persist read state",NotificationHistory(base).use {it.get(id,"tap")!!.read})

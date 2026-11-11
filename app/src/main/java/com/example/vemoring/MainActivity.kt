@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -98,6 +99,10 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     val context = LocalContext.current
     val store = remember(storeOverride) { storeOverride ?: GarageStore(context) }
     var data by remember { mutableStateOf(AppData()) }
+    var fleet by remember {mutableStateOf<GarageFleet?>(null)}
+    var fleetPicker by remember {mutableStateOf(false)}
+    var addingVehicle by remember {mutableStateOf(false)}
+    var bindingVehicle by remember {mutableStateOf(false)}
     var loaded by remember { mutableStateOf(false) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -113,7 +118,10 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     var diagnostics by rememberSaveable { mutableStateOf(false) }
     var proposedWash by remember { mutableStateOf<CareRecord?>(null) }
     var proposedWashSaved by remember { mutableStateOf<(() -> Unit)?>(null) }
-    val snapshot = vehicleModel?.state?.collectAsState()?.value ?: VehicleSnapshot()
+    val liveSnapshot = vehicleModel?.state?.collectAsState()?.value ?: VehicleSnapshot()
+    val receivesSelected=fleet?.receivingId==data.profile.vehicleId
+    LaunchedEffect(data.profile.vehicleId,vehicleModel) {if(vehicleModel!=null) IconMonitorVisibility.viewedVehicleId.value=data.profile.vehicleId}
+    val snapshot=if(receivesSelected) liveSnapshot else VehicleSnapshot()
     val identity = vehicleModel?.identity?.collectAsState()?.value ?: VehicleIdentityReading()
     val mode = integrationModel?.mode?.collectAsState()?.value ?: DataMode.Real
     val environment = integrationModel?.environment?.collectAsState()?.value ?: com.example.vemoring.integration.Result<EnvironmentData>()
@@ -122,7 +130,7 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     val mood = (careSignals ?: condition.signals).mood()
     // Same list instance across vehicle-signal recompositions, so the calendar tab can skip recomposing.
     val activeRecords = remember(data.records) { data.records.filterNot { it.cancelled } }
-    PublishVehicleMirror(data, loaded, snapshot, condition, mood, mode)
+    PublishVehicleMirror(data, loaded && receivesSelected && vehicleModel!=null, snapshot, condition, mood, mode)
     val hasResolvedVehicleData = snapshot.readings.values.any { it.state != ReadingState.Loading && it.state != ReadingState.Disconnected }
     LaunchedEffect(mood, mode, loaded, hasResolvedVehicleData) {
         if (loaded && mode == DataMode.Real && vehicleModel != null && hasResolvedVehicleData) onLauncherMood(mood)
@@ -130,7 +138,7 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     val scope = rememberCoroutineScope()
     var saving by remember { mutableStateOf(false) }
     LaunchedEffect(store, retry) {
-        runCatching { withContext(Dispatchers.IO) { store.load() } }.onSuccess { data = it; loaded = true; loadError = null }
+        runCatching { withContext(Dispatchers.IO) { store.fleet() } }.onSuccess { fleet=it;data = it.selected(); loaded = true; loadError = null }
             .onFailure { loadError = "저장 데이터를 불러오지 못했어요. 기존 데이터는 보존됩니다." }
     }
     fun save(updated: AppData, fromPhone: Boolean = false, onSaved: () -> Unit = {}) {
@@ -138,17 +146,12 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
         saving = true
         scope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    store.save(updated)
-                    if (!fromPhone) {
-                        val profile = org.json.JSONObject().put("nickname", updated.profile.nickname).put("model", updated.profile.fullModel)
-                            .put("plate", updated.profile.plate).put("fuel", updated.profile.fuel).put("fuelAlert", updated.profile.fuelAlert)
-                            .put("washAlert", updated.profile.washAlert).put("notifications", updated.profile.notifications)
-                        val records = org.json.JSONArray().also { a -> updated.records.forEach { a.put(it.json()) } }
-                        com.vemoring.companion.CareJournal(context, vehicleCareId(updated.profile)).queueRequest(profile, records)
-                    }
+                val nextFleet=withContext(Dispatchers.IO) {
+                    if(fromPhone) com.vemoring.companion.CareJournal(context,updated.profile.vehicleId).authority()?.let {store.syncFromPhone(it)}
+                    else store.save(updated,queueForPhone=true)
+                    store.fleet()
                 }
-                data = updated
+                fleet=nextFleet;data = nextFleet.selected()
                 onSaved()
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -161,16 +164,13 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     }
     val phoneAuthority by com.vemoring.companion.CareExchange.canonical.collectAsState()
     val washConfirmation by rememberWashConfirmation(if(loaded && data.complete) vehicleCareId(data.profile) else null, phoneAuthority)
-    LaunchedEffect(loaded, data.profile.fullModel, data.profile.plate) {
-        if (loaded && data.complete) com.vemoring.companion.CareExchange.loadVehicle(context, vehicleCareId(data.profile))
+    LaunchedEffect(loaded, data.profile.vehicleId) {
+        if (loaded && data.complete && storeOverride==null) com.vemoring.companion.CareExchange.loadVehicle(context, vehicleCareId(data.profile))
     }
     LaunchedEffect(phoneAuthority, loaded, saving, maintenance.phoneSyncPending) {
         val authority = phoneAuthority
         if (loaded && !saving && !maintenance.phoneSyncPending && authority != null && authority.vehicleId == vehicleCareId(data.profile)) {
-            val p = org.json.JSONObject(authority.profile)
-            val a = org.json.JSONArray(authority.records)
-            val next = data.copy(profile = data.profile.copy(washAlert = p.getInt("washAlert"), notifications = p.getBoolean("notifications")),
-                records = (0 until a.length()).map { careRecordFromJson(a.getJSONObject(it)) })
+            val next = applyPhoneAuthority(data,authority)
             if (next != data) save(next, fromPhone = true)
         }
     }
@@ -179,7 +179,7 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
         if (vehicleModel != null && loaded) {
             val enabled = withContext(Dispatchers.IO) {
                 context.getSharedPreferences(VehicleIconMonitor.PREFS, android.content.Context.MODE_PRIVATE)
-                    .getBoolean(VehicleIconMonitor.ENABLED, true)
+                    .getBoolean(VehicleIconMonitor.RECEIVE_ENABLED, true)
             }
             if (data.complete && mode == DataMode.Real && enabled) VehicleIconMonitor.start(context)
             else context.stopService(android.content.Intent(context, VehicleIconMonitor::class.java))
@@ -211,7 +211,17 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
                 else -> Scaffold(containerColor = Background, bottomBar = {
                     GarageNavigation(tab) { tab = it }
                 }) { padding ->
-                    Box(Modifier.padding(padding)) {
+                    Column(Modifier.padding(padding)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal=24.dp),verticalAlignment=Alignment.CenterVertically,
+                            horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                            TextButton(enabled=!saving,onClick={fleetPicker=true},modifier=Modifier.heightIn(min=64.dp).testTag("vehicle-picker")) {
+                                Text("${data.profile.nickname} · 차량 선택 (${fleet?.vehicles?.count {it.complete} ?: 0}대)",fontSize=20.sp)
+                            }
+                            Text(if(receivesSelected) "현재 차량 정보 수신 대상" else "기록 조회 · 수신 대상: ${fleet?.receiving()?.profile?.nickname.orEmpty()}",
+                                modifier=Modifier.weight(1f),fontSize=17.sp)
+                            if(!receivesSelected) TextButton(enabled=!saving,onClick={bindingVehicle=true},modifier=Modifier.heightIn(min=64.dp)) {Text("이 차량에 연결",fontSize=19.sp)}
+                        }
+                        Box(Modifier.weight(1f)) { key(data.profile.vehicleId) {
                         when(tab) {
                             0 -> HomeScreen(data, BatteryReading(snapshot[VehicleField.SOC].realPercent(),
                                 snapshot[VehicleField.SOC].statusText()), { notifications = true }, mood,
@@ -229,7 +239,7 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
                                         } })
                                     }
                                 })
-                            1 -> CalendarScreen(activeRecords) { record, onSaved ->
+                            1 -> CalendarScreen(activeRecords,remove={record,onSaved -> save(data.copy(records=deleteRecord(data.records,record.id)),onSaved=onSaved)}) { record, onSaved ->
                                 if (record.kind == CareKind.WASH && data.records.none { it.id == record.id } &&
                                     data.records.any { it.kind == CareKind.WASH && it.visitId != null && !it.cancelled && it.date == record.date }) {
                                     proposedWash = record; proposedWashSaved = onSaved
@@ -239,6 +249,7 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
                                 save(data.copy(profile = it))
                             }
                         }
+                        } }
                     }
                 }
             }
@@ -268,6 +279,41 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     if (editCar) VehicleDialog(data.profile, data.records, { editCar = false }) { p, dates ->
         save(data.copy(profile = p, records = updateLatest(data.records, dates))) { editCar = false }
     }
+    if(addingVehicle) {
+        val fresh=remember {CarProfile()}
+        VehicleDialog(fresh,emptyList(),{addingVehicle=false},register=true) {p,dates ->
+            save(AppData(p,updateLatest(emptyList(),dates),true)) {addingVehicle=false;tab=0}
+        }
+    }
+    if(fleetPicker) AlertDialog(onDismissRequest={fleetPicker=false},title={Text("등록 차량")},text={
+        Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            Text("다른 차량의 기록을 봐도 현재 수신 대상은 바뀌지 않아요.",fontSize=20.sp)
+            fleet?.vehicles?.filter {it.complete}?.forEach {car ->
+                OutlinedButton(enabled=!saving,onClick={
+                    saving=true
+                    scope.launch {
+                        runCatching {withContext(Dispatchers.IO) {store.select(car.profile.vehicleId) to store.fleet()}}
+                            .onSuccess {(selected,all) -> data=selected;fleet=all;fleetPicker=false;tab=0}
+                            .onFailure {error="차량을 선택하지 못했어요."}
+                        saving=false
+                    }
+                },modifier=Modifier.fillMaxWidth().heightIn(min=72.dp).testTag("vehicle:${car.profile.vehicleId}")) {
+                    Text("${car.profile.nickname} · ${car.profile.fullModel}\n${car.profile.plate.ifBlank {"번호판 미등록"}}${if(car.profile.vehicleId==fleet?.receivingId) " · 수신 대상" else ""}",fontSize=21.sp)
+                }
+            }
+        }
+    },confirmButton={TextButton(enabled=!saving,onClick={fleetPicker=false;addingVehicle=true}) {Text("차량 추가 등록",fontSize=22.sp)}},
+        dismissButton={TextButton(onClick={fleetPicker=false}) {Text("닫기",fontSize=22.sp)}})
+    if(bindingVehicle) AlertDialog(onDismissRequest={if(!saving) bindingVehicle=false},title={Text("차량 정보 수신 대상을 바꿀까요?")},
+        text={Text("이후 이 기기에서 받는 차량 정보를 ${data.profile.nickname}에 저장해요. 실제 탑승한 차량과 일치하는지 확인해 주세요. 다른 차량의 기록은 유지돼요.",fontSize=22.sp)},
+        confirmButton={TextButton(enabled=!saving,onClick={
+            saving=true
+            scope.launch {
+                runCatching {withContext(Dispatchers.IO) {store.bindReceiver(data.profile.vehicleId);VehicleCareRuntime.resetSession();store.fleet()}}
+                    .onSuccess {fleet=it;bindingVehicle=false}.onFailure {error="수신 대상을 바꾸지 못했어요."}
+                saving=false
+            }
+        }) {Text("수신 대상 변경",fontSize=22.sp)}},dismissButton={TextButton(enabled=!saving,onClick={bindingVehicle=false}) {Text("취소",fontSize=22.sp)}})
     if (editName) TextEditDialog("닉네임 변경", data.profile.nickname, { editName = false }) {
         save(data.copy(profile = data.profile.copy(nickname = it))) { editName = false }
     }
@@ -352,7 +398,7 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     Surface(color = Color.White, shape = RoundedCornerShape(10.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFB7C9D8))) {
-                        Text(if (p.plate.isNotBlank()) p.plate else "예시 · 12라 1234",
+                        Text(if (p.plate.isNotBlank()) p.plate else "번호판 미등록",
                             Modifier.padding(horizontal = 22.dp, vertical = 8.dp), color = Ink,
                             fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.SemiBold)
                     }
@@ -469,7 +515,7 @@ fun Threshold(label: String, value: Int, range: ClosedFloatingPointRange<Float>,
 }
 
 @Composable
-fun CalendarScreen(records: List<CareRecord>, save: (CareRecord, () -> Unit) -> Unit) {
+fun CalendarScreen(records: List<CareRecord>, remove: ((CareRecord, () -> Unit) -> Unit)? = null,save: (CareRecord, () -> Unit) -> Unit) {
     var monthValue by rememberSaveable { mutableStateOf(YearMonth.now().toString()) }
     val month = YearMonth.parse(monthValue)
     var selectedValue by rememberSaveable { mutableStateOf<String?>(null) }
@@ -560,7 +606,9 @@ fun CalendarScreen(records: List<CareRecord>, save: (CareRecord, () -> Unit) -> 
         }
         })
     }
-    if (showEditor) RecordDialog(editing, selected ?: LocalDate.now(SeoulZone), { showEditor = false }) {
+    if (showEditor) RecordDialog(editing, selected ?: LocalDate.now(SeoulZone), { showEditor = false },remove=editing?.takeIf {remove!=null}?.let {record ->
+        { remove?.invoke(record) {showEditor=false} }
+    }) {
         save(it) { monthValue = YearMonth.from(it.date).toString(); selectedValue = it.date.toString(); showEditor = false }
     }
     if (futureError) AlertDialog(onDismissRequest = { futureError = false }, text = { Text("미래 날짜에는 관리 기록을 등록할 수 없어요.") },
@@ -570,21 +618,23 @@ fun CalendarScreen(records: List<CareRecord>, save: (CareRecord, () -> Unit) -> 
 @Composable
 fun DateInput(label: String, date: LocalDate?, update: (LocalDate?) -> Unit, allowUnknown: Boolean = true) {
     val context = LocalContext.current
+    fun chooseDate() {
+        val start = date ?: LocalDate.now(SeoulZone)
+        DatePickerDialog(context, { _, y, m, d -> update(LocalDate.of(y,m+1,d)) }, start.year, start.monthValue-1, start.dayOfMonth)
+            .apply { datePicker.maxDate = System.currentTimeMillis(); datePicker.minDate = java.util.GregorianCalendar(1980,0,1).timeInMillis }.show()
+    }
     Column {
-        OutlinedButton(onClick = {
-            val start = date ?: LocalDate.now(SeoulZone)
-            DatePickerDialog(context, { _, y, m, d -> update(LocalDate.of(y,m+1,d)) }, start.year, start.monthValue-1, start.dayOfMonth)
-                .apply { datePicker.maxDate = System.currentTimeMillis(); datePicker.minDate = java.util.GregorianCalendar(1980,0,1).timeInMillis }.show()
-        }, modifier = Modifier.fillMaxWidth()) { Text("$label: ${date ?: "날짜 선택"}") }
+        OutlinedButton(onClick = {chooseDate()}, modifier = Modifier.fillMaxWidth()) { Text("$label: ${date ?: "날짜 모름"}") }
         if(allowUnknown) Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = date == null, onCheckedChange = { if(it) update(null) else update(LocalDate.now(SeoulZone)) })
-            Text("기억이 안 나요 / 기록 없음", fontSize = 12.sp)
+            Checkbox(checked = date == null, onCheckedChange = { if(it) update(null) else chooseDate() })
+            Text("날짜 모름 (기존 기록 유지)", fontSize = 16.sp)
         }
     }
 }
 
 @Composable
-fun RecordDialog(existing: CareRecord?, initial: LocalDate, close: () -> Unit, save: (CareRecord) -> Unit) {
+fun RecordDialog(existing: CareRecord?, initial: LocalDate, close: () -> Unit,remove: (() -> Unit)? = null,save: (CareRecord) -> Unit) {
+    var deleteConfirmation by remember {mutableStateOf(false)}
     var title by rememberSaveable { mutableStateOf(existing?.title ?: "") }
     var detail by rememberSaveable { mutableStateOf(existing?.detail ?: "") }
     var kindValue by rememberSaveable { mutableStateOf(existing?.kind?.name ?: CareKind.WASH.name) }
@@ -600,11 +650,16 @@ fun RecordDialog(existing: CareRecord?, initial: LocalDate, close: () -> Unit, s
             if (existing?.completedAt != null) Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(manual, { manual = it }); Text("수동 기록으로 전환 (다음 날부터 계산)")
             }
+            if(remove!=null) TextButton(onClick={deleteConfirmation=true},modifier=Modifier.heightIn(min=64.dp)) {Text("기록 삭제",fontSize=22.sp)}
         } }, confirmButton = { TextButton(enabled = title.isNotBlank() && LocalDate.parse(dateValue) <= LocalDate.now(SeoulZone), onClick = {
             save(existing?.copy(date = LocalDate.parse(dateValue), kind = kind, title = title.trim(), detail = detail.trim(),
                 completedAt = if(manual) null else existing.completedAt, source = if(manual) "Manual" else existing.source)
                 ?: CareRecord(date = LocalDate.parse(dateValue), kind = kind, title = title.trim(), detail = detail.trim()))
         }) { Text("기록 저장") } }, dismissButton = { TextButton(onClick = close) { Text("취소") } })
+    if(deleteConfirmation) AlertDialog(onDismissRequest={deleteConfirmation=false},title={Text("기록을 삭제할까요?")},
+        text={Text("${existing?.title.orEmpty()} 기록을 삭제해요. 세차 기록이면 이전 유효한 기록으로 다시 계산해요. 날짜를 모르는 경우에는 삭제하지 않아도 돼요.",fontSize=22.sp)},
+        confirmButton={TextButton(onClick={deleteConfirmation=false;remove?.invoke()}) {Text("삭제",fontSize=22.sp)}},
+        dismissButton={TextButton(onClick={deleteConfirmation=false}) {Text("돌아가기",fontSize=22.sp)}})
 }
 
 @OptIn(ExperimentalLayoutApi::class)

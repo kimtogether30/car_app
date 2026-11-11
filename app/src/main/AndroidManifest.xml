@@ -38,7 +38,7 @@
         <service android:name="com.vemoring.companion.MirrorBluetoothService" android:exported="false" android:foregroundServiceType="connectedDevice" />
         <service android:name=".VehicleIconMonitor" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Read-only vehicle care monitoring to update the launcher status icon while navigation or another app is visible; user can disable in settings." />
+                android:value="User-enabled read-only vehicle telemetry and care-message publishing while another screen is visible; launcher icon updates are optional and independent. The user can stop background receiving in settings." />
         </service>
         <receiver android:name=".IconMonitorBootReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>

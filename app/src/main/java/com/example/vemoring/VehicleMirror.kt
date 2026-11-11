@@ -28,7 +28,7 @@ internal fun mirrorContent(data: AppData, snapshot: VehicleSnapshot, condition: 
         else warningReadings.mapNotNull {it.receivedAtMillis}.minOrNull()
     return JSONObject().put("profile", JSONObject().put("nickname", p.nickname).put("model", p.fullModel)
         .put("plate", p.plate).put("fuel", p.fuel).put("notifications", p.notifications)
-        .put("washAlert", p.washAlert).put("fuelAlert", p.fuelAlert))
+        .put("washAlert", p.washAlert).put("fuelAlert", p.fuelAlert).put("vehicleId",p.vehicleId))
         .put("records", JSONArray().also { a -> data.records.forEach { a.put(it.json()) } })
         .put("fuel", snapshot[VehicleField.FUEL].realPercent() ?: JSONObject.NULL)
         .put("battery", snapshot[VehicleField.SOC].realPercent() ?: JSONObject.NULL)

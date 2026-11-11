@@ -5,6 +5,40 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CarePolicyTest {
+    @Test fun longOfflineHistoriesKeepDeletionsAndAllCopiesOfCancelledVisits() {
+        val old=org.json.JSONArray()
+        val proposed=org.json.JSONArray()
+        repeat(1500) { n ->
+            val record=org.json.JSONObject().put("id","record-$n").put("visitId","visit-$n")
+            old.put(org.json.JSONObject(record.toString()).put("cancelled",true).put("deleted",n%2==0))
+            // Missing tombstones must return; stale copies (including duplicates) must stay cancelled.
+            if(n%3!=0) proposed.put(record)
+            if(n==1 || n==2) proposed.put(org.json.JSONObject(record.toString()))
+        }
+        proposed.put(org.json.JSONObject().put("id","new-record").put("visitId","new-visit"))
+        val result=org.json.JSONArray(CareAuthority("car",1,"{}",old.toString()).protectCancelledVisits(proposed.toString()))
+        assertEquals(1503,result.length())
+        val copies=(0 until result.length()).map {result.getJSONObject(it)}
+        val byId=copies.groupBy {it.getString("id")}
+        repeat(1500) { n ->
+            val matching=byId.getValue("record-$n")
+            assertEquals(if(n==1 || n==2) 2 else 1,matching.size)
+            assertTrue(matching.all {it.getBoolean("cancelled")})
+            if(n%2==0) assertTrue(matching.all {it.getBoolean("deleted")})
+        }
+        assertFalse(copies.single {it.getString("id")=="new-record"}.optBoolean("cancelled"))
+    }
+    @Test fun explicitManualDeletionIsTerminalButUnknownInputIsNotDeletion() {
+        val record=org.json.JSONObject().put("id","manual").put("kind","wash").put("date","2026-11-01")
+            .put("title","세차").put("detail","")
+        val original=CareAuthority("car",1,"{}",org.json.JSONArray().put(record).toString())
+        val deleted=original.deleteRecords(setOf("manual"))
+        val stale=org.json.JSONArray().put(org.json.JSONObject(record.toString()).put("cancelled",false))
+        val protected=org.json.JSONArray(deleted.protectCancelledVisits(stale.toString())).getJSONObject(0)
+        assertTrue(protected.getBoolean("deleted"));assertTrue(protected.getBoolean("cancelled"))
+        assertFalse(org.json.JSONArray(original.records).getJSONObject(0).optBoolean("cancelled"))
+        assertEquals(deleted,deleted.deleteRecords(setOf("manual")))
+    }
     private fun at(day: String) = LocalDate.parse(day).atStartOfDay(CARE_ZONE).toInstant()
     private val wash = WashBaseline("manual", LocalDate.parse("2026-11-01"))
     @Test fun manualStartsNextMidnightAndUnknownStaysUnknown() {

@@ -19,17 +19,36 @@ data class CareAuthority(val vehicleId: String, val version: Long, val profile: 
     }
     fun protectCancelledVisits(proposed: String): String {
         val old = JSONArray(records); val next = JSONArray(proposed)
-        repeat(old.length()) { n -> val tombstone = old.getJSONObject(n)
+        val tombstones = (0 until old.length()).map { old.getJSONObject(it) }.filter { record ->
+            record.optBoolean("deleted") || (record.optBoolean("cancelled") &&
+                record.optString("visitId").let { it.isNotBlank() && it != "null" })
+        }
+        if (tombstones.isEmpty()) return next.toString()
+        // Index once: a long offline history must not rescan every proposed record per tombstone.
+        val byId = mutableMapOf<String, MutableList<JSONObject>>()
+        val byVisit = mutableMapOf<String, MutableList<JSONObject>>()
+        fun index(record: JSONObject) {
+            byId.getOrPut(record.optString("id")) { mutableListOf() }.add(record)
+            byVisit.getOrPut(record.optString("visitId")) { mutableListOf() }.add(record)
+        }
+        repeat(next.length()) { index(next.getJSONObject(it)) }
+        tombstones.forEach { tombstone ->
             val visit = tombstone.optString("visitId")
-            if (tombstone.optBoolean("cancelled") && visit.isNotBlank() && visit != "null") {
-                val matching = (0 until next.length()).map { next.getJSONObject(it) }.filter { it.optString("visitId") == visit }
-                if (matching.isEmpty()) next.put(tombstone) else matching.forEach { it.put("cancelled", true) }
+            if(tombstone.optBoolean("deleted")) {
+                val matching=byId[tombstone.getString("id")]
+                if(matching.isNullOrEmpty()) {next.put(tombstone);index(tombstone)}
+                else matching.forEach {it.put("cancelled",true).put("deleted",true)}
+            } else if (tombstone.optBoolean("cancelled") && visit.isNotBlank() && visit != "null") {
+                val matching = byVisit[visit]
+                if (matching.isNullOrEmpty()) {next.put(tombstone);index(tombstone)}
+                else matching.forEach { it.put("cancelled", true) }
             }
         }
         return next.toString()
     }
     /** Explicit negative feedback wins even when the accompanying settings request has an old base. */
     fun rejectVisits(visits: Set<String>): CareAuthority {
+        if (visits.isEmpty()) return this
         val next = JSONArray(records)
         var changed = false
         repeat(next.length()) { n -> val record = next.getJSONObject(n)
@@ -38,6 +57,16 @@ data class CareAuthority(val vehicleId: String, val version: Long, val profile: 
             }
         }
         return if(changed) copy(version = version + 1, records = next.toString()) else this
+    }
+    fun deleteRecords(ids: Set<String>): CareAuthority {
+        if (ids.isEmpty()) return this
+        val next=JSONArray(records);var changed=false
+        repeat(next.length()) {n -> val r=next.getJSONObject(n)
+            if(r.getString("id") in ids && (!r.optBoolean("deleted") || !r.optBoolean("cancelled"))) {
+                r.put("cancelled",true).put("deleted",true);changed=true
+            }
+        }
+        return if(changed) copy(version=version+1,records=next.toString()) else this
     }
     companion object {
         fun from(j: JSONObject) = CareAuthority(j.getString("vehicleId"), j.getLong("version"),
@@ -68,10 +97,20 @@ class CareJournal(private val context: Context, val vehicleId: String) {
         return rejected.keys().asSequence().toSet()
     }
     fun rememberRejectedVisits(visits: Set<String>) {
+        if (visits.isEmpty()) return
         synchronized(CARE_JOURNAL_LOCK) {
             require(visits.all { it.isNotBlank() && it.length <= 256 })
             val j = load(); val rejected = j.optJSONObject("rejectedVisits") ?: JSONObject()
             visits.forEach { rejected.put(it, true) }; j.put("rejectedVisits", rejected); save(j)
+        }
+    }
+    fun deletedRecords(): Set<String> = load().optJSONObject("deletedRecords")?.keys()?.asSequence()?.toSet() ?: emptySet()
+    fun rememberDeletedRecords(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        synchronized(CARE_JOURNAL_LOCK) {
+            require(ids.all {it.isNotBlank() && it.length<=256})
+            val j=load();val deleted=j.optJSONObject("deletedRecords") ?: JSONObject()
+            ids.forEach {deleted.put(it,true)};j.put("deletedRecords",deleted);save(j)
         }
     }
     fun syncStatus(): String = syncStatus(load())
@@ -79,23 +118,35 @@ class CareJournal(private val context: Context, val vehicleId: String) {
         else if(j.optJSONObject("authority") == null) "차량 임시 추정"
         else if(j.optString("requestState").startsWith("Conflict")) "설정 충돌 · 휴대폰 기준 유지" else "휴대폰 기준 동기화됨"
     /** Intervals, sync label and pending flag from one read of the journal. */
-    data class ConfigState(val intervals: List<TravelInterval>, val syncStatus: String, val pending: Boolean)
+    data class ConfigState(val intervals: List<TravelInterval>, val syncStatus: String, val pending: Boolean,val authority: CareAuthority?)
     fun configState(): ConfigState {
         val j = load()
-        return ConfigState(intervals(j), syncStatus(j), j.optJSONObject("pendingRequest") != null)
+        return ConfigState(intervals(j), syncStatus(j), j.optJSONObject("pendingRequest") != null,j.optJSONObject("authority")?.let(CareAuthority::from))
     }
     fun queueRequest(profile: JSONObject, records: JSONArray) {
         synchronized(CARE_JOURNAL_LOCK) {
             val j = load()
             val rejected = JSONArray()
+            val deleted=JSONArray()
             repeat(records.length()) { n -> val record = records.getJSONObject(n)
                 val visit = record.optString("visitId")
                 if(record.optBoolean("cancelled") && visit.isNotBlank() && visit != "null") rejected.put(visit)
+                if(record.optBoolean("deleted")) deleted.put(record.getString("id"))
             }
+            val rejectedState=j.optJSONObject("rejectedVisits") ?: JSONObject()
+            repeat(rejected.length()) {rejectedState.put(rejected.getString(it),true)}
+            val deletedState=j.optJSONObject("deletedRecords") ?: JSONObject()
+            repeat(deleted.length()) {deletedState.put(deleted.getString(it),true)}
+            j.put("rejectedVisits",rejectedState).put("deletedRecords",deletedState)
             j.put("pendingRequest", JSONObject().put("id", java.util.UUID.randomUUID().toString())
-                .put("base", authority()?.version ?: 0).put("profile", profile).put("records", records).put("rejectedVisits", rejected))
+                .put("base", j.optJSONObject("authority")?.getLong("version") ?: 0).put("profile", profile).put("records", records).put("rejectedVisits", rejected).put("deletedRecords",deleted))
             save(j)
         }
+    }
+    fun negativeFeedback(): Pair<JSONArray,JSONArray> = negativeFeedback(load())
+    private fun negativeFeedback(j: JSONObject): Pair<JSONArray,JSONArray> {
+        fun ids(name:String)=JSONArray().also {a -> j.optJSONObject(name)?.keys()?.forEach {a.put(it)}}
+        return ids("rejectedVisits") to ids("deletedRecords")
     }
     fun resolveRequest(authority: CareAuthority) {
         synchronized(CARE_JOURNAL_LOCK) {
@@ -210,8 +261,16 @@ class CareJournal(private val context: Context, val vehicleId: String) {
         }
     }
     fun intervalJson(): JSONArray = load().optJSONArray("intervals") ?: JSONArray()
-    fun outgoingIntervals(): JSONArray {
-        val j = load(); val all = j.optJSONArray("intervals") ?: JSONArray()
+    /** Build one coherent outgoing payload without reparsing the complete journal for each field. */
+    data class OutgoingState(val intervals: JSONArray, val request: JSONObject?, val rejectedVisits: JSONArray, val deletedRecords: JSONArray)
+    fun outgoingState(): OutgoingState {
+        val j = load()
+        val negative = negativeFeedback(j)
+        return OutgoingState(outgoingIntervals(j), j.optJSONObject("pendingRequest"), negative.first, negative.second)
+    }
+    fun outgoingIntervals(): JSONArray = outgoingIntervals(load())
+    private fun outgoingIntervals(j: JSONObject): JSONArray {
+        val all = j.optJSONArray("intervals") ?: JSONArray()
         val delivered = j.optJSONObject("deliveredIntervals") ?: JSONObject()
         val pending = JSONArray()
         for(i in 0 until all.length()) {
@@ -265,6 +324,13 @@ class CareJournal(private val context: Context, val vehicleId: String) {
             check(prefs.edit().remove(key).commit())
             NotificationHistory(context).use {it.deleteVehicle(vehicleId)}
         }
+    }
+    companion object {
+        /** Small vehicle directory from persisted authorities; caller uses IO. */
+        fun vehicles(context: Context): List<CareAuthority> = context.getSharedPreferences("care_journal_v1",Context.MODE_PRIVATE)
+            .all.values.filterIsInstance<String>().mapNotNull {raw ->
+                runCatching {JSONObject(raw).optJSONObject("authority")?.let(CareAuthority::from)}.getOrNull()
+            }.distinctBy {it.vehicleId}
     }
     private fun weatherFromJson(w: JSONObject) = HourWeather(Instant.parse(w.getString("hourStart")),
         w.getDouble("rainMm"), w.getDouble("showersMm"), w.getDouble("snowCm"),

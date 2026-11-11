@@ -17,6 +17,70 @@ import java.util.UUID
 
 /** Injected protocol/storage/notification tests; this does NOT use a Bluetooth radio or Pleos SDK. */
 class CareFlowTest {
+    @Test fun outgoingStateKeepsRequestsAndNegativeFeedbackAfterIntervalAcknowledgement() {
+        val id=UUID.randomUUID().toString()
+        val journal=CareJournal(context,id)
+        journal.saveAuthority(CareAuthority(id,7,"{}","[]"))
+        val start=Instant.parse("2026-11-01T00:00:00Z")
+        journal.mergeIntervals(listOf(TravelInterval("trip",start,start.plusSeconds(60),1.0)))
+        val records=JSONArray().put(JSONObject().put("id","deleted-record").put("visitId","rejected-visit")
+            .put("deleted",true).put("cancelled",true))
+        journal.queueRequest(JSONObject(),records)
+        val first=journal.outgoingState()
+        assertEquals(7L,first.request!!.getLong("base"))
+        assertEquals("trip",first.intervals.getJSONObject(0).getString("id"))
+        assertEquals("rejected-visit",first.rejectedVisits.getString(0))
+        assertEquals("deleted-record",first.deletedRecords.getString(0))
+        journal.acknowledgeIntervals(JSONArray().put(JSONObject().put("id","trip")
+            .put("digest",intervalDigest(first.intervals.getJSONObject(0)))))
+        val second=journal.outgoingState()
+        assertEquals(0,second.intervals.length())
+        assertEquals(first.request.toString(),second.request.toString())
+        assertEquals(first.rejectedVisits.toString(),second.rejectedVisits.toString())
+        assertEquals(first.deletedRecords.toString(),second.deletedRecords.toString())
+        journal.deleteVehicle()
+    }
+    @Test fun multipleCarsKeepTheirOwnCachedFramesAndRejectOldReplays()=runBlocking {
+        val a=UUID.randomUUID().toString();val b=UUID.randomUUID().toString()
+        val one=snapshot(a,7);val two=snapshot(b,20)
+        MirrorBus.receive(context,one);MirrorBus.receive(context,two)
+        MirrorBus.receive(context,one.copy(revision=6))
+        assertEquals(7L,MirrorBus.vehicles.value.getValue(a).snapshot.revision)
+        assertEquals(20L,MirrorBus.vehicles.value.getValue(b).snapshot.revision)
+        val reopened=MirrorCacheStore(context).loadAll()
+        assertEquals(7L,reopened.getValue(a).snapshot.revision)
+        assertEquals(20L,reopened.getValue(b).snapshot.revision)
+        assertEquals(b,MirrorCacheStore(context).load()!!.snapshot.vehicleId)
+    }
+    @Test fun explicitRecordDeletionWinsAcrossOldVersionsWithoutTouchingOtherCars()=runBlocking {
+        val id=UUID.randomUUID().toString();val other=UUID.randomUUID().toString();val first=snapshot(id)
+        CareExchange.receive(context,first);CareExchange.receive(context,snapshot(other))
+        val old=CareJournal(context,id).authority()!!
+        CareExchange.editPhone(context,id,JSONObject(old.profile).put("washAlert",20),JSONArray(old.records))
+        val j=JSONObject(first.content)
+        j.getJSONObject("care").put("deletedRecords",JSONArray().put("old-wash"))
+        CareExchange.receive(context,first.copy(content=j.toString())) // duplicate/reordered envelope
+        assertTrue(JSONArray(CareJournal(context,id).authority()!!.records).getJSONObject(0).getBoolean("deleted"))
+        CareExchange.receive(context,first.copy(revision=2))
+        assertTrue(JSONArray(CareJournal(context,id).authority()!!.records).getJSONObject(0).getBoolean("cancelled"))
+        assertFalse(JSONArray(CareJournal(context,other).authority()!!.records).getJSONObject(0).optBoolean("cancelled"))
+        CareJournal(context,id).deleteVehicle();CareJournal(context,other).deleteVehicle()
+        base.getSystemService(NotificationManager::class.java).cancelAll()
+    }
+    @Test fun deletionAndCurrentSettingsRequestCanApplyTogether()=runBlocking {
+        val id=UUID.randomUUID().toString();val first=snapshot(id);CareExchange.receive(context,first)
+        val old=CareJournal(context,id).authority()!!
+        val request=JSONObject().put("id","delete-and-edit").put("base",old.version)
+            .put("profile",JSONObject(old.profile).put("fuelAlert",25)).put("records",JSONArray(old.records))
+            .put("deletedRecords",JSONArray().put("old-wash"))
+        val j=JSONObject(first.content);j.getJSONObject("care").put("request",request)
+        CareExchange.receive(context,first.copy(revision=2,content=j.toString()))
+        val next=CareJournal(context,id).authority()!!
+        assertEquals(25,JSONObject(next.profile).getInt("fuelAlert"))
+        assertTrue(JSONArray(next.records).getJSONObject(0).getBoolean("deleted"))
+        assertTrue("delete-and-edit" in next.acceptedRequests)
+        CareJournal(context,id).deleteVehicle();base.getSystemService(NotificationManager::class.java).cancelAll()
+    }
     private val base = InstrumentationRegistry.getInstrumentation().targetContext
     private val prefix = "care_test_${UUID.randomUUID()}_"
     private val context = object : ContextWrapper(base) {

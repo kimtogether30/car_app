@@ -34,10 +34,13 @@ internal fun moodMessage(mood: String): String = when (mood) {
  * phone-only wash record. Returns null for demo data, which never changes the real launcher icon. Caller uses IO.
  */
 internal fun currentPhoneMood(context: Context, received: ReceivedMirror?, authority: CareAuthority?): String? {
-    if (received != null) {
-        val content = JSONObject(received.snapshot.content)
+    val selected=context.getSharedPreferences("phone_vehicle_selection",Context.MODE_PRIVATE).getString("selectedId",null)
+        ?.takeIf {CareJournal(context,it).authority()!=null}
+    val current=if(selected!=null) MirrorBus.vehicles.value[selected] else received
+    if (current != null) {
+        val content = JSONObject(current.snapshot.content)
         if (content.optBoolean("demo")) return null
-        val vehicleId = received.snapshot.vehicleId
+        val vehicleId = current.snapshot.vehicleId
         val state = authority?.takeIf { it.vehicleId == vehicleId } ?: CareJournal(context, vehicleId).authority()
             ?: return content.optString("mood", "NORMAL")
         val score = CareJournal(context, vehicleId).score(JSONArray(state.records)).displayed
@@ -45,6 +48,10 @@ internal fun currentPhoneMood(context: Context, received: ReceivedMirror?, autho
         return moodFor(signals?.optBoolean("lowFuel") == true,
             score?.let { it <= JSONObject(state.profile).getInt("washAlert") } == true,
             signals?.optBoolean("vehicleWarning") == true)
+    }
+    if(selected!=null) CareJournal(context,selected).authority()?.let {state ->
+        val score=CareJournal(context,selected).score(JSONArray(state.records)).displayed
+        return if(score!=null && score<=JSONObject(state.profile).getInt("washAlert")) "WASH" else "NORMAL"
     }
     val raw = context.getSharedPreferences("phone_ui_v1", Context.MODE_PRIVATE).getString("data", null) ?: return "NORMAL"
     val j = JSONObject(raw)
@@ -72,8 +79,6 @@ internal object PhoneLauncher {
         if (target == applied) return
         val pm = context.packageManager
         fun component(alias: String) = ComponentName(context.packageName, "$prefix.$alias")
-        fun desired(alias: String) = if (alias == target) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-            else PackageManager.COMPONENT_ENABLED_STATE_DISABLED
         val changed = aliases.values.filter { alias ->
             val current = pm.getComponentEnabledSetting(component(alias))
             val enabled = current == PackageManager.COMPONENT_ENABLED_STATE_ENABLED ||
@@ -83,13 +88,14 @@ internal object PhoneLauncher {
         if (changed.isNotEmpty()) {
             if (Build.VERSION.SDK_INT >= 33) {
                 pm.setComponentEnabledSettings(changed.map {
-                    PackageManager.ComponentEnabledSetting(component(it), desired(it), PackageManager.DONT_KILL_APP)
+                    PackageManager.ComponentEnabledSetting(component(it), if(it==target) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                        else PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP)
                 })
             } else {
                 // Enable the new entry first so there is never a moment without a launcher icon.
-                pm.setComponentEnabledSetting(component(target), desired(target), PackageManager.DONT_KILL_APP)
+                pm.setComponentEnabledSetting(component(target), PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP)
                 changed.filter { it != target }.forEach {
-                    pm.setComponentEnabledSetting(component(it), desired(it), PackageManager.DONT_KILL_APP)
+                    pm.setComponentEnabledSetting(component(it), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP)
                 }
             }
         }
