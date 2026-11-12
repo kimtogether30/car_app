@@ -82,7 +82,10 @@ class VehicleIconMonitor : Service() {
                 val repository = SharedVehicleConnection.repository(this@VehicleIconMonitor)
                 if (!acquired) { SharedVehicleConnection.acquire(this@VehicleIconMonitor, this@VehicleIconMonitor); acquired = true }
                 // SDK callbacks arrive in batches. One evaluation after a short quiet period avoids intermediate icons.
-                combine(repository.state, IconMonitorVisibility.visible, IconMonitorTestSource.input, configs,IconMonitorVisibility.viewedVehicleId) { snapshot, visible, preview, config,viewed ->
+                val careSnapshots=repository.state.map {it to it.motion()}.distinctUntilChanged {old,next ->
+                    old.second==next.second && old.first.readings.filterKeys {it!=VehicleField.SPEED}==next.first.readings.filterKeys {it!=VehicleField.SPEED}
+                }.map {it.first}
+                combine(careSnapshots, IconMonitorVisibility.visible, IconMonitorTestSource.input, configs,IconMonitorVisibility.viewedVehicleId) { snapshot, visible, preview, config,viewed ->
                     MonitorEvaluation(preview ?: IconMonitorSample(data, snapshot, config),visible,preview!=null,viewed==data.profile.vehicleId)
                 }.debounce(500).collect { (sample, visible, preview,viewingSource) ->
                         val snapshot = sample.snapshot

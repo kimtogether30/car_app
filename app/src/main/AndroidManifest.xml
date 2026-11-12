@@ -9,6 +9,7 @@
     <uses-permission android:name="pleos.car.permission.CAR_SAFETY" />
     <uses-permission android:name="pleos.car.permission.CAR_INFO" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
@@ -35,6 +36,7 @@
         android:roundIcon="@drawable/face_normal"
         android:supportsRtl="true"
         android:theme="@style/Theme.Vemoring">
+        <uses-library android:name="android.car" android:required="false" />
         <service android:name="com.vemoring.companion.MirrorBluetoothService" android:exported="false" android:foregroundServiceType="connectedDevice" />
         <service android:name=".VehicleIconMonitor" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

@@ -42,7 +42,14 @@ object VehicleCareRuntime {
                 }
             }
             val outgoing=journal.outgoingState()
+            val motion=snapshot.motion()
             JSONObject().put("protocol", 2).put("policy", CARE_POLICY_VERSION).put("session", session).put("intervals", outgoing.intervals)
+                .put("motion",JSONObject().put("state",if(demo) "Unknown" else motion.name)
+                    .put("stationary",(if(demo) null else snapshot.confirmedStationary()) ?: JSONObject.NULL)
+                    .put("speedMps",snapshot[VehicleField.SPEED].takeIf {!demo && motion!=VehicleMotion.Unknown && it.state==ReadingState.Available}?.value?.number ?: JSONObject.NULL)
+                    .put("speedAt",snapshot[VehicleField.SPEED].receivedAtMillis)
+                    .put("gear",snapshot[VehicleField.GEAR].takeIf {it.state==ReadingState.Available}?.value?.rawState?.let(::normalizedGear))
+                    .put("gearAt",snapshot[VehicleField.GEAR].receivedAtMillis).put("source",if(demo) "Demo" else "Real"))
                 .put("warnings", warnings).put("automaticDetection", "Held: verified wash polygons, location accuracy and motion evidence required")
                 .put("request", outgoing.request).put("rejectedVisits",outgoing.rejectedVisits).put("deletedRecords",outgoing.deletedRecords)
         } }

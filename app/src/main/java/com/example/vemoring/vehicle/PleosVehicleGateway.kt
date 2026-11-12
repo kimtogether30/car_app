@@ -42,18 +42,21 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     private val appContext = context.applicationContext
     private val handler = Handler(Looper.getMainLooper())
     private var current: Session? = null
+    private val speed=CarSpeedSource(appContext)
     override fun start(publish: (VehicleField, Reading) -> Unit) {
         close()
+        speed.start {publish(VehicleField.SPEED,it)}
+        val sdkPublish:(VehicleField,Reading)->Unit = {field,reading -> if(field!=VehicleField.SPEED) publish(field,reading)}
         val sdkVehicle = try { Vehicle(appContext) } catch (error: Exception) {
-            VehicleField.entries.forEach { publish(it, sdkFailure(error)) }; return
+            VehicleField.entries.forEach { sdkPublish(it, sdkFailure(error)) }; return
         }
-        val session = Session(sdkVehicle, publish)
+        val session = Session(sdkVehicle, sdkPublish)
         current = session
         try { session.vehicle.initialize(); session.refresh() }
         catch (error: Exception) { VehicleField.entries.forEach { session.emit(it, sdkFailure(error)) } }
     }
-    override fun refresh() { current?.refresh() }
-    override fun close() { current?.close(); current = null }
+    override fun refresh() { speed.refresh();current?.refresh() }
+    override fun close() { speed.close();current?.close(); current = null }
 
     private inner class Session(val vehicle: Vehicle, val publish: (VehicleField, Reading) -> Unit) {
         var active = true
@@ -65,7 +68,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         private val warningPoll = object : Runnable {
             override fun run() {
                 if(!active) return
-                if(pending == 0) runCatching { readTelltales() }
+                if(pending == 0) runCatching { readTelltales();readGear() }
                 handler.postDelayed(this,30000)
             }
         }
@@ -250,7 +253,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
             if (!unsubscribe.containsKey(VehicleField.GEAR)) {
                 val listener = object : GearSelectionListener {
                     override fun onSelected(value: VehicleGear?) = emit(VehicleField.GEAR,
-                        value?.let { Reading.available(SignalValue(it.name, rawState = it.name)) } ?: Reading(ReadingState.NoData))
+                        value?.let { Reading.available(SignalValue(normalizedGear(it.name) ?: it.name, rawState = it.name)) } ?: Reading(ReadingState.NoData))
                     override fun onFailed(error: Exception) = emit(VehicleField.GEAR, sdkFailure(error))
                 }
                 runCatching { gear.registerGearSelection(listener) }.onSuccess {
@@ -258,7 +261,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
                 }.onFailure { emit(VehicleField.GEAR, sdkFailure(it as? Exception ?: Exception(it))) }
             }
             request<VehicleGear>(VehicleField.GEAR, gear::getCurrentGearSelectionState) { value ->
-                emit(VehicleField.GEAR, value?.let { Reading.available(SignalValue(it.name, rawState = it.name)) }
+                emit(VehicleField.GEAR, value?.let { Reading.available(SignalValue(normalizedGear(it.name) ?: it.name, rawState = it.name)) }
                     ?: Reading(ReadingState.NoData))
             }
         }

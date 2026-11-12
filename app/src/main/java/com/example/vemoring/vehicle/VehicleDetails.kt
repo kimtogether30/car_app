@@ -22,6 +22,8 @@ fun Reading.statusText(): String = when(state) {
 
 @Composable
 fun VehicleDetails(snapshot: VehicleSnapshot, refresh: () -> Unit) {
+    val permission=androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {if(it) refresh()}
     snapshot.priorityWarning()?.let { warning ->
         Panel(color = Color(0xFFFFE2DC)) {
             Text("차량 안전 경고", color = Color(0xFF9D2015))
@@ -31,6 +33,9 @@ fun VehicleDetails(snapshot: VehicleSnapshot, refresh: () -> Unit) {
     }
     Panel {
         Row { Text("차량 수신 정보", Modifier.weight(1f)); TextButton(onClick = refresh) { Text("새로고침") } }
+        if(snapshot[VehicleField.SPEED].state==ReadingState.PermissionDenied)
+            TextButton(onClick={permission.launch(CarSpeedSource.PERMISSION)}) {Text("차량 속도 접근 허용")}
+        Text("이동 상태: ${when(snapshot.motion()) {VehicleMotion.Unknown->"확인 불가";VehicleMotion.Moving->"이동 중";VehicleMotion.Stopped->"정차";VehicleMotion.Parked->"주차(P)"}}",fontSize=13.sp)
         Text("차량명·차종은 사용자 입력을 유지합니다. 공조 정보는 표시된 좌석 영역의 조회값입니다.", fontSize = 12.sp)
         VehicleField.entries.filter { it != VehicleField.FUEL && it != VehicleField.SOC }.forEach { field ->
             val reading = snapshot[field]
