@@ -31,25 +31,55 @@ class HttpExternalDataRepository(private val request: (String, String?) -> JSONO
                 PlaceKind.Wash -> "amenity=car_wash"
                 PlaceKind.Repair -> "shop=car_repair"
             }
-            val query="[out:json][timeout:20];nwr(around:10000,${point.latitude},${point.longitude})[$tag];out center tags;"
+            val output=if(kind==PlaceKind.Wash) "out body geom;" else "out center tags;"
+            val query="[out:json][timeout:20];nwr(around:10000,${point.latitude},${point.longitude})[$tag];$output"
             val json=request("https://overpass-api.de/api/interpreter", query)
             if(json.has("remark")) throw java.io.IOException("Overpass incomplete response")
             val array=json.getJSONArray("elements")
             val values=(0 until array.length()).mapNotNull { index ->
                 val item=array.getJSONObject(index)
                 val tags=item.optJSONObject("tags") ?: return@mapNotNull null
-                val center=item.optJSONObject("center") ?: item
+                val center=item.optJSONObject("center") ?: geometryCenter(item) ?: item
                 val lat=center.number("lat"); val lon=center.number("lon")
                 val name=tags.optString("name").ifBlank { tags.optString("brand") }
                     .ifBlank {if(kind==PlaceKind.Wash && tags.optString("amenity")=="car_wash") "세차장" else ""}
                 if(lat==null || lon==null || name.isBlank() || !Coordinates(lat,lon,1).valid()) null
                 else Place(item.optString("type")+"/"+item.optString("id"),name,
                     listOf("addr:city","addr:street","addr:housenumber").map { tags.optString(it) }.filter { it.isNotBlank() }.joinToString(" ").ifBlank { "주소 미제공" },
-                    lat,lon,distanceMeters(point,lat,lon))
+                    lat,lon,distanceMeters(point,lat,lon),if(kind==PlaceKind.Wash) mappedWashSite(item) else null)
             }.sortedBy { it.distanceMeters }.take(20)
             Result.success(values,"Real · © OpenStreetMap contributors / ODbL").copy(detail="OSM 등록 장소 · 영업/충전 가용 상태 미확인")
         } catch(e: Exception) { Result(ResultState.Error, detail=safeError(e)) }
     }
+}
+
+/** Only a closed mapped wash WAY. Points, fuel parcels and unsupported relation geometry stay search-only. */
+internal fun mappedWashSite(item:JSONObject):com.vemoring.companion.WashSite? {
+    if(item.optString("type")!="way" || item.optJSONObject("tags")?.optString("amenity")!="car_wash") return null
+    val geometry=item.optJSONArray("geometry") ?: return null
+    if(geometry.length() !in 4..256) return null
+    return runCatching {
+        val boundary=(0 until geometry.length()).map {n -> geometry.getJSONObject(n).let {
+            com.vemoring.companion.WashPoint(it.getDouble("lat"),it.getDouble("lon"))
+        }}
+        val center=item.optJSONObject("center") ?: geometryCenter(item) ?: return null
+        com.vemoring.companion.WashSite("way/"+item.optString("id"),center.getDouble("lat"),center.getDouble("lon"),boundary)
+            .takeIf {it.mappedArea()}
+    }.getOrNull()
+}
+
+private fun geometryCenter(item:JSONObject):JSONObject? {
+    val points=mutableListOf<Pair<Double,Double>>()
+    fun add(a:org.json.JSONArray?) { if(a!=null) for(n in 0 until a.length()) {
+        val p=a.optJSONObject(n) ?: continue
+        val lat=p.number("lat");val lon=p.number("lon")
+        if(lat!=null && lon!=null && Coordinates(lat,lon,1).valid()) points+=lat to lon
+    } }
+    add(item.optJSONArray("geometry"))
+    item.optJSONArray("members")?.let {a -> for(n in 0 until a.length()) add(a.optJSONObject(n)?.optJSONArray("geometry"))}
+    if(points.isEmpty()) return null
+    return JSONObject().put("lat",(points.minOf {it.first}+points.maxOf {it.first})/2)
+        .put("lon",(points.minOf {it.second}+points.maxOf {it.second})/2)
 }
 private fun requestJson(url: String, query: String?): JSONObject {
         val target=if(query==null) url else url+"?data="+URLEncoder.encode(query,"UTF-8")

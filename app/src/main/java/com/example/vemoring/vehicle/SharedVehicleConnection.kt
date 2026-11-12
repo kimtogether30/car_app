@@ -38,7 +38,7 @@ object SharedVehicleConnection {
                 if(token!=generation) return@PleosLocationGateway
                 val p=result.value.takeIf {result.state==com.example.vemoring.integration.ResultState.Available}
                 travelPoint.value=p?.let {com.vemoring.companion.TravelPoint(it.latitude,it.longitude,java.time.Instant.ofEpochMilli(it.timestamp))}
-                p?.let {com.example.vemoring.VehicleWashRuntime.observe(it)}
+                p?.let {com.example.vemoring.VehicleWashRuntime.observe(it,connection?.state?.value ?: VehicleSnapshot())}
                 if(p!=null) {
                     if(p.timestamp > lastFixAt) {
                         lastFixAt=p.timestamp; retries=0

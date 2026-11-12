@@ -1,0 +1,10 @@
+{
+    "samples":  83,
+    "durationMs":  12100,
+    "gapMsMin":  99,
+    "gapMsMax":  202,
+    "gapMsAverage":  147.5609756097561,
+    "uniqueMps":  [
+                      0
+                  ]
+}

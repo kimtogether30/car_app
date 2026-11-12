@@ -44,6 +44,8 @@ interface VehicleGateway {
     fun start(publish: (VehicleField, Reading) -> Unit)
     fun refresh()
     fun close()
+    /** One separate fuel-only read (refuel confirmation). Gateways without SDK access report Unsupported. */
+    fun readFuel(done: (Reading) -> Unit) { done(Reading(ReadingState.Unsupported)) }
 }
 
 class VehicleRepository(private val gateway: VehicleGateway) {
@@ -62,6 +64,12 @@ class VehicleRepository(private val gateway: VehicleGateway) {
         }
     }
     fun refresh() { if (active) gateway.refresh() }
+    /** Main thread. A closed repository answers Disconnected instead of starting SDK work. */
+    fun readFuel(done: (Reading) -> Unit) { if (active) gateway.readFuel(done) else done(Reading(ReadingState.Disconnected)) }
+    /** Publish a genuine reading obtained outside the subscription (e.g. a confirmation read). Main thread. */
+    fun publish(field: VehicleField, reading: Reading) {
+        if (active) mutable.value = VehicleSnapshot(mutable.value.readings + (field to reading))
+    }
     fun close() {
         active = false
         generation++

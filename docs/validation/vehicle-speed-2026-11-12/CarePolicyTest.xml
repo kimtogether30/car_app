@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.vemoring.companion.CarePolicyTest" tests="18" skipped="0" failures="0" errors="0" timestamp="2026-11-12T13:29:46.458Z" hostname="CAN_DO_IT" time="0.13">
+  <properties/>
+  <testcase name="canonicalVersionsRejectConflictsAndDeduplicateRequestIds" classname="com.vemoring.companion.CarePolicyTest" time="0.012"/>
+  <testcase name="elapsedTimeIsNotCountedAcrossReceptionGapsOrBeforeDwell" classname="com.vemoring.companion.CarePolicyTest" time="0.009"/>
+  <testcase name="explicitManualDeletionIsTerminalButUnknownInputIsNotDeletion" classname="com.vemoring.companion.CarePolicyTest" time="0.002"/>
+  <testcase name="actualReplacesEstimateAndConfirmedParkingCostsNothing" classname="com.vemoring.companion.CarePolicyTest" time="0.004"/>
+  <testcase name="longOfflineHistoriesKeepDeletionsAndAllCopiesOfCancelledVisits" classname="com.vemoring.companion.CarePolicyTest" time="0.045"/>
+  <testcase name="parkedWashQualifiesWithoutNeutralAndConveyorStillNeedsItsOwnPattern" classname="com.vemoring.companion.CarePolicyTest" time="0.003"/>
+  <testcase name="facilityCertaintyChangesBannerEvidenceOnlyAfterTheFullWashPattern" classname="com.vemoring.companion.CarePolicyTest" time="0.014"/>
+  <testcase name="manualStartsNextMidnightAndUnknownStaysUnknown" classname="com.vemoring.companion.CarePolicyTest" time="0.0"/>
+  <testcase name="cancellationAndRetransmissionDoNotResurrectFirstWash" classname="com.vemoring.companion.CarePolicyTest" time="0.001"/>
+  <testcase name="movementBreaksStationaryDwellInsteadOfAddingDisconnectedStops" classname="com.vemoring.companion.CarePolicyTest" time="0.001"/>
+  <testcase name="lateWeatherReplacesSameIntervalWithoutRepeatedLossAndOldRecordsRecompute" classname="com.vemoring.companion.CarePolicyTest" time="0.007"/>
+  <testcase name="rainAndSnowAndDustAreExclusiveWithDailyDustLimit" classname="com.vemoring.companion.CarePolicyTest" time="0.001"/>
+  <testcase name="phoneAloneAndGpsJitterCannotFinishVisit" classname="com.vemoring.companion.CarePolicyTest" time="0.002"/>
+  <testcase name="pumpAreaAndLongGpsUncertaintyDoNotMeetWashConditions" classname="com.vemoring.companion.CarePolicyTest" time="0.003"/>
+  <testcase name="delayedAutomaticRecordHasSevenDaysFromApplicationToCancel" classname="com.vemoring.companion.CarePolicyTest" time="0.001"/>
+  <testcase name="fuelOnlyAndUnknownOrMissingLocationsNeverCreateWash" classname="com.vemoring.companion.CarePolicyTest" time="0.003"/>
+  <testcase name="parkingCompressionPreservesScoresAcrossArbitraryWashBoundaries" classname="com.vemoring.companion.CarePolicyTest" time="0.018"/>
+  <testcase name="conveyorAndStationaryRequireFullDwellAndActualExitOnce" classname="com.vemoring.companion.CarePolicyTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

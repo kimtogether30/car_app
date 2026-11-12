@@ -42,6 +42,9 @@ object VehicleCareRuntime {
                 }
             }
             val outgoing=journal.outgoingState()
+            // Fuel cars (gasoline/diesel/HEV): sticky low episode + three-read refuel confirmation. EV keeps the battery path.
+            val fuelEpisode=if(!demo && !data.profile.electric)
+                FuelRefillMonitor.observe(context,journal,data.profile.fuelAlert,snapshot[VehicleField.FUEL]) else null
             val motion=snapshot.motion()
             JSONObject().put("protocol", 2).put("policy", CARE_POLICY_VERSION).put("session", session).put("intervals", outgoing.intervals)
                 .put("motion",JSONObject().put("state",if(demo) "Unknown" else motion.name)
@@ -50,8 +53,9 @@ object VehicleCareRuntime {
                     .put("speedAt",snapshot[VehicleField.SPEED].receivedAtMillis)
                     .put("gear",snapshot[VehicleField.GEAR].takeIf {it.state==ReadingState.Available}?.value?.rawState?.let(::normalizedGear))
                     .put("gearAt",snapshot[VehicleField.GEAR].receivedAtMillis).put("source",if(demo) "Demo" else "Real"))
-                .put("warnings", warnings).put("automaticDetection", "Facility radius visit estimate; requires live location and vehicle exit")
+                .put("warnings", warnings).put("automaticDetection", "Mapped wash area; 3-minute motion-qualified dwell and corroborated vehicle exit; cancelable estimate")
                 .put("washVisits",if(demo) JSONArray() else VehicleWashRuntime.frame(context,id))
                 .put("request", outgoing.request).put("rejectedVisits",outgoing.rejectedVisits).put("deletedRecords",outgoing.deletedRecords)
+                .put("fuelEpisode",fuelEpisode?.json() ?: JSONObject.NULL)
         } }
 }

@@ -1,13 +1,26 @@
-검사ID,구분,확인내용,기대결과,상태,실행시각,빌드커밋,기기와환경,실제결과와로그경로
-SPEED-01,빌드,차량 APK와 계측 APK 빌드,BUILD SUCCESSFUL,미검증,,,,
-SPEED-02,단위,VehicleMotionTest 실행,모든 판정 검사 통과,미검증,,,,
-SPEED-03,실수신,실제 게이트웨이 차속과 기어 수신,speedAndGearArriveThroughProductionGateway 통과,미검증,,,,
-SPEED-04,실수신,수신 종료 후 게시 중단,sourceCloseStopsPublishing 통과,미검증,,,,
-SPEED-05,실수신,최신 차속 0과 P,주차(P),미검증,,,,
-SPEED-06,실수신,최신 차속 0과 D 또는 N 또는 R,정차,미검증,,,,
-SPEED-07,실수신,0 이외 전진 차속,이동 중,미검증,,,,
-SPEED-08,실수신,후진 차속,이동 중,미검증,,,,
-SPEED-09,실수신,차속 권한 거부 또는 오류 또는 미지원,확인 불가이며 0으로 대체하지 않음,미검증,,,,
-SPEED-10,실수신,유효 차속 표본이 5초 초과 중단,확인 불가,미검증,,,,
-SPEED-11,실수신,차속 0은 최신이나 P 표본은 35초 초과,정차이며 주차 확정 안 함,미검증,,,,
-SPEED-12,물리기기,차량에서 휴대폰 Bluetooth 전달,BT-50 별도 수행,미검증,,,,
+﻿"검사ID","구분","확인내용","기대결과","상태","실행시각","빌드커밋","기기와환경","실제결과와로그경로"
+"SPEED-01","빌드","차량 APK와 계측 APK 빌드","BUILD SUCCESSFUL","통과","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","BUILD SUCCESSFUL; docs/validation/vehicle-speed-2026-11-12/build.log 및 extra-build.log"
+"SPEED-02","단위","VehicleMotionTest 실행","모든 판정 검사 통과","통과","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","VehicleMotionTest 5 tests / 0 failures; docs/validation/vehicle-speed-2026-11-12/VehicleMotionTest.xml"
+"SPEED-03","실수신","실제 게이트웨이 차속과 기어 수신","speedAndGearArriveThroughProductionGateway 통과","통과","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","두 번째 Cold Boot: 실제 0m/s 및 GEAR_PARK 수신; OK (2 tests). retry-instrumentation.log / retry-signals.log. 첫 부팅 실패 보존"
+"SPEED-04","실수신","수신 종료 후 게시 중단","sourceCloseStopsPublishing 통과","통과","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","sourceCloseStopsPublishing 통과; retry-instrumentation.log"
+"SPEED-05","실수신","최신 차속 0과 P","주차(P)","통과","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","실제 0m/s + GEAR_PARK → Parked; retry-signals.log"
+"SPEED-06","실수신","최신 차속 0과 D 또는 N 또는 R","정차","미검증","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","공식 Virtual Console N 전환 거부: emulator_inactive; console-gear-attempt.log. D/N/R 실수신 미검증"
+"SPEED-07","실수신","0 이외 전진 차속","이동 중","미검증","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","공식 콘솔 제어 비활성으로 이동/후진 실수신 미검증; console-gear-attempt.log"
+"SPEED-08","실수신","후진 차속","이동 중","미검증","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","공식 콘솔 제어 비활성으로 이동/후진 실수신 미검증; console-gear-attempt.log"
+"SPEED-09","실수신","차속 권한 거부 또는 오류 또는 미지원","확인 불가이며 0으로 대체하지 않음","통과","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","실제 연결 시간 초과 시 Loading/Disconnected 및 기어 Error에서 motion=Unknown; signals.log. 권한 거부/미지원 개별 경로는 미검증"
+"SPEED-10","실수신","유효 차속 표본이 5초 초과 중단","확인 불가","미검증","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","초기 연결 실패는 관측했으나 유효 수신 후 5초 중단은 미재현; 단위 테스트만 통과"
+"SPEED-11","실수신","차속 0은 최신이나 P 표본은 35초 초과","정차이며 주차 확정 안 함","미검증","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","실제 기어 표본만 35초 중단하는 조건 미재현; 단위 테스트만 통과"
+"SPEED-12","물리기기","차량에서 휴대폰 Bluetooth 전달","BT-50 별도 수행","미검증","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","에뮬레이터로 무선 BT 검증 불가; docs/BLUETOOTH_VALIDATION_CHECKLIST.md BT-50 유지"
+"SPEED-13","실수신","정지 상태 차속 갱신 간격","새 시각 표본 수신","통과","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","83개/12.1초; 간격99~202ms 평균147.56ms; 전부0m/s. sample-statistics.json"
+"SPEED-14","실수신","0 근처 원시 속도 흔들림","원시값과 이동 판정 대조","미검증","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","정지값0만 수신; 비영 근접값 제어 불가. 단위 ±0.001m/s 이동 통과"
+"WASH-01","단위","컨베이어 및 정차식 명시 근거 조건","3분 체류와 패턴/출차 전에는 세차 없음","통과","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","CarePolicyTest 18개 통과; CarePolicyTest.xml. 운영 연결/실수신 증거 아님"
+"WASH-02","단위","반경 경로 긴 공백 및 폰 단독 출차 방지","관측 체류와 차량 출차만 추정","통과","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","FacilityWashPolicyTest 6개 통과; FacilityWashPolicyTest.xml"
+"WASH-03","코드검토","요청의 주유/대기 완전 배제와 현재 운영 정책 일치","주유/대기만으로 세차 처리하지 않음","실패","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","현재 반경 경로는 복합시설 3분 체류+출차도 EstimatedVisit 가능; 저장된 최신 정책과 요청 차이; 상세 검증 문서 참조"
+"WASH-04","실수신","실제 SDK 위치/차속 기반 세차 진입 체류 출차","실제 조건 충족 후 취소 가능한 추정","미검증","2026-11-12 22:32:20 KST","26e4305 + 계측 진단 로그","Pleos Connect v2.1.0 API34; emulator-5554; user10; Cold Boot; 4096MB; 2560x1440","공식 콘솔 신호 제어 불가; 주입 좌표 및 단위 테스트와 구분"
+"WASH-05","단위","요청한 세차 구역·차량 신호 조건","컨베이어/정차식 상세 조건과 공백·오탐 방지","통과","2026-11-12 22:52:00 KST","26e4305 + 요청한 세차 조건 작업트리","공식 Pleos API34 / Phone API34 한 대씩; 데이터 보존","FacilityWashPolicyTest 14개 통과; 재진입 합산 금지 포함; docs/validation/strict-wash-2026-11-12/FacilityWashPolicyTest.xml"
+"WASH-06","단위","지도 경계 운영 연결","닫힌 세차 way만 허용; 점/주유구역/열린경계 차단","통과","2026-11-12 22:52:00 KST","26e4305 + 요청한 세차 조건 작업트리","공식 Pleos API34 / Phone API34 한 대씩; 데이터 보존","WashAreaMapTest 2개 통과; docs/validation/strict-wash-2026-11-12/WashAreaMapTest.xml"
+"WASH-07","주입계측","프레임 저장→무응답/맞아요 유지→취소→재전송 및 구버전 방문","중복/취소 복구 없이 기록 유지·복원","통과","2026-11-12 22:52:00 KST","26e4305 + 요청한 세차 조건 작업트리","공식 Pleos API34 / Phone API34 한 대씩; 데이터 보존","휴대폰 verification; OK (3 tests); docs/validation/strict-wash-2026-11-12/phone-pipeline.log"
+"WASH-08","화면계측","공식 Pleos의 확인 배너와 맞아요/안했어요","읽을 수 있는 배너·유지·취소","통과","2026-11-12 22:52:00 KST","26e4305 + 요청한 세차 조건 작업트리","공식 Pleos API34 / Phone API34 한 대씩; 데이터 보존","공식 Pleos user10: OK (2 tests); 실제 스크린샷 확인; docs/validation/strict-wash-2026-11-12/pleos-banner.log 및 pleos-wash-banner.png. 주입 자격 방문의 UI 검사이며 실제 SDK 세차 감지 검증 아님"
+"WASH-09","실수신","실제 SDK 위치 이동과 N→D/3분/출차","운영 경로의 실제 신호 조건 검증","미검증","2026-11-12 22:52:00 KST","26e4305 + 요청한 세차 조건 작업트리","공식 Pleos API34 / Phone API34 한 대씩; 데이터 보존","공식 콘솔 제어가 이전 검사에서 emulator_inactive; 주입 프레임/단위 검사와 구분. 물리 BT는 BT-53에 보류"
+"WASH-10","단위","같은 자리 재수신 시 시각 차이 체류 추정","0m/s 전후 같은 구역/20m 이내·합산3분·출차 후 추정","통과","2026-11-12 23:07:32 KST","26e4305 + 같은 자리 재수신 추정 작업트리","Phone API34 verification; 차량 및 휴대폰 빌드","FacilityWashPolicyTest18개 통과; docs/validation/wash-resume-2026-11-12/FacilityWashPolicyTest.xml"
+"WASH-11","주입계측","종료 전 저장→저장소 재생성→같은 자리 복귀→출차→확인 배너·취소","복원·질문·취소·재전송 방지","통과","2026-11-12 23:07:32 KST","26e4305 + 같은 자리 재수신 추정 작업트리","Phone API34 verification; 차량 및 휴대폰 빌드","휴대폰 verification OK (4 tests); docs/validation/wash-resume-2026-11-12/phone-pipeline.log; 실제 시동/무선 검증 아님"

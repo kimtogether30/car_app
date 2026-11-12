@@ -171,7 +171,7 @@ class CareJournal(private val context: Context, val vehicleId: String) {
             val records = JSONArray(state.records)
             if ((0 until records.length()).any { records.getJSONObject(it).optString("visitId") == wash.visitId }) return null
             records.put(JSONObject().put("id", "wash:${wash.visitId}").put("kind", "wash").put("title", "자동 추정 세차")
-                .put("date", wash.completedAt.atZone(CARE_ZONE).toLocalDate()).put("detail", "세차장 방문과 차량 이동 기반 자동 추정")
+                .put("date", wash.completedAt.atZone(CARE_ZONE).toLocalDate()).put("detail", "세차 구역 체류와 차량 상태·출차 기반 자동 추정")
                 .put("visitId", wash.visitId).put("completedAt", wash.completedAt).put("appliedAt", Instant.now()).put("source", "Real")
                 .put("washEvidence",wash.evidence.name).put("cancelled", false))
             return state.copy(version = state.version + 1, records = records.toString()).also(::saveAuthority)
@@ -310,6 +310,16 @@ class CareJournal(private val context: Context, val vehicleId: String) {
             val j = load(); val sent = j.optJSONObject("notifications") ?: JSONObject()
             sent.put(key, System.currentTimeMillis()); j.put("notifications", sent); save(j)
         }
+    }
+    /** Vehicle-side low-fuel episode and confirmed refuel events (see FuelRefill.kt). */
+    fun fuelEpisode(): FuelEpisode = load().optJSONObject("fuelEpisode")?.let { runCatching { FuelEpisode.from(it) }.getOrNull() } ?: FuelEpisode()
+    /** Atomic read-modify-write; writes only when the state actually changes. */
+    fun updateFuelEpisode(change: (FuelEpisode) -> FuelEpisode): FuelEpisode = synchronized(CARE_JOURNAL_LOCK) {
+        val j = load()
+        val current = j.optJSONObject("fuelEpisode")?.let { runCatching { FuelEpisode.from(it) }.getOrNull() } ?: FuelEpisode()
+        val next = change(current)
+        if (next != current) { j.put("fuelEpisode", next.json()); save(j) }
+        next
     }
     fun lastWarning(type: String): String? = load().optJSONObject("warnings")?.optString(type)?.takeIf { it.isNotBlank() }
     fun saveWarning(type: String, state: String) {

@@ -54,6 +54,11 @@ object BannerNotifications {
                     .setData(uri(event.vehicleId,event.visitId)).putExtra("vehicleId",event.vehicleId).putExtra("visitId",event.visitId),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
                 builder.addAction(Notification.Action.Builder(null,"세차 안 했어요",cancel).build())
+                val confirm = PendingIntent.getBroadcast(c,(event.eventId+":confirm").hashCode(),Intent(c,CareCancelReceiver::class.java)
+                    .setData(uri(event.vehicleId,event.visitId).buildUpon().appendQueryParameter("answer","yes").build())
+                    .putExtra("vehicleId",event.vehicleId).putExtra("visitId",event.visitId).putExtra("confirmed",true),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+                builder.addAction(Notification.Action.Builder(null,"맞아요",confirm).build())
             }
             builder.addAction(Notification.Action.Builder(null,"알림 내역",open).build())
             val result = runCatching {
@@ -84,7 +89,12 @@ object BannerNotifications {
         fun freshField(name:String)=freshSnapshot!=null && (!freshSnapshot.has(name) ||
             !freshSnapshot.isNull(name) && System.currentTimeMillis()-freshSnapshot.optLong(name) in 0..60000)
         val percentages = energy.mapNotNull { key -> freshSnapshot?.takeIf {freshField("${key}At")}?.takeUnless {it.isNull(key)}?.optDouble(key)?.takeIf {it.isFinite() && it in 0.0..100.0} }
-        val fuel = percentages.any {it <= profile.getInt("fuelAlert")}
+        // Fuel cars: the vehicle's sticky low episode decides the alert (sloshing around T cannot re-alert); a refuel needs
+        // the vehicle's three-read +10%p confirmation. The last received state covers evaluations without fresh telemetry.
+        val receivedEpisode=if(electric) null else telemetry?.optJSONObject("fuelEpisode")?.let {runCatching {FuelEpisode.from(it)}.getOrNull()}
+        val episode=if(electric) null else (receivedEpisode?.let {next -> journal.updateFuelEpisode {old -> if(next.episode>=old.episode) next else old}}
+            ?: journal.fuelEpisode()).takeIf {it.phase!=FuelPhase.UNKNOWN}
+        val fuel = if(episode!=null) episode.phase==FuelPhase.LOW else percentages.any {it<=profile.getInt("fuelAlert")}
         val warnings = telemetry?.optJSONObject("warnings")
         val now = System.currentTimeMillis()
         val eligible = mutableListOf<String>()
@@ -142,7 +152,20 @@ object BannerNotifications {
                     h.value(journal.vehicleId,"active:$group","[]")
                 }
             }
-            if(!fuel && !dirty && percentages.isNotEmpty()) h.stateEvent(journal.vehicleId,"clear")
+            if(!fuel && !dirty && (percentages.isNotEmpty() || episode?.phase==FuelPhase.ARMED)) h.stateEvent(journal.vehicleId,"clear")
+        }
+        // One "주유 완료" per confirmed refuel event id; repeated/replayed frames are deduplicated by the history.
+        episode?.refills?.filter {now-it.at in 0..6*3600_000L}?.forEach { refill ->
+            val eventId="fuel-refill:${refill.id}"
+            NotificationHistory(c).use { h ->
+                if(h.get(journal.vehicleId,eventId)==null) h.value(journal.vehicleId,"last:state")?.let { id ->
+                    // Retire this episode's low-fuel notification once the refuel is confirmed.
+                    if(!fuel && h.get(journal.vehicleId,id)?.bannerKey?.contains("FUEL")==true)
+                        c.getSystemService(NotificationManager::class.java).cancel("${journal.vehicleId}:$id",3010)
+                }
+            }
+            val d=definition("FUEL_DONE",profile)
+            dispatch(c,CareNotificationEntry(journal.vehicleId,eventId,d.key,d.title,d.body,d.mood,d.art,refill.at,source=source),enabled)
         }
         warnings?.optJSONObject("WASHER")?.let { w ->
             if(w.optString("status") == "Available" && now-w.optLong("at") in 0..60000 && w.has("warning") && !w.isNull("warning"))

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.example.vemoring.VehicleMotionTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-12T13:27:02.450Z" hostname="CAN_DO_IT" time="0.005">
+  <properties/>
+  <testcase name="staleParkCannotTurnFreshZeroIntoParking" classname="com.example.vemoring.VehicleMotionTest" time="0.001"/>
+  <testcase name="zeroWithFreshParkIsParkedAndOtherGearsAreStopped" classname="com.example.vemoring.VehicleMotionTest" time="0.001"/>
+  <testcase name="missingInvalidDemoAndStaleSpeedAreUnknown" classname="com.example.vemoring.VehicleMotionTest" time="0.001"/>
+  <testcase name="forwardReverseAndSlowMovementNeverBecomeStopped" classname="com.example.vemoring.VehicleMotionTest" time="0.001"/>
+  <testcase name="monotonicTimestampChecksAndSignedMetresPerSecondArePreserved" classname="com.example.vemoring.VehicleMotionTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -60,3 +60,7 @@ adb -s emulator-5554 shell am instrument -w -e class com.example.vemoring.CarSpe
 같은 폴더의 `VEHICLE_SPEED_VALIDATION_RESULTS.csv`를 채워 전달한다. 상태는 통과/실패/미검증 중 하나를 쓴다. 에뮬레이터·빌드 커밋·실행 시각과 실제 출력/로그 경로를 근거 칸에 적는다. 단위 테스트와 실제 수신 검사를 따로 기록한다.
 
 구현 상세: [VEHICLE_SPEED_MOTION.md](VEHICLE_SPEED_MOTION.md). 물리 차량·Bluetooth 추가 검사: [BLUETOOTH_VALIDATION_CHECKLIST.md](BLUETOOTH_VALIDATION_CHECKLIST.md)의 BT-50.
+
+## 2026-11-12 재검증 결과
+
+공식 AVD 재 Cold Boot 후 실제 차속 0m/s·P 수신 및 계측 2개 통과. 최초 부팅 Car Service 장애와 재부팅 후 통과를 모두 기록했다. D/N/R·이동·후진·0 주변 비영 값은 공식 콘솔 제어 비활성으로 미검증이다. 상세: [검증 기록](VEHICLE_SPEED_VALIDATION_2026-11-12.md), [결과 CSV](VEHICLE_SPEED_VALIDATION_RESULTS.csv).

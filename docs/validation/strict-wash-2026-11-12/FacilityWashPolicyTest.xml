@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.vemoring.companion.FacilityWashPolicyTest" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-11-12T13:57:22.261Z" hostname="CAN_DO_IT" time="0.022">
+  <properties/>
+  <testcase name="conveyorCountsMovingDwellButNeedsNeutralMotionThenDrive" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.007"/>
+  <testcase name="mappedWashAreaIsRequiredAndFuelOrWaitingOutsideDoesNotCount" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.001"/>
+  <testcase name="stationaryNeedsFullObservedDwellAndMovingVehicleExit" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.001"/>
+  <testcase name="missingStaleOrMisalignedSpeedCannotInventStoppedTime" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.004"/>
+  <testcase name="crossingBoundaryBufferAddsNoDwellButPreservesAlreadyCompletedPatterns" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.003"/>
+  <testcase name="completedStationaryDwellSurvivesDrivingAcrossWashAreaToExit" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.0"/>
+  <testcase name="boundaryJitterAndAccuracyUncertaintyNeverBecomeDwellOrExit" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.002"/>
+  <testcase name="stationaryMotionBreaksDwellButActualReverseExitAfterFullDwellQualifies" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.001"/>
+  <testcase name="staleGearAndNeutralWithoutMotionDoNotProveConveyor" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.0"/>
+  <testcase name="phoneCannotSupplyStationaryEvidenceOrCompleteVehicleVisit" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.002"/>
+  <testcase name="shortOutsideExcursionCannotJoinTwoIncompleteConveyorStays" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.0"/>
+  <testcase name="briefPassThroughEndsVisitWithoutWashAndAllowsNextVisit" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.001"/>
+  <testcase name="neutralSingleSpikeAndNearZeroNoiseCannotProveConveyorMotion" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.0"/>
+  <testcase name="longGapsAndDuplicateCachedFixesNeverFillDwell" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

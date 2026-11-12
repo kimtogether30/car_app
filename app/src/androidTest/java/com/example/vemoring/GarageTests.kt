@@ -36,7 +36,7 @@ class GarageTests {
         val good = AppData(CarProfile("현대", "코나", "몽글이"), complete = true)
         store.save(good)
         try {
-            store.save(good.copy(records = listOf(CareRecord(date = LocalDate.now().plusDays(1), kind = CareKind.FUEL, title = "미래"))))
+            store.save(good.copy(records = listOf(CareRecord(date = LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).plusDays(1), kind = CareKind.FUEL, title = "미래"))))
             fail("Expected future date validation")
         } catch (_: IllegalArgumentException) { }
         assertEquals(good, store.load())

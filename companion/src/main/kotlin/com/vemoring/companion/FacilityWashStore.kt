@@ -22,7 +22,7 @@ class FacilityWashStore(context:Context, private val vehicleId:String) {
     fun observeVehicle(fix:FacilityFix, sites:List<WashSite>):Boolean = synchronized(lock) {
         if(!fix.valid() || fix.phone) return@synchronized false
         val visits=load().filter {fix.receivedAt-it.fixes.first().at<=FacilityWashPolicy.LIFETIME_MS}.toMutableList()
-        val active=visits.lastOrNull()?.takeUnless {FacilityWashPolicy.evaluate(it).exited}
+        val active=visits.lastOrNull()?.takeUnless {it.fixes.size>=FacilityWashPolicy.MAX_FIXES || FacilityWashPolicy.evaluate(it).exited}
         if(active!=null) {
             val last=active.fixes.lastOrNull { !it.phone }
             if(last!=null && fix.at-last.at<5_000) return@synchronized false
@@ -61,19 +61,32 @@ class FacilityWashStore(context:Context, private val vehicleId:String) {
         visits[i]=v.copy(fixes=(v.fixes+fix).sortedBy {it.at}.take(FacilityWashPolicy.MAX_FIXES));save(visits);true
     }
     private fun encode(visits:List<FacilityVisit>)=JSONArray().also {a -> visits.forEach {v ->
-        a.put(JSONObject().put("id",v.id).put("site",JSONObject().put("id",v.site.id).put("lat",v.site.latitude).put("lon",v.site.longitude))
+        a.put(JSONObject().put("id",v.id).put("policy",2).put("site",JSONObject().put("id",v.site.id).put("lat",v.site.latitude).put("lon",v.site.longitude)
+            .put("facility",v.site.facility.name).put("boundary",JSONArray().also { b -> v.site.boundary.forEach {p ->
+                b.put(JSONObject().put("lat",p.latitude).put("lon",p.longitude))
+            }}))
             .put("fixes",JSONArray().also {fs -> v.fixes.forEach {f ->fs.put(JSONObject().put("lat",f.latitude).put("lon",f.longitude)
-                .put("at",f.at).put("receivedAt",f.receivedAt).put("phone",f.phone).put("accuracy",f.accuracyM))}}))
+                .put("at",f.at).put("receivedAt",f.receivedAt).put("phone",f.phone).put("accuracy",f.accuracyM)
+                .put("speed",f.speedMps).put("speedAt",f.speedAt).put("gear",f.gear).put("gearAt",f.gearAt))}}))
     }}
     private fun decode(a:JSONArray):List<FacilityVisit> {
         require(a.length()<=4)
         return (0 until a.length()).mapNotNull {i -> runCatching {
             val v=a.getJSONObject(i);val s=v.getJSONObject("site");val fixes=v.getJSONArray("fixes")
+            // Legacy radius evidence cannot be promoted into a qualified wash after upgrading.
+            require(v.optInt("policy")==2)
+            val boundary=s.getJSONArray("boundary");require(boundary.length() in 4..256)
+            val site=WashSite(s.getString("id"),s.getDouble("lat"),s.getDouble("lon"),
+                (0 until boundary.length()).map {n -> boundary.getJSONObject(n).let {WashPoint(it.getDouble("lat"),it.getDouble("lon"))}},
+                WashFacility.valueOf(s.optString("facility","Unknown")))
+            require(site.mappedArea())
             require(fixes.length() in 1..FacilityWashPolicy.MAX_FIXES)
             val id=v.getString("id");require(id.startsWith("radius:$vehicleId:") && id.length<=256)
-            FacilityVisit(id,WashSite(s.getString("id"),s.getDouble("lat"),s.getDouble("lon")),(0 until fixes.length()).map {n ->
+            FacilityVisit(id,site,(0 until fixes.length()).map {n ->
                 val f=fixes.getJSONObject(n);FacilityFix(f.getDouble("lat"),f.getDouble("lon"),f.getLong("at"),f.getLong("receivedAt"),
-                    f.optBoolean("phone"),if(f.has("accuracy")) f.getDouble("accuracy") else null)
+                    f.optBoolean("phone"),if(f.has("accuracy")) f.getDouble("accuracy") else null,
+                    if(f.has("speed")) f.getDouble("speed") else null,if(f.has("speedAt")) f.getLong("speedAt") else null,
+                    f.optString("gear").takeIf {it in listOf("P","N","D","R")},if(f.has("gearAt")) f.getLong("gearAt") else null)
             }.filter {it.valid()}.also {require(it.isNotEmpty())})
         }.getOrNull()}
     }

@@ -38,3 +38,17 @@
 차량 계측 클래스: `com.example.vemoring.WashTimeInputUiTest`.
 
 스크린샷은 Git 제외 경로 `build/diagnostics/review-fixes/phone-wash-time.png`, `vehicle-display.png`에 로컬 보관. 물리 Bluetooth 확인 목록은 `BLUETOOTH_VALIDATION_CHECKLIST.md` 사용.
+
+
+## main 병합 검증 범위 (2026-11-13)
+
+위 105개 단위 검사 및 계측 결과는 로컬 수정 후·main 병합 전의 기록이다. 최종 main에는 친구의 주유 회복과 강화된 세차 판정이 추가되어 있다. 병합 후 결과는 별도로 기록한다. 원래 2번을 원복한 기록은 당시 작업 범위이며 친구의 main 구현을 삭제했다는 뜻이 아니다.
+
+### 병합 후 결과
+
+- 병합 대상 main: `792a9b6`. 위치 콜백·주유 알림·검증 문서 충돌을 조정했다.
+- 두 앱 debug 빌드, 차량 debug 계측 APK, 휴대폰 verification 및 계측 APK 컴파일 통과.
+- 단위 검사 총126개: 차량43개 통과, 휴대폰81개 통과·기존 제외2개. 실패0개.
+- 휴대폰 주입 프레임 계측3개 통과: HEV 연료 판단/미지원 경고 차단, 지원 정비 경고의 지속·해제·재발, main의 연료 출렁임 중복 방지/회복 후 주유 완료·재알림. 실제 SDK·무선 검증은 아님.
+- 첫 설치 시도는 에뮬레이터 부팅 중이라 APK 설치가 거부되었다. 그 결과는 제외했고 부팅 완료 후 두 APK 설치 성공을 확인한 재검사에서3개 모두 통과했다. 검사 후 verification 앱은 비활성화하고 에뮬레이터를 종료했다.
+- FuelRefillMonitor/FuelRefillPolicy 및 강화된 FacilityWashPolicy/VehicleWashRuntime 핵심은 origin/main 원본과 동일하게 보존했다.
