@@ -26,7 +26,7 @@ class AutomaticSetupTests {
         compose.onAllNodes(isToggleable())[0].performScrollTo().performClick()
         compose.onAllNodes(isToggleable())[1].performScrollTo().performClick()
         compose.onNodeWithText("다음").performScrollTo().performClick()
-        compose.onNode(hasSetTextAction()).performTextInput("우리 코나")
+        compose.onNode(hasSetTextAction() and hasText("차량 닉네임", substring = true)).performTextInput("우리 코나")
         compose.onNodeWithText("다음").performScrollTo().performClick()
         compose.onNodeWithText("하단 바에 VEMORING을\n추가할까요?").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("네, 추가 방법 볼게요").performScrollTo().performClick()

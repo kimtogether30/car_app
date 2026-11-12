@@ -16,7 +16,8 @@ data class Coordinates(val latitude: Double, val longitude: Double, val timestam
     fun fresh(now: Long = System.currentTimeMillis()) = valid() && timestamp > 0 && now - timestamp in -60000..900000
 }
 enum class PlaceKind(val label: String) { Fuel("주유소"), Charge("전기차 충전소"), Wash("세차장"), Repair("자동차 정비소") }
-data class Place(val id: String, val name: String, val address: String, val latitude: Double, val longitude: Double, val distanceMeters: Double)
+data class Place(val id: String, val name: String, val address: String, val latitude: Double, val longitude: Double, val distanceMeters: Double,
+    val washSite: com.vemoring.companion.WashSite? = null)
 data class EnvironmentData(val temperature: Double?, val forecastRainMm: Double?, val pm10: Double?, val pm25: Double?, val dust: Double?,
     val fetchedAt: Long, val attribution: String = "Open-Meteo · CAMS 모델 추정/예보 · 현장 측정 아님")
 data class DiagnosticEvent(val time: Long = System.currentTimeMillis(), val operation: String, val outcome: String, val source: String)

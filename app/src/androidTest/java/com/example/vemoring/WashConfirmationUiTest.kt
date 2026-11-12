@@ -85,8 +85,9 @@ class WashConfirmationUiTest {
         compose.onNodeWithText("청결도: 기록 없음").assertExists()
         assertFalse(runBlocking { CareExchange.detected(context, id, DetectedWash("qualified-visit", Instant.now())) })
     }
-    @Test fun closingBannerKeepsTheAutomaticWash() {
+    @Test fun confirmingBannerKeepsTheAutomaticWash() {
         start()
+        compose.onNodeWithText("맞아요").assertExists()
         compose.onNodeWithTag("wash-dismiss").performScrollTo().performClick()
         compose.waitUntil(5000) { compose.onAllNodesWithTag("wash-confirmation").fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithText("청결도: 100%").assertExists()

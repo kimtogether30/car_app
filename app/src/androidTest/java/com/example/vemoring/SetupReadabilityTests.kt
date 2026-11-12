@@ -35,7 +35,7 @@ class SetupReadabilityTests {
         compose.onAllNodes(isToggleable())[1].performClick()
         compose.onNodeWithText("다음").performScrollTo().performClick()
         capture("05-nickname")
-        compose.onNode(hasSetTextAction()).performTextInput("가독성 확인")
+        compose.onNode(hasSetTextAction() and hasText("차량 닉네임", substring = true)).performTextInput("가독성 확인")
         compose.onNodeWithText("다음").performScrollTo().performClick()
         capture("06-dock-question")
         compose.onNodeWithText("나중에 할게요").performScrollTo().performClick()
@@ -65,13 +65,13 @@ class SetupReadabilityTests {
         compose.onAllNodes(isToggleable())[0].performScrollTo().performClick()
         compose.onAllNodes(isToggleable())[1].performScrollTo().performClick()
         compose.onNodeWithText("다음").performScrollTo().performClick()
-        compose.onNode(hasSetTextAction()).performTextInput("몽글이 한글")
+        compose.onNode(hasSetTextAction() and hasText("차량 닉네임", substring = true)).performTextInput("몽글이 한글")
         compose.onNodeWithText("다음").performScrollTo().performClick()
         compose.onNodeWithText("네, 추가 방법 볼게요").performScrollTo().performClick()
         compose.onNodeWithText("VEMORING 시작하기").performScrollTo().performClick()
         compose.onNodeWithText("하단 바에 VEMORING 놓기").assertIsDisplayed()
         compose.onNodeWithText("방법 확인했어요").performClick()
-        compose.waitUntil(15000) { compose.onAllNodesWithText("차량 컨디션").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(15000) { compose.onAllNodesWithText("이번 주 날씨").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("홈", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("홈", useUnmergedTree = true).assertIsDisplayed()
         compose.runOnIdle {

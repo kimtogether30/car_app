@@ -2,6 +2,7 @@ package com.example.vemoring
 
 import android.content.Context
 import com.example.vemoring.integration.*
+import com.example.vemoring.vehicle.*
 import com.vemoring.companion.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -12,12 +13,13 @@ import org.json.JSONArray
 object VehicleWashRuntime {
     val revision=MutableStateFlow(0L)
     private var job:Job?=null
-    private var input:Channel<Pair<Coordinates,Long>>?=null
+    private data class Sample(val point:Coordinates,val receivedAt:Long,val snapshot:VehicleSnapshot)
+    private var input:Channel<Sample>?=null
     private var lastSubmitted=0L
     fun start(context:Context) {
         if(job?.isActive==true) return
         val app=context.applicationContext
-        val channel=Channel<Pair<Coordinates,Long>>(Channel.CONFLATED);input=channel
+        val channel=Channel<Sample>(Channel.CONFLATED);input=channel
         job=CoroutineScope(SupervisorJob()+Dispatchers.IO).launch {
             val garage=GarageStore(app)
             val repository=HttpExternalDataRepository()
@@ -26,14 +28,19 @@ object VehicleWashRuntime {
             var nextAttempt=0L
             var sites=emptyList<WashSite>()
             var previousId:String?=null
-            for((point,receivedAt) in channel) {
+            for((point,receivedAt,snapshot) in channel) {
                 val prefs=app.getSharedPreferences(VehicleIconMonitor.PREFS,Context.MODE_PRIVATE)
                 if(!prefs.getBoolean(VehicleIconMonitor.RECEIVE_ENABLED,true)) continue
                 val receiving=garage.receiving() ?: continue
                 if(previousId!=receiving.profile.vehicleId) {
                     previousId=receiving.profile.vehicleId;sites=emptyList();center=null;fetchedAt=0;nextAttempt=0
                 }
-                val fix=FacilityFix(point.latitude,point.longitude,point.timestamp,receivedAt)
+                // Capture original measurement timestamps; cached, failed and missing signals never become zero.
+                val speed=snapshot[VehicleField.SPEED].takeIf {it.state==ReadingState.Available && it.value?.unit=="m/s"}
+                val gear=snapshot[VehicleField.GEAR].takeIf {it.state==ReadingState.Available}
+                val fix=FacilityFix(point.latitude,point.longitude,point.timestamp,receivedAt,
+                    speedMps=speed?.value?.number,speedAt=speed?.receivedAtMillis,
+                    gear=normalizedGear(gear?.value?.rawState),gearAt=gear?.receivedAtMillis)
                 if(!fix.valid()) continue
                 try {
                     val stale=center==null || receivedAt-fetchedAt>15*60_000 || center?.let {distanceMeters(it,point.latitude,point.longitude)>5000}==true
@@ -42,7 +49,7 @@ object VehicleWashRuntime {
                         // Existing public map endpoint. Coordinate transmission approved by the user.
                         val places=repository.places(point,PlaceKind.Wash)
                         if(places.state==ResultState.Available) {
-                            sites=places.value.orEmpty().map {WashSite(it.id,it.latitude,it.longitude)}
+                            sites=places.value.orEmpty().mapNotNull {it.washSite}
                             center=point;fetchedAt=receivedAt
                         }
                     }
@@ -54,9 +61,9 @@ object VehicleWashRuntime {
             }
         }
     }
-    fun observe(point:Coordinates,receivedAt:Long=System.currentTimeMillis()) {
+    fun observe(point:Coordinates,snapshot:VehicleSnapshot,receivedAt:Long=System.currentTimeMillis()) {
         if(point.timestamp-lastSubmitted<5000) return
-        lastSubmitted=point.timestamp;input?.trySend(point to receivedAt)
+        lastSubmitted=point.timestamp;input?.trySend(Sample(point,receivedAt,snapshot))
     }
     fun stop() {input?.close();input=null;job?.cancel();job=null;lastSubmitted=0}
     fun frame(context:Context,vehicleId:String):JSONArray = FacilityWashStore(context,vehicleId).frame()

@@ -127,3 +127,12 @@ Navi: 실제 RouteState 콜백이 있어야 통과 (30초).
 Real 전환: Demo 수치·위치·날씨·장소·로그 초기화, 실제 어댑터 새 세션.
 Demo 숫자로 실제 정비 계산을 하지 않으며 Demo는 기존 차량 기록을 변경하지 않습니다.
 앱 재실행은 항상 Real. 위치 자동 추적 시작 없음.
+
+## 휴대폰 에뮬레이터 한글 자판 (2026-11-12)
+
+증상: 휴대폰 앱 입력란에서 한글은 입력되지만 화면 자판이 영문으로 보임. 앱 코드 문제가 아니다(차량·휴대폰 입력란 모두 `KoreanTextKeyboardOptions` ko-KR 힌트 사용).
+
+- 휴대폰 AVD(`sdk_phone64_x86_64`)에는 한국어 자판이 있는 기본 키보드가 없다. Fcitx5는 한글을 조합하지만 키 표시가 영문이다.
+- 한글 자판 입력기 ReteKey는 Android가 물리 키보드를 보고하면 화면 자판을 숨긴다(`keyboard != NOKEYS`). x86 에뮬레이터에는 `hw.keyboard=no`여도 PC용 `AT Translated Set 2 keyboard`가 항상 붙어 있어서 이 조건이 참이 된다. 실제 휴대폰에는 이 장치가 없다.
+- 해결: 휴대폰 에뮬레이터 부팅 후 `tools\phone-hangul-keyboard.cmd` 실행. 가상 AT 키보드를 다음 부팅 전까지 분리하고 ReteKey를 기본 입력기로 지정한다. 디스크 설정은 바꾸지 않으며, 그동안 PC 키보드로 에뮬레이터에 직접 타이핑하는 기능은 꺼진다(터치 입력은 정상). Pleos에는 실행하지 않는다(스크립트가 휴대폰 AVD가 아니면 중단).
+- 휴대폰 AVD `config.ini`는 `hw.keyboard=no`로 바뀌어 있다(이전 값 `yes`, 백업 `build/keyboard-check/phone-avd-keyboard-config.before.ini`).

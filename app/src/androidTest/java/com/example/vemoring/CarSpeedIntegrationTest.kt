@@ -22,7 +22,13 @@ class CarSpeedIntegrationTest {
         val values=ConcurrentHashMap<VehicleField,Reading>()
         val gateway=PleosVehicleGateway(context)
         try {
-            instrumentation.runOnMainSync {gateway.start {field,reading -> values[field]=reading}}
+            instrumentation.runOnMainSync {gateway.start {field,reading ->
+                values[field]=reading
+                if(field==VehicleField.SPEED || field==VehicleField.GEAR) {
+                    val snapshot=VehicleSnapshot(VehicleSnapshot().readings+values)
+                    android.util.Log.i("SpeedValidation","field=$field reading=$reading motion=${snapshot.motion()}")
+                }
+            }}
             val deadline=android.os.SystemClock.uptimeMillis()+25000
             while(android.os.SystemClock.uptimeMillis()<deadline) {
                 if(values[VehicleField.SPEED]?.state==ReadingState.Available && values[VehicleField.GEAR]?.state==ReadingState.Available) break
@@ -37,6 +43,8 @@ class CarSpeedIntegrationTest {
             assertNotNull(normalizedGear(gear!!.value!!.rawState))
             val snapshot=VehicleSnapshot(VehicleSnapshot().readings+values)
             assertNotEquals(VehicleMotion.Unknown,snapshot.motion())
+            // Keep read-only evidence long enough to inspect repeated samples and expiry.
+            android.os.SystemClock.sleep(12000)
         } finally {instrumentation.runOnMainSync {gateway.close()}}
     }
     @Test fun sourceCloseStopsPublishing() {

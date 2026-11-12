@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.vemoring.companion.FacilityWashPolicyTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-12T13:29:46.702Z" hostname="CAN_DO_IT" time="0.014">
+  <properties/>
+  <testcase name="phoneCanBridgeShutdownButCannotCompleteWithoutVehicleReturn" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.01"/>
+  <testcase name="longGapAndDuplicateCachedFixesNeverInventDwell" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.0"/>
+  <testcase name="staleInaccurateFutureAndUnknownPhoneAccuracyDoNotCount" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.001"/>
+  <testcase name="passingBrieflyThroughSiteEndsVisitWithoutBlockingNextFacility" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.0"/>
+  <testcase name="boundaryJitterDoesNotCauseExitAndAmbiguousSitesDoNotStartVisit" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.002"/>
+  <testcase name="irregularIntervalsCountElapsedTimeAndRequireVehicleExit" classname="com.vemoring.companion.FacilityWashPolicyTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

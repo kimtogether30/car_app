@@ -29,7 +29,10 @@ class CareCancelReceiver : BroadcastReceiver() {
         val visit=intent.getStringExtra("visitId") ?: return
         val pending=goAsync()
         CoroutineScope(Dispatchers.IO).launch {
-            try { CareExchange.cancel(context,vehicle,visit) } finally { pending.finish() }
+            try {
+                if(intent.getBooleanExtra("confirmed",false)) CareExchange.dismissConfirmation(context,vehicle,visit)
+                else CareExchange.cancel(context,vehicle,visit)
+            } finally { pending.finish() }
         }
     }
 }

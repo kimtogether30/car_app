@@ -56,6 +56,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         catch (error: Exception) { VehicleField.entries.forEach { session.emit(it, sdkFailure(error)) } }
     }
     override fun refresh() { speed.refresh();current?.refresh() }
+    override fun readFuel(done: (Reading) -> Unit) { current?.readFuel(done) ?: done(Reading(ReadingState.Disconnected)) }
     override fun close() { speed.close();current?.close(); current = null }
 
     private inner class Session(val vehicle: Vehicle, val publish: (VehicleField, Reading) -> Unit) {
@@ -136,6 +137,33 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
                     else try { emit(field, Reading.available(convert(value))) } catch (_: IllegalArgumentException) { emit(field, Reading(ReadingState.Error, reason = "유효하지 않은 데이터")) }
                 }
             }
+        }
+        /**
+         * One separate getFuelPercent request for refuel confirmation. Fuel only, not the whole refresh. The result is
+         * returned to the caller, not published, so a failed confirmation read does not mark the screen value as an error.
+         * Late callbacks after timeout/close are ignored.
+         */
+        fun readFuel(done: (Reading) -> Unit) {
+            if (!active) { done(Reading(ReadingState.Disconnected)); return }
+            if (appContext.checkSelfPermission("pleos.car.permission.CAR_ENERGY") != PackageManager.PERMISSION_GRANTED) {
+                done(Reading(ReadingState.PermissionDenied)); return
+            }
+            pending++
+            var finished = false
+            lateinit var timeout: Runnable
+            fun finishWith(reading: Reading) {
+                if (finished) return
+                finished = true
+                handler.removeCallbacks(timeout)
+                finish()
+                done(if (active) reading else Reading(ReadingState.Disconnected))
+            }
+            timeout = Runnable { finishWith(Reading(ReadingState.Error, reason = "응답 시간 초과")) }
+            handler.postDelayed(timeout, 15000)
+            try {
+                vehicle.getFuel().getFuelPercent({ value: Int? -> handler.post { finishWith(Reading.percent(value)) } },
+                    { error: Exception -> handler.post { finishWith(sdkFailure(error)) } })
+            } catch (error: Exception) { handler.post { finishWith(sdkFailure(error)) } }
         }
         fun refresh() {
             if (!active || polling || pending > 0) return
