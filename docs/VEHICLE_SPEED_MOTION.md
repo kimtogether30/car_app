@@ -1,5 +1,7 @@
 # 차속 수신과 정차·주차 판단
 
+친구의 에뮬레이터 검증 순서와 결과 기록 양식: [VEHICLE_SPEED_EMULATOR_HANDOFF.md](VEHICLE_SPEED_EMULATOR_HANDOFF.md).
+
 2026-11-12. 차량 앱 `app/`에 읽기 전용 AAOS 차속을 연결했다. 기존 누적거리 기반 세차 차감/평균 거리 정책은 변경하지 않는다.
 
 ## 수신 경로
