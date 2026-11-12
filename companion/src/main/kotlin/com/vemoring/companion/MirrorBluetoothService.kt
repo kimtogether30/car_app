@@ -42,7 +42,9 @@ class MirrorBluetoothService : Service() {
             if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED && intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) != BluetoothAdapter.STATE_ON) {
                 closeSession()
                 MirrorBus.link.value = MirrorLink(false, "블루투스 꺼짐 · 마지막 데이터 유지", true)
-            } else if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED && hosting && session?.isActive != true) startHost()
+            } else if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED && session?.isActive != true) {
+                if(hosting) startHost() else startClient()
+            }
             else if (runCatching { device?.address == peer }.getOrDefault(false)) {
                 if (intent.action == BluetoothDevice.ACTION_ACL_CONNECTED && !hosting && session?.isActive != true) startClient()
                 if (intent.action == BluetoothDevice.ACTION_ACL_DISCONNECTED) {
@@ -159,6 +161,12 @@ class MirrorBluetoothService : Service() {
     private fun startClient() {
         if (session?.isActive == true) return
         session = scope.launch {
+            var retries=0
+            while(isActive) {
+            if(!hasConnectPermission(this@MirrorBluetoothService) || adapter?.isEnabled!=true) {
+                MirrorBus.link.value=MirrorLink(false,"블루투스와 주변 기기 권한을 확인한 뒤 데이터 연결에서 다시 연결해 주세요.",true)
+                break
+            }
             var connected: BluetoothSocket? = null
             var timeout: Job? = null
             try {
@@ -194,13 +202,26 @@ class MirrorBluetoothService : Service() {
                     MirrorBus.receive(this@MirrorBluetoothService, snapshot)
                     send(CareExchange.receive(this@MirrorBluetoothService, snapshot))
                     ensureActive()
-                    if (first) { timeout.cancel(); first = false }
+                    if (first) { timeout.cancel(); first = false; retries=0 }
                     MirrorBus.link.value = MirrorLink(true, "차량 데이터 연결됨", true)
                 } } finally { settingsWriter.cancel() }
             } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: SecurityException) {
+                MirrorBus.link.value=MirrorLink(false,"주변 기기 권한을 허용한 뒤 데이터 연결에서 다시 연결해 주세요.",true)
+                break
+            }
             catch (_: Exception) {
-                if (isActive) MirrorBus.link.value = MirrorLink(false, "연결 끊김 · 마지막 데이터 유지. 차량 앱의 휴대폰 연결을 확인해 주세요.", true)
+                if (isActive) MirrorBus.link.value = MirrorLink(false, "연결 끊김 · 마지막 데이터 유지", true)
             } finally { timeout?.cancel(); runCatching { connected?.close() }; if (socket === connected) socket = null }
+            val wait=ConnectionRetry.delayAfterFailure(retries)
+            if(wait==null) {
+                MirrorBus.link.value=MirrorLink(false,"자동 재연결 3회 실패 · 차량 앱과 블루투스를 확인한 뒤 데이터 연결에서 다시 연결해 주세요.",true)
+                break
+            }
+            retries++
+            MirrorBus.link.value=MirrorLink(false,"차량 연결 재시도 중 ($retries/3) · 마지막 데이터 유지",true)
+            delay(wait)
+            }
         }
     }
 

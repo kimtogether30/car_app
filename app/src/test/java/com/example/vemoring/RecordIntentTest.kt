@@ -5,6 +5,15 @@ import org.junit.Test
 import java.time.LocalDate
 
 class RecordIntentTest {
+    @Test fun dateCorrectionMakesAutomaticWashManualAndDiscardsOriginalTimestamp() {
+        val record=CareRecord("auto",LocalDate.now().minusDays(4),CareKind.WASH,"세차",completedAt="2026-11-01T01:00:00Z",visitId="visit",source="Automatic")
+        val changed=updateLatest(listOf(record),mapOf(CareKind.WASH to LocalDate.now().minusDays(1))).single()
+        assertNull(changed.completedAt)
+        assertEquals("Manual",changed.source)
+        assertEquals("UserRecord",changed.washEvidence)
+        assertEquals(record.id,changed.id)
+        assertEquals(record.visitId,changed.visitId)
+    }
     @Test fun aDeletedMaintenanceRecordDoesNotRemainAnEstimateAnchor() {
         val r=CareRecord("old",LocalDate.now().minusDays(4),CareKind.MAINTENANCE,"삭제된 기록",cancelled=true,deleted=true)
         val data=AppData(records=listOf(r))

@@ -72,9 +72,11 @@ internal fun mirrorContent(data: AppData, snapshot: VehicleSnapshot, condition: 
 @Composable internal fun PhoneConnectionCard() {
     var show by remember { mutableStateOf(false) }
     val link by MirrorBus.link.collectAsState()
+    val locationMessage by SharedVehicleConnection.locationMessage.collectAsState()
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("휴대폰 연결", fontSize = 26.sp, fontWeight = FontWeight.Bold)
         Text(if (!link.running && link.message == "차량 미연결") "휴대폰 미연결" else link.message, fontSize = 19.sp, lineHeight = 28.sp)
+        Text(locationMessage, fontSize = 19.sp, lineHeight = 28.sp)
         OutlinedButton(onClick = { show = true }, modifier = Modifier.heightIn(min = 64.dp)) {
             Text("블루투스로 휴대폰 연결", fontSize = 21.sp)
         }

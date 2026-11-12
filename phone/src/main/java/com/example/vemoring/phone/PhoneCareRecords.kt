@@ -28,7 +28,7 @@ internal fun updateLatestPhoneRecords(entries: List<Entry>, dates: Map<String, L
         val previous = result.filter { it.kind == kind && !it.cancelled }.maxByOrNull { it.date }
         if (date != null && date != previous?.date) {
             if (previous != null) result.remove(previous)
-            result.add(previous?.copy(date = date) ?: Entry(kind = kind, title = kind, date = date, detail = ""))
+            result.add(previous?.copy(date = date, completedAt = null, source = "Manual", washEvidence = "UserRecord") ?: Entry(kind = kind, title = kind, date = date, detail = ""))
         }
     }
     return result.sortedByDescending { it.date }

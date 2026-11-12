@@ -129,8 +129,8 @@ class BannerNotificationSimulationTest {
     }
     @Test fun stateTransitionsDeduplicateAndDoNotInventRepairsOnDisconnectOrNormal() {
         val journal=seed();val a=journal.authority()!!;val score=journal.score(JSONArray(a.records))
-        fun telemetry(on:Boolean,status:String="Available",eligible:Boolean=true,at:Long=System.currentTimeMillis())=
-            JSONObject().put("warnings",JSONObject().put("ENGINE",JSONObject().put("status",status).put("warning",on)
+        fun telemetry(on:Boolean,status:String="Available",eligible:Boolean=true,at:Long=System.currentTimeMillis(),type:String="ENGINE_OIL")=
+            JSONObject().put("warnings",JSONObject().put(type,JSONObject().put("status",status).put("warning",on)
                 .put("source","Real").put("eligible",eligible).put("at",at)))
         fun evaluate(t:JSONObject,fuel:Int=80)=BannerNotifications.evaluate(context,journal,a,score,t,
             JSONObject().put("observedAt",System.currentTimeMillis()).put("fuel",fuel))
@@ -140,7 +140,7 @@ class BannerNotificationSimulationTest {
         evaluate(telemetry(true));assertEquals(1,NotificationHistory(context).use {it.recent(id).size})
         evaluate(telemetry(false,"Disconnected"));assertEquals(1,NotificationHistory(context).use {it.recent(id).size})
         evaluate(telemetry(false));assertFalse(manager.activeNotifications.any {it.tag=="$id:${first.eventId}"})
-        evaluate(telemetry(true,eligible=false));assertEquals(1,NotificationHistory(context).use {it.recent(id).size})
+        evaluate(telemetry(true,type="ENGINE"));assertEquals(1,NotificationHistory(context).use {it.recent(id).size})
         evaluate(telemetry(true,at=System.currentTimeMillis()-61000));assertEquals(1,NotificationHistory(context).use {it.recent(id).size})
         // A newly sent envelope must not refresh old cached fuel or unclassified warning values.
         BannerNotifications.evaluate(context,journal,a,score,null,JSONObject().put("observedAt",System.currentTimeMillis())
@@ -150,8 +150,22 @@ class BannerNotificationSimulationTest {
         assertEquals(1,NotificationHistory(context).use {it.recent(id).size})
         evaluate(telemetry(true));assertEquals(2,NotificationHistory(context).use {it.recent(id).size})
         evaluate(telemetry(true),10)
-        NotificationHistory(context).use {assertEquals("FUEL_ENGINE",it.recent(id).first().bannerKey)}
+        NotificationHistory(context).use {assertEquals("FUEL_FLUID",it.recent(id).first().bannerKey)}
         assertFalse(NotificationHistory(context).use {it.recent(id).any {e -> e.bannerKey=="OIL_DONE"}})
+    }
+    @Test fun hybridFuelOnlyAndUnsupportedWarningsDoNotPostEvenIfMarkedEligible() {
+        val journal=seed()
+        val authority=journal.authority()!!.copy(profile=profile().put("fuel","하이브리드").toString())
+        val score=journal.score(JSONArray(authority.records))
+        val raw=JSONObject().put("warnings",JSONObject().put("ABS",JSONObject().put("status","Available")
+            .put("source","Real").put("at",System.currentTimeMillis()).put("warning",true).put("eligible",true)))
+        fun frame(fuel:Int?)=JSONObject().put("observedAt",System.currentTimeMillis()).put("fuel",fuel ?: JSONObject.NULL)
+            .put("battery",0).put("signals",JSONObject().put("lowFuel",true))
+        BannerNotifications.evaluate(context,journal,authority,score,raw,frame(80))
+        BannerNotifications.evaluate(context,journal,authority,score,raw,frame(null))
+        assertTrue(NotificationHistory(context).use {it.recent(id).isEmpty()})
+        BannerNotifications.evaluate(context,journal,authority,score,raw,frame(20))
+        NotificationHistory(context).use {assertEquals("FUEL_NEEDED",it.recent(id).single().bannerKey)}
     }
     @Test fun explicitCurrentRecordsCompleteButInitialImportAndMemoEditsDoNot() {
         val journal=seed();val before=journal.authority()!!

@@ -45,7 +45,7 @@ internal fun currentPhoneMood(context: Context, received: ReceivedMirror?, autho
             ?: return content.optString("mood", "NORMAL")
         val score = CareJournal(context, vehicleId).score(JSONArray(state.records)).displayed
         val signals = content.optJSONObject("signals")
-        return moodFor(signals?.optBoolean("lowFuel") == true,
+        return moodFor(EnergyPolicy.low(JSONObject(state.profile), content) == true,
             score?.let { it <= JSONObject(state.profile).getInt("washAlert") } == true,
             signals?.optBoolean("vehicleWarning") == true)
     }

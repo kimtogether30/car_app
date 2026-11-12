@@ -94,7 +94,7 @@ private fun phoneVehicleData(context: android.content.Context,state: CareAuthori
     val content=received?.let {JSONObject(it.snapshot.content)}
     val view=content?.let {
         val signals=it.optJSONObject("signals")
-        val mood=if(it.optBoolean("demo")) it.optString("mood","NORMAL") else moodFor(signals?.optBoolean("lowFuel")==true,
+        val mood=if(it.optBoolean("demo")) it.optString("mood","NORMAL") else moodFor(EnergyPolicy.low(p, it)==true,
             score?.let {s -> s<=p.getInt("washAlert")}==true,signals?.optBoolean("vehicleWarning")==true)
         MirrorDisplay(it.takeUnless {j -> j.isNull("fuel")}?.getInt("fuel"),it.takeUnless {j -> j.isNull("battery")}?.getInt("battery"),score,
             it.takeUnless {j -> j.isNull("oilRemainingKm")}?.getDouble("oilRemainingKm"),it.optString("fuelStatus","미수신"),it.optString("batteryStatus","미수신"),
@@ -716,16 +716,18 @@ class MainActivity : ComponentActivity() {
     var detail by rememberSaveable { mutableStateOf(existing?.detail ?: "") }
     var dateString by rememberSaveable { mutableStateOf((existing?.date ?: initial).toString()) }
     var manual by rememberSaveable { mutableStateOf(false) }
+    var washTime by rememberSaveable { mutableStateOf(manualWashTime(existing?.completedAt,existing?.source)) }
+    val automatic = existing?.source != null && existing.source != "Manual" && existing.completedAt != null
     var deleteDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val memoFocus = remember { FocusRequester() }
     PhoneFormDialog(if (existing == null) "관리 기록 추가" else "관리 기록 수정", busy,
-        title.isNotBlank() && LocalDate.parse(dateString) <= LocalDate.now(SeoulZone), close,
+        title.isNotBlank() && LocalDate.parse(dateString) <= LocalDate.now(SeoulZone) && (kind != "세차" || automatic && !manual || washTime.isBlank() || washCompletion(LocalDate.parse(dateString),washTime)!=null), close,
         save = { save(existing?.copy(kind = kind, maintenanceType = if(kind == MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), date = LocalDate.parse(dateString), detail = detail.trim(),
-            completedAt = if(manual) null else existing.completedAt, source = if(manual) "Manual" else existing.source)
-            ?: Entry(kind = kind, maintenanceType = if(kind == MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), date = LocalDate.parse(dateString), detail = detail.trim())) }) { finishInput ->
+            completedAt = if(kind == "세차" && (!automatic || manual)) washCompletion(LocalDate.parse(dateString),washTime) else if(manual) null else existing.completedAt, source = if(manual) "Manual" else existing.source, washEvidence = if(manual) "UserRecord" else existing.washEvidence)
+            ?: Entry(completedAt = if(kind == "세차") washCompletion(LocalDate.parse(dateString),washTime) else null, washEvidence = "UserRecord", kind = kind, maintenanceType = if(kind == MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), date = LocalDate.parse(dateString), detail = detail.trim())) }) { finishInput ->
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    kinds.forEach { value -> FilterChip(selected = kind == value, enabled = !busy && (existing?.completedAt == null || manual), onClick = { kind = value }, label = { Text(value) }) }
+                    kinds.forEach { value -> FilterChip(selected = kind == value, enabled = !busy && (!automatic || manual), onClick = { kind = value }, label = { Text(value) }) }
                 }
                 if(kind == MAINTENANCE) {
                     Text("정비 항목")
@@ -745,14 +747,15 @@ class MainActivity : ComponentActivity() {
                     val d = LocalDate.parse(dateString)
                     DatePickerDialog(context, { _, y, m, day -> dateString = LocalDate.of(y, m + 1, day).toString() }, d.year, d.monthValue - 1, d.dayOfMonth)
                         .apply { datePicker.maxDate = System.currentTimeMillis() }.show()
-                }, enabled = !busy && (existing?.completedAt == null || manual), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("날짜: $dateString") }
+                }, enabled = !busy && (!automatic || manual), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("날짜: $dateString") }
                 OutlinedTextField(detail, { detail = it }, enabled = !busy, label = { Text("장소, 금액, 메모") },
                     modifier = Modifier.fillMaxWidth().focusRequester(memoFocus).testTag("record-memo"), minLines = 2, maxLines = 5,
                     keyboardOptions = KoreanTextKeyboardOptions.copy(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }))
                 Text("자동 기록의 메모를 수정해도 원래 감지 시점은 유지돼요.", fontSize = 12.sp)
-                if (existing?.completedAt != null) Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(manual, { manual = it }); Text("수동 기록으로 전환 (다음 날부터 계산)")
+                if (automatic) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(manual, { manual = it; washTime = "" }); Text("수동 기록으로 전환")
                 }
+                if(kind == "세차" && (!automatic || manual)) WashCompletionInput(LocalDate.parse(dateString),washTime,!busy) {washTime=it}
                 if (remove != null) TextButton(onClick = { deleteDialog = true }, enabled = !busy) { Text("기록 삭제") }
     }
     if(deleteDialog) AlertDialog(onDismissRequest = { if(!busy) deleteDialog = false }, title = { Text("기록을 삭제할까요?") },

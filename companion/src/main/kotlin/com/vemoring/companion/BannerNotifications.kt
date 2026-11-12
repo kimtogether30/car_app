@@ -78,13 +78,13 @@ object BannerNotifications {
         val profile = JSONObject(authority.profile)
         val enabled = profile.optBoolean("notifications",true)
         val dirty = score.displayed?.let { it <= profile.getInt("washAlert") } == true
-        val energy = if(profile.optString("fuel")=="전기차") listOf("battery") else if(profile.optString("fuel")=="하이브리드") listOf("fuel","battery") else listOf("fuel")
+        val electric = profile.optString("fuel")=="전기차"
+        val energy = if(electric) listOf("battery") else listOf("fuel")
         val freshSnapshot=snapshot?.takeIf {System.currentTimeMillis()-it.optLong("observedAt",System.currentTimeMillis()) in 0..60000}
         fun freshField(name:String)=freshSnapshot!=null && (!freshSnapshot.has(name) ||
             !freshSnapshot.isNull(name) && System.currentTimeMillis()-freshSnapshot.optLong(name) in 0..60000)
         val percentages = energy.mapNotNull { key -> freshSnapshot?.takeIf {freshField("${key}At")}?.takeUnless {it.isNull(key)}?.optDouble(key)?.takeIf {it.isFinite() && it in 0.0..100.0} }
-        val fuel = if(percentages.isNotEmpty()) percentages.any {it<=profile.getInt("fuelAlert")} else
-            freshField("lowFuelAt") && freshSnapshot?.optJSONObject("signals")?.optBoolean("lowFuel")==true
+        val fuel = percentages.any {it <= profile.getInt("fuelAlert")}
         val warnings = telemetry?.optJSONObject("warnings")
         val now = System.currentTimeMillis()
         val eligible = mutableListOf<String>()
@@ -92,7 +92,7 @@ object BannerNotifications {
         warnings?.keys()?.forEach { type ->
             val w = warnings.optJSONObject(type) ?: return@forEach
             if(w.optString("status") != "Available" || w.optString("source","Real") != "Real" || now-w.optLong("at") !in 0..60000) return@forEach
-            val validated = w.optBoolean("eligible") || type in listOf("WASHER","ENGINE_OIL","BRAKE_FLUID","TRANSMISSION_OIL")
+            val validated = type in BannerPolicy.supportedDirectWarnings
             if(!validated) return@forEach // Raw ON/BLINK/color alone cannot diagnose an unvalidated telltale.
             if(w.has("warning") && !w.isNull("warning")) {
                 known[type]=w.getBoolean("warning")
@@ -169,7 +169,7 @@ object BannerNotifications {
         val completed = mutableListOf<String>()
         repeat(records.length()) { n -> val r=records.getJSONObject(n)
             if(r.optBoolean("cancelled") || r.optString("date") != today) return@repeat
-            val manual = r.optString("source","Manual") == "Manual" && r.optString("completedAt").let {it.isBlank() || it=="null"}
+            val manual = r.optString("source","Manual") == "Manual"
             val prior = old[r.getString("id")]
             if(!manual || prior != null && prior.optString("date")==today && prior.optString("source","Manual")=="Manual") return@repeat
             val kind = r.getString("kind")

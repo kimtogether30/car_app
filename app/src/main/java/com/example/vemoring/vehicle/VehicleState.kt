@@ -33,7 +33,7 @@ enum class VehicleField(val label: String) {
 
 data class VehicleSnapshot(val readings: Map<VehicleField, Reading> = VehicleField.entries.associateWith { Reading(ReadingState.Disconnected) }) {
     operator fun get(field: VehicleField): Reading = readings.getValue(field)
-    fun priorityWarning(): String? = listOf(VehicleField.OIL_PRESSURE, VehicleField.ENGINE_OIL, VehicleField.BRAKE_FLUID, VehicleField.WASHER, VehicleField.LOW_FUEL).firstOrNull { field ->
+    fun priorityWarning(): String? = listOf(VehicleField.OIL_PRESSURE, VehicleField.ENGINE_OIL, VehicleField.BRAKE_FLUID, VehicleField.WASHER).firstOrNull { field ->
         this[field].state == ReadingState.Available && this[field].value?.warning == true
     }?.let { it.label + ": " + this[it].value!!.text }
 }

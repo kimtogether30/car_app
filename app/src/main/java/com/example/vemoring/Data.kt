@@ -171,7 +171,7 @@ fun updateLatest(records: List<CareRecord>, dates: Map<CareKind, LocalDate?>): L
             require(date <= LocalDate.now(java.time.ZoneId.of("Asia/Seoul")))
             val old = updated.filter { it.kind == kind && !it.cancelled }.maxByOrNull { it.date }
             if (old != null) updated.remove(old)
-            updated.add(old?.copy(date = date) ?: CareRecord(date=date,kind=kind,title=kind.label))
+            updated.add(old?.copy(date = date, completedAt = null, source = "Manual", washEvidence = "UserRecord") ?: CareRecord(date=date,kind=kind,title=kind.label))
         }
     }
     return updated.sortedByDescending { it.date }

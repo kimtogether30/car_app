@@ -3,6 +3,9 @@ package com.vemoring.companion
 import org.json.JSONObject
 
 object BannerPolicy {
+    // Production supports the existing direct fluid/washer banners and aggregate vehicle warning only.
+    // A prepared artwork or an incoming `eligible` flag does not enable an additional raw telltale.
+    val supportedDirectWarnings = setOf("WASHER", "ENGINE_OIL", "BRAKE_FLUID", "TRANSMISSION_OIL")
     fun recordCompletion(kind: String, type: MaintenanceType): BannerDefinition? = when(kind) {
         "wash" -> BannerCatalog["WASH_DONE"]
         "fuel" -> BannerCatalog["FUEL_DONE"]

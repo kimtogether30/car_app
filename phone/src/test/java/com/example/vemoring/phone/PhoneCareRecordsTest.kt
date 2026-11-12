@@ -11,7 +11,7 @@ class PhoneCareRecordsTest {
         val latest = Entry("latest", "세차", "손세차", today.minusDays(3), "장소·금액·한글 메모")
         val result = updateLatestPhoneRecords(listOf(latest, older), mapOf("세차" to today.minusDays(1)), today)
         assertEquals(2, result.size)
-        assertEquals(latest.copy(date = today.minusDays(1)), result.first())
+        assertEquals(latest.copy(date = today.minusDays(1),washEvidence="UserRecord"), result.first())
         assertEquals(older, result.last())
     }
     @Test fun unknownDatesKeepExistingHistoryAndNewCategoryAddsOnlyOneRecord() {
@@ -25,5 +25,14 @@ class PhoneCareRecordsTest {
         val records = listOf(Entry("wash", "세차", "세차", today, "메모"))
         assertThrows(IllegalArgumentException::class.java) { updateLatestPhoneRecords(records, mapOf("세차" to today.plusDays(1)), today) }
         assertEquals(today, records.single().date)
+    }
+    @Test fun editingAutomaticWashDateClearsOriginalTimeWithoutLosingVisitIdentity() {
+        val record=Entry("wash","세차","자동 세차",today.minusDays(1),"메모","2026-11-08T01:00:00Z","visit",source="Automatic")
+        val changed=updateLatestPhoneRecords(listOf(record),mapOf("세차" to today),today).single()
+        assertNull(changed.completedAt)
+        assertEquals("Manual",changed.source)
+        assertEquals("UserRecord",changed.washEvidence)
+        assertEquals(record.id,changed.id)
+        assertEquals(record.visitId,changed.visitId)
     }
 }

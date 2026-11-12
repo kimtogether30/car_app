@@ -103,8 +103,7 @@ class VehicleIconMonitor : Service() {
                             }
                         }
                         val energyKnown = if (sample.data.profile.electric) snapshot[VehicleField.SOC].realPercent() != null
-                            else snapshot[VehicleField.FUEL].realPercent() != null ||
-                                snapshot[VehicleField.LOW_FUEL].state == ReadingState.Available
+                            else snapshot[VehicleField.FUEL].realPercent() != null
                         if (!visible && energyKnown && prefs.getBoolean(ENABLED,true)) {
                             withContext(Dispatchers.IO) {
                                 if (!IconMonitorVisibility.visible.value) runCatching {

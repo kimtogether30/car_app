@@ -18,12 +18,7 @@ fun careCondition(data: AppData, snapshot: VehicleSnapshot, config: MaintenanceC
                   environment: Result<EnvironmentData> = Result(), today: LocalDate = LocalDate.now(java.time.ZoneId.of("Asia/Seoul")),
                   now: Long = System.currentTimeMillis()): CareCondition {
     val p = data.profile
-    val fuel = snapshot[VehicleField.FUEL].realPercent().takeUnless { p.electric }
-    val soc = snapshot[VehicleField.SOC].realPercent().takeIf { p.electric || p.hybrid }
-    val low = snapshot[VehicleField.LOW_FUEL].takeIf { it.state == ReadingState.Available }?.value?.warning
-        .takeUnless { p.electric }
-    val energy = listOfNotNull(fuel, soc).map { it <= p.fuelAlert }
-    val lowFuel = when { low == true || energy.any { it } -> true; energy.isNotEmpty() -> false; else -> low }
+    val lowFuel = EnergyPolicy.low(p.electric, snapshot[VehicleField.FUEL].realPercent(), snapshot[VehicleField.SOC].realPercent(), p.fuelAlert)
     val current = confirmedKilometres(snapshot[VehicleField.ODOMETER], config.unit)
     fun latest(kind: CareKind) = data.records.filter { it.kind == kind && !it.cancelled && it.date <= today }.maxByOrNull { it.date }
     fun valid(value: Double?) = value?.takeIf { it.isFinite() && it >= 0 }

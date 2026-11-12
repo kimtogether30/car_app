@@ -663,10 +663,12 @@ fun RecordDialog(existing: CareRecord?, initial: LocalDate, close: () -> Unit,re
     var kindValue by rememberSaveable { mutableStateOf(existing?.kind?.name ?: CareKind.WASH.name) }
     var dateValue by rememberSaveable { mutableStateOf((existing?.date ?: initial).toString()) }
     var manual by rememberSaveable { mutableStateOf(false) }
+    var washTime by rememberSaveable { mutableStateOf(com.vemoring.companion.manualWashTime(existing?.completedAt, existing?.source)) }
+    val automatic = existing?.source != null && existing.source != "Manual" && existing.completedAt != null
     val kind = CareKind.valueOf(kindValue)
     AlertDialog(onDismissRequest = close, title = { Text(if(existing == null) "관리 기록 추가" else "관리 기록 수정") },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (existing?.completedAt == null || manual) ChoiceRow(CareKind.entries.map { it.label }, kind.label) { label -> kindValue = CareKind.entries.first { it.label == label }.name }
+            if (!automatic || manual) ChoiceRow(CareKind.entries.map { it.label }, kind.label) { label -> kindValue = CareKind.entries.first { it.label == label }.name }
             if(kind == CareKind.MAINTENANCE) {
                 Text("정비 항목", fontSize = 22.sp)
                 ChoiceRow(com.vemoring.companion.MaintenanceType.entries.map { it.label },
@@ -676,15 +678,16 @@ fun RecordDialog(existing: CareRecord?, initial: LocalDate, close: () -> Unit,re
             }
             OutlinedTextField(title, { title = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, label = { Text("기록 이름") }, singleLine = true)
             OutlinedTextField(detail, { detail = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, label = { Text("상세 내용 (장소·금액 등)") })
-            if (existing?.completedAt == null || manual) DateInput("관리 날짜", LocalDate.parse(dateValue), { if(it != null) dateValue = it.toString() }, false)
-            if (existing?.completedAt != null) Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(manual, { manual = it }); Text("수동 기록으로 전환 (다음 날부터 계산)")
+            if (!automatic || manual) DateInput("관리 날짜", LocalDate.parse(dateValue), { if(it != null) dateValue = it.toString() }, false)
+            if (automatic) Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(manual, { manual = it; washTime = "" }); Text("수동 기록으로 전환")
             }
+            if(kind == CareKind.WASH && (!automatic || manual)) com.vemoring.companion.WashCompletionInput(LocalDate.parse(dateValue),washTime,true) {washTime=it}
             if(remove!=null) TextButton(onClick={deleteConfirmation=true},modifier=Modifier.heightIn(min=64.dp)) {Text("기록 삭제",fontSize=22.sp)}
-        } }, confirmButton = { TextButton(enabled = title.isNotBlank() && LocalDate.parse(dateValue) <= LocalDate.now(SeoulZone), onClick = {
+        } }, confirmButton = { TextButton(enabled = title.isNotBlank() && LocalDate.parse(dateValue) <= LocalDate.now(SeoulZone) && (kind != CareKind.WASH || automatic && !manual || washTime.isBlank() || com.vemoring.companion.washCompletion(LocalDate.parse(dateValue),washTime)!=null), onClick = {
             save(existing?.copy(date = LocalDate.parse(dateValue), kind = kind, maintenanceType = if(kind == CareKind.MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), detail = detail.trim(),
-                completedAt = if(manual) null else existing.completedAt, source = if(manual) "Manual" else existing.source)
-                ?: CareRecord(date = LocalDate.parse(dateValue), kind = kind, maintenanceType = if(kind == CareKind.MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), detail = detail.trim()))
+                completedAt = if(kind == CareKind.WASH && (!automatic || manual)) com.vemoring.companion.washCompletion(LocalDate.parse(dateValue),washTime) else if(manual) null else existing.completedAt, source = if(manual) "Manual" else existing.source, washEvidence = if(manual) "UserRecord" else existing.washEvidence)
+                ?: CareRecord(completedAt = if(kind == CareKind.WASH) com.vemoring.companion.washCompletion(LocalDate.parse(dateValue),washTime) else null, washEvidence = "UserRecord", date = LocalDate.parse(dateValue), kind = kind, maintenanceType = if(kind == CareKind.MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), detail = detail.trim()))
         }) { Text("기록 저장") } }, dismissButton = { TextButton(onClick = close) { Text("취소") } })
     if(deleteConfirmation) AlertDialog(onDismissRequest={deleteConfirmation=false},title={Text("기록을 삭제할까요?")},
         text={Text("${existing?.title.orEmpty()} 기록을 삭제해요. 세차 기록이면 이전 유효한 기록으로 다시 계산해요. 날짜를 모르는 경우에는 삭제하지 않아도 돼요.",fontSize=22.sp)},

@@ -25,12 +25,16 @@ class CareConditionTest {
             evaluate(vehicle = snapshot(VehicleField.FUEL to Reading.percent(value))).signals.mood())
         assertEquals(false, evaluate(vehicle = snapshot(VehicleField.FUEL to Reading.percent(21))).signals.lowFuel)
     }
-    @Test fun electricIgnoresFuelAndOilWhileHybridUsesEitherEnergySource() {
+    @Test fun electricUsesSocWhileHybridUsesOnlyFuel() {
         val ev = AppData(profile.copy(fuel = "전기차"))
         val vehicle = snapshot(VehicleField.FUEL to Reading.percent(0), VehicleField.SOC to Reading.percent(80))
         assertEquals(MascotMood.NORMAL, evaluate(ev, vehicle).signals.mood())
         assertEquals(MascotMood.FUEL, evaluate(ev, snapshot(VehicleField.SOC to Reading.percent(0))).signals.mood())
         assertEquals(MascotMood.FUEL, evaluate(AppData(profile.copy(fuel = "하이브리드")), vehicle).signals.mood())
+        val chargedFuel = snapshot(VehicleField.FUEL to Reading.percent(80), VehicleField.SOC to Reading.percent(0),
+            VehicleField.LOW_FUEL to Reading.available(SignalValue("low", warning=true)))
+        assertEquals(false,evaluate(AppData(profile.copy(fuel="하이브리드")),chargedFuel).signals.lowFuel)
+        assertNull(evaluate(AppData(profile.copy(fuel="하이브리드")),snapshot(VehicleField.SOC to Reading.percent(0))).signals.lowFuel)
     }
     @Test fun oilLevelOrPressureTriggersVehicleWarning() {
         val warning = Reading.available(SignalValue("부족", warning = true))
@@ -47,7 +51,7 @@ class CareConditionTest {
             assertEquals(MascotMood.OIL, evaluate(vehicle = snapshot(field to
                 Reading.available(SignalValue("warning", warning = true)))).signals.mood())
         }
-        assertEquals(MascotMood.FUEL, evaluate(vehicle = snapshot(VehicleField.LOW_FUEL to
+        assertEquals(MascotMood.NORMAL, evaluate(vehicle = snapshot(VehicleField.LOW_FUEL to
             Reading.available(SignalValue("low", warning = true)))).signals.mood())
         val clear = VehicleSnapshot(VehicleField.entries.associateWith {
             Reading.available(SignalValue("clear", warning = false)) })
