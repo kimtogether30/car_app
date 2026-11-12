@@ -24,8 +24,8 @@ class CalendarKindsTest {
         val records = listOf(
             CareRecord(date = busy, kind = CareKind.WASH, title = "손세차"),
             CareRecord(date = busy, kind = CareKind.FUEL, title = "주유"),
-            CareRecord(date = busy, kind = CareKind.OIL, title = "경고등 해결"),
-            CareRecord(date = single, kind = CareKind.OIL, title = "정비")).distinctBy { it.date to it.kind }
+            CareRecord(date = busy, kind = CareKind.MAINTENANCE, title = "경고등 해결"),
+            CareRecord(date = single, kind = CareKind.MAINTENANCE, title = "정비")).distinctBy { it.date to it.kind }
         compose.setContent {
             MaterialTheme(typography = com.example.vemoring.ui.theme.Typography) { CalendarScreen(records) { _, _ -> } }
         }

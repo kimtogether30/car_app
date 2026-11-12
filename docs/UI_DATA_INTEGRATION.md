@@ -17,7 +17,7 @@ The automatic pre-merge stash 621d1a0 is retained as a recovery copy.
 - SDK requests now complete their accounting on timeout, ignoring late responses and
   allowing closed sessions to release. Only telltales lacking public listeners are
   refreshed every 30 seconds in the foreground, rather than rechecking all safety fields.
-- No external location/weather requests are triggered automatically from the home.
+- 2026-11-12: after the user selects a forecast region, the shared home weather panel refreshes its forecast while visible; see `WEATHER_UI.md`. It does not request a new SDK location subscription.
 - Launcher changes are deferred until MainActivity.onStop. The character changes
   immediately, but Pleos must not disable the visible screen's launcher alias. MainActivity
   is always enabled; only aliases change, and worker-thread operations are serialized.

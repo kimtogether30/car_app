@@ -31,6 +31,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import java.time.LocalDate
 import java.time.YearMonth
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,7 +52,7 @@ private val HomeDateFormat = java.time.format.DateTimeFormatter.ofPattern("yyyy.
 // Matches the mascot colors: fuel = yellow, maintenance (resolved warning) = purple. Darkened for text contrast on white.
 val CareYellow = Color(0xFFA97C00)
 val CarePurple = Color(0xFF7B4FC4)
-val CareKind.color get() = when(this) { CareKind.WASH -> Blue; CareKind.FUEL -> CareYellow; CareKind.OIL -> CarePurple }
+val CareKind.color get() = when(this) { CareKind.WASH -> Blue; CareKind.FUEL -> CareYellow; CareKind.MAINTENANCE -> CarePurple }
 
 /** One colored dot per record (max 4) so a "2건" day shows which kinds they are. */
 @Composable
@@ -374,28 +375,32 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
         confirmationBanner?.invoke()
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("VEMORING", fontSize = 40.sp, lineHeight = 48.sp,
+                Text("VEMORING", fontSize = 32.sp, lineHeight = 38.sp,
                     fontWeight = FontWeight.ExtraBold, color = Blue, letterSpacing = 1.sp)
                 Text(LocalDate.now(SeoulZone).format(HomeDateFormat),
-                    color = Muted, fontSize = 22.sp)
+                    color = Muted, fontSize = 18.sp)
             }
             if (diagnostics != null) TextButton(onClick = diagnostics, modifier = Modifier.heightIn(min = 64.dp)) { Text("데이터 연결") }
             OutlinedButton(onClick = notifications, modifier = Modifier.heightIn(min = 64.dp)) { Text("알림") }
         }
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             Column(Modifier.widthIn(max = 1120.dp).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 24.dp)) {
+                verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 16.dp)) {
                 Panel(color = Color(0xFFE2F0FA), compact = compact) {
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     CharacterStage(message = if (demo) "예시 데이터로 보는\n캐릭터예요." else
                         snapshot.priorityWarning()?.let { "차량 경고가 있어요!\n계기판을 확인해주세요." } ?: mood.message,
                         compact = compact, mood = mood)
-                    Row(verticalAlignment = Alignment.CenterVertically,
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(p.fullModel,
+                        modifier = Modifier.weight(1f),
                         color = Muted, fontSize = 18.sp, lineHeight = 26.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Start)
+                    Text(p.nickname, Modifier.weight(1f), color=Ink, fontSize=24.sp, lineHeight=32.sp,
+                        textAlign=androidx.compose.ui.text.style.TextAlign.Center, fontWeight=FontWeight.SemiBold)
+                    Box(Modifier.weight(1f), contentAlignment=Alignment.CenterEnd) {
                     Surface(color = Color.White, shape = RoundedCornerShape(10.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFB7C9D8))) {
                         Text(if (p.plate.isNotBlank()) p.plate else "번호판 미등록",
@@ -404,9 +409,8 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
                     }
                     }
                     }
+                    }
                 }
-                Text("차량 컨디션", Modifier.fillMaxWidth(), color = Ink, fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (!p.electric) Stat("남은 연료", snapshot[VehicleField.FUEL].realPercent(),
                         snapshot[VehicleField.FUEL].statusText(), Blue, Modifier.weight(1f), compact)
@@ -414,30 +418,48 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
                     Stat("차량 청결도", condition.cleanliness, if (condition.cleanliness != null)
                         condition.syncStatus else "세차 기록이 필요해요", Mint, Modifier.weight(1f), compact)
                 }
-                SplitContent(first = { modifier -> Panel(modifier, compact = compact) {
-                    Text("최근 관리", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Ink)
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(16.dp)) {
                     CareKind.entries.forEach { kind ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(kind.label, color = Muted, fontSize = 21.sp)
-                            Text(if (kind == CareKind.OIL && condition.oilRemainingKm != null)
-                                if (condition.oilRemainingKm <= 0) "교체 시기 · 설정 기준" else "약 ${condition.oilRemainingKm.toInt()} km 남음"
-                                else latest[kind]?.toString() ?: "기록 없음", color = Ink, fontSize = 21.sp,
-                                fontWeight = FontWeight.Medium)
+                        Row(Modifier.weight(1f),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+                            Text(kind.label,color=Muted,fontSize=18.sp)
+                            Text(latest[kind]?.toString() ?: "기록 없음",color=Ink,fontSize=18.sp)
                         }
                     }
-                } }, second = { modifier -> Box(modifier) { NearbyPlacesBanner(compact = compact) } })
+                }
+                VehicleHomeWeather(p.vehicleId,demo)
+                NearbyPlacesBanner(compact = compact, slim = true)
             }
         }
     }
 }
 
 @Composable
+private fun VehicleHomeWeather(vehicleId: String,demo: Boolean) {
+    val context=LocalContext.current
+    val owner=remember {Any()}
+    DisposableEffect(owner) {onDispose {SharedVehicleConnection.release(owner)}}
+    com.vemoring.companion.ForecastWeatherPanel(vehicleId=vehicleId,vehicle=true,enabled=!demo,locate={
+        SharedVehicleConnection.acquire(context,owner)
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(20_000) {
+                SharedVehicleConnection.travelPoint.first {it?.fresh(java.time.Instant.now())==true}
+            }
+        } finally {SharedVehicleConnection.release(owner)}
+    })
+}
+
+@Composable
 fun Stat(title: String, value: Int?, detail: String, color: Color, modifier: Modifier, compact: Boolean = false) {
-    Panel(modifier.heightIn(min = if (compact) 160.dp else 220.dp), compact = compact) {
-        Text(title, fontWeight = FontWeight.Bold, color = color, fontSize = 21.sp)
-        Text(value?.let { "$it %" } ?: "—", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Ink)
-        if (value != null) LinearProgressIndicator(progress = { (value ?: 0) / 100f }, modifier = Modifier.fillMaxWidth(), color = color)
-        Text(detail, color = Muted, fontSize = 18.sp, lineHeight = 26.sp)
+    Surface(modifier.fillMaxWidth(),color=Color.White,shape=RoundedCornerShape(20.dp),
+        border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFDCE5ED))) {
+        Column(Modifier.padding(if(compact) 12.dp else 20.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+                Text(title,fontWeight=FontWeight.Bold,color=color,fontSize=if(compact) 18.sp else 21.sp,lineHeight=26.sp)
+                Text(value?.let { "$it %" } ?: "—",fontSize=if(compact) 30.sp else 40.sp,lineHeight=40.sp,fontWeight=FontWeight.Bold,color=Ink)
+            }
+            if(value != null) LinearProgressIndicator(progress={value/100f},modifier=Modifier.fillMaxWidth(),color=color)
+            Text(detail,color=Muted,fontSize=if(compact) 16.sp else 18.sp,lineHeight=22.sp)
+        }
     }
 }
 
@@ -597,7 +619,7 @@ fun CalendarScreen(records: List<CareRecord>, remove: ((CareRecord, () -> Unit) 
             }
             visible.forEach { record ->
                 Column(Modifier.fillMaxWidth().clickable { editing = record; showEditor = true }.padding(vertical = 8.dp)) {
-                    Text("${record.kind.label} · ${record.title}", fontWeight = FontWeight.Bold, color = record.kind.color)
+                    Text("${if(record.kind == CareKind.MAINTENANCE) record.maintenanceType.label else record.kind.label} · ${record.title}", fontWeight = FontWeight.Bold, color = record.kind.color)
                     Text(record.date.toString(), color = Muted, fontSize = 19.sp)
                     if (record.detail.isNotBlank()) Text(record.detail)
                 }
@@ -637,6 +659,7 @@ fun RecordDialog(existing: CareRecord?, initial: LocalDate, close: () -> Unit,re
     var deleteConfirmation by remember {mutableStateOf(false)}
     var title by rememberSaveable { mutableStateOf(existing?.title ?: "") }
     var detail by rememberSaveable { mutableStateOf(existing?.detail ?: "") }
+    var maintenanceType by rememberSaveable { mutableStateOf((existing?.maintenanceType ?: com.vemoring.companion.MaintenanceType.GENERAL).name) }
     var kindValue by rememberSaveable { mutableStateOf(existing?.kind?.name ?: CareKind.WASH.name) }
     var dateValue by rememberSaveable { mutableStateOf((existing?.date ?: initial).toString()) }
     var manual by rememberSaveable { mutableStateOf(false) }
@@ -644,17 +667,24 @@ fun RecordDialog(existing: CareRecord?, initial: LocalDate, close: () -> Unit,re
     AlertDialog(onDismissRequest = close, title = { Text(if(existing == null) "관리 기록 추가" else "관리 기록 수정") },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (existing?.completedAt == null || manual) ChoiceRow(CareKind.entries.map { it.label }, kind.label) { label -> kindValue = CareKind.entries.first { it.label == label }.name }
-            OutlinedTextField(title, { title = it }, label = { Text("기록 이름") }, singleLine = true)
-            OutlinedTextField(detail, { detail = it }, label = { Text("상세 내용 (장소·금액 등)") })
+            if(kind == CareKind.MAINTENANCE) {
+                Text("정비 항목", fontSize = 22.sp)
+                ChoiceRow(com.vemoring.companion.MaintenanceType.entries.map { it.label },
+                    com.vemoring.companion.MaintenanceType.from(maintenanceType).label) { label ->
+                    maintenanceType = com.vemoring.companion.MaintenanceType.entries.first { it.label == label }.name
+                }
+            }
+            OutlinedTextField(title, { title = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, label = { Text("기록 이름") }, singleLine = true)
+            OutlinedTextField(detail, { detail = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, label = { Text("상세 내용 (장소·금액 등)") })
             if (existing?.completedAt == null || manual) DateInput("관리 날짜", LocalDate.parse(dateValue), { if(it != null) dateValue = it.toString() }, false)
             if (existing?.completedAt != null) Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(manual, { manual = it }); Text("수동 기록으로 전환 (다음 날부터 계산)")
             }
             if(remove!=null) TextButton(onClick={deleteConfirmation=true},modifier=Modifier.heightIn(min=64.dp)) {Text("기록 삭제",fontSize=22.sp)}
         } }, confirmButton = { TextButton(enabled = title.isNotBlank() && LocalDate.parse(dateValue) <= LocalDate.now(SeoulZone), onClick = {
-            save(existing?.copy(date = LocalDate.parse(dateValue), kind = kind, title = title.trim(), detail = detail.trim(),
+            save(existing?.copy(date = LocalDate.parse(dateValue), kind = kind, maintenanceType = if(kind == CareKind.MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), detail = detail.trim(),
                 completedAt = if(manual) null else existing.completedAt, source = if(manual) "Manual" else existing.source)
-                ?: CareRecord(date = LocalDate.parse(dateValue), kind = kind, title = title.trim(), detail = detail.trim()))
+                ?: CareRecord(date = LocalDate.parse(dateValue), kind = kind, maintenanceType = if(kind == CareKind.MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), detail = detail.trim()))
         }) { Text("기록 저장") } }, dismissButton = { TextButton(onClick = close) { Text("취소") } })
     if(deleteConfirmation) AlertDialog(onDismissRequest={deleteConfirmation=false},title={Text("기록을 삭제할까요?")},
         text={Text("${existing?.title.orEmpty()} 기록을 삭제해요. 세차 기록이면 이전 유효한 기록으로 다시 계산해요. 날짜를 모르는 경우에는 삭제하지 않아도 돼요.",fontSize=22.sp)},
@@ -676,7 +706,7 @@ fun ChoiceRow(options: List<String>, selected: String, change: (String) -> Unit)
 fun TextEditDialog(title: String, initial: String, close: () -> Unit, save: (String) -> Unit) {
     var value by rememberSaveable { mutableStateOf(initial) }
     AlertDialog(onDismissRequest = close, title = { Text(title) }, text = {
-        OutlinedTextField(value, { value = it }, singleLine = true, label = { Text("닉네임") })
+        OutlinedTextField(value, { value = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, singleLine = true, label = { Text("닉네임") })
     }, confirmButton = { TextButton(enabled = value.isNotBlank(), onClick = { save(value.trim()) }) { Text("저장하기") } },
         dismissButton = { TextButton(onClick = close) { Text("취소") } })
 }

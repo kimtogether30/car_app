@@ -3,6 +3,14 @@ package com.vemoring.companion
 import org.json.JSONObject
 
 object BannerPolicy {
+    fun recordCompletion(kind: String, type: MaintenanceType): BannerDefinition? = when(kind) {
+        "wash" -> BannerCatalog["WASH_DONE"]
+        "fuel" -> BannerCatalog["FUEL_DONE"]
+        "maintenance" -> if(type == MaintenanceType.ENGINE_OIL) BannerCatalog["OIL_DONE"] else BannerCatalog["MAINTENANCE_DONE"]
+        "oil" -> BannerCatalog["MAINTENANCE_DONE"] // Legacy value was also used for general repairs.
+        else -> null
+    }
+
     val maintenanceGroups = mapOf(
         "ENGINE" to "ENGINE", "ENGINE_OIL_PRESSURE" to "OIL_PRESSURE", "OIL_PRESSURE" to "OIL_PRESSURE",
         "ENGINE_TEMPERATURE" to "ENGINE_TEMPERATURE", "LOW_VOLT_BATTERY" to "LOW_VOLT_BATTERY",

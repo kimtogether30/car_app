@@ -85,7 +85,7 @@ fun MaintenancePanel(data: AppData, snapshot: VehicleSnapshot, weather: Result<E
     var intervalInput by remember(store) { mutableStateOf(config.intervalKm?.toString() ?: "") }
     LaunchedEffect(config.intervalKm) { intervalInput = config.intervalKm?.toString() ?: "" }
     val wash=data.records.filter { it.kind==CareKind.WASH }.maxByOrNull { it.date }
-    val oil=data.records.filter { it.kind==CareKind.OIL }.maxByOrNull { it.date }
+    val oil=data.records.filter { it.kind==CareKind.MAINTENANCE && !it.cancelled && it.maintenanceType==com.vemoring.companion.MaintenanceType.ENGINE_OIL }.maxByOrNull { it.date }
     val current=confirmedKilometres(snapshot[VehicleField.ODOMETER],config.unit)
     val clean=careCondition(data, snapshot, config).cleanliness
     fun persist(value: MaintenanceConfig) {

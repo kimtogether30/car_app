@@ -80,9 +80,6 @@ private data class PhoneData(val nickname: String = "나의 베모링", val mode
     val mirror: ReceivedMirror? = null, val mirrorView: MirrorDisplay? = null,
     val vehicleId: String = "",val careScore: Int? = null,val hasCareScore: Boolean = false)
 
-private fun Entry.wireJson(): JSONObject = JSONObject().put("id", id).put("kind", when(kind) {
-    "세차" -> "wash"; "주유" -> "fuel"; else -> "oil" }).put("title", title).put("date", date)
-    .put("detail", detail).put("completedAt", completedAt).put("visitId", visitId).put("cancelled", cancelled).put("source", source).put("appliedAt", appliedAt).put("washEvidence",washEvidence).put("deleted",deleted)
 
 private fun phoneVehicleData(context: android.content.Context,state: CareAuthority,received: ReceivedMirror?): PhoneData {
     val p=JSONObject(state.profile);val a=JSONArray(state.records)
@@ -92,7 +89,7 @@ private fun phoneVehicleData(context: android.content.Context,state: CareAuthori
             r.getString("title"),LocalDate.parse(r.getString("date")),r.optString("detail"),
             r.optString("completedAt").takeUnless {it.isBlank() || it=="null"},r.optString("visitId").takeUnless {it.isBlank() || it=="null"},
             r.optBoolean("cancelled"),r.optString("source","Manual"),r.optString("appliedAt").takeUnless {it.isBlank() || it=="null"},
-            r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"))
+            r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(r.optString("maintenanceType")))
     }.sortedByDescending {it.date}
     val content=received?.let {JSONObject(it.snapshot.content)}
     val view=content?.let {
@@ -133,7 +130,7 @@ private fun ReceivedMirror.phoneData(): PhoneData {
                 r.getString("title"), LocalDate.parse(r.getString("date")), r.getString("detail"),
                 r.optString("completedAt").takeUnless { it.isBlank() || it == "null" },
                 r.optString("visitId").takeUnless { it.isBlank() || it == "null" }, r.optBoolean("cancelled"), r.optString("source", "Manual"),
-                r.optString("appliedAt").takeUnless { it.isBlank() || it == "null" },r.optString("washEvidence","EstimatedVisit"))
+                r.optString("appliedAt").takeUnless { it.isBlank() || it == "null" },r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(r.optString("maintenanceType")))
         } }.sortedByDescending { it.date }, p.getString("fuel"), p.getBoolean("notifications"), p.getInt("washAlert"), p.getInt("fuelAlert"), this,
         MirrorDisplay(content.takeUnless { it.isNull("fuel") }?.getInt("fuel"), content.takeUnless { it.isNull("battery") }?.getInt("battery"),
             content.takeUnless { it.isNull("cleanliness") }?.getInt("cleanliness"), content.takeUnless { it.isNull("oilRemainingKm") }?.getDouble("oilRemainingKm"),
@@ -165,14 +162,14 @@ private class PhoneStore(context: android.content.Context) {
                     LocalDate.parse(it.getString("date")), it.getString("detail"),
                     it.optString("completedAt").takeUnless { v -> v.isBlank() || v == "null" },
                     it.optString("visitId").takeUnless { v -> v.isBlank() || v == "null" }, it.optBoolean("cancelled"), it.optString("source", "Manual"),
-                    it.optString("appliedAt").takeUnless { v -> v.isBlank() || v == "null" },it.optString("washEvidence","EstimatedVisit"),it.optBoolean("deleted"))
+                    it.optString("appliedAt").takeUnless { v -> v.isBlank() || v == "null" },it.optString("washEvidence","EstimatedVisit"),it.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(it.optString("maintenanceType")))
             } }, j.optString("fuel", "휘발유"), j.optBoolean("notifications", true),
             j.optInt("washAlert", 30), j.optInt("fuelAlert", 20)).also { refreshLocal(it,false) }
     }
     @android.annotation.SuppressLint("UseKtx") // Need commit's boolean result to report failed writes.
     fun save(data: PhoneData) {
         val a = JSONArray()
-        data.entries.forEach { e -> a.put(JSONObject().put("id", e.id).put("kind", e.kind)
+        data.entries.forEach { e -> a.put(JSONObject().put("id", e.id).put("kind", e.kind).put("maintenanceType",e.maintenanceType.name)
             .put("title", e.title).put("date", e.date).put("detail", e.detail).put("completedAt", e.completedAt).put("deleted",e.deleted)
             .put("visitId", e.visitId).put("cancelled", e.cancelled).put("source", e.source).put("appliedAt", e.appliedAt).put("washEvidence",e.washEvidence)) }
         val j = JSONObject().put("nickname", data.nickname).put("model", data.model)
@@ -324,7 +321,7 @@ class MainActivity : ComponentActivity() {
                     } else CircularProgressIndicator()
                 }
             } else Column(Modifier.widthIn(max = 600.dp).fillMaxSize()
-                .verticalScroll(pageScroll).imePadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                .verticalScroll(pageScroll).imePadding().padding(horizontal = if(tab == 0) 16.dp else 24.dp, vertical = if(tab == 0) 8.dp else 24.dp), verticalArrangement = Arrangement.spacedBy(if(tab == 0) 6.dp else 24.dp)) {
                 OutlinedButton(enabled=!busy,onClick={vehiclePicker=true},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).testTag("vehicle-picker")) {
                     Text("${current.nickname} · 차량 선택 (${fleet.size}대)")
                 }
@@ -355,7 +352,7 @@ class MainActivity : ComponentActivity() {
                     2 -> Car(current, busy || readOnly, edit = { editLocal { editCar = true } },
                         editNickname = { editLocal { editName = true } }, update = { save(it) {} })
                 }}
-                Spacer(Modifier.height(8.dp))
+                if(tab != 0) Spacer(Modifier.height(8.dp))
             }
         }
     }
@@ -463,23 +460,30 @@ class MainActivity : ComponentActivity() {
         Text("${if (mirrored?.demo == true) "예시 차량 데이터 · " else ""}${if(!receivingSelected) "현재 수신 대상 아님 · 저장 정보" else if (link.active) "차량 연결됨" else "${link.message} · 마지막 데이터"}\n마지막 수신 ${cached.timeLabel()}",
             fontSize = 12.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-    Panel(tinted = true) {
-        Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(20.dp), modifier = Modifier.align(Alignment.End)) {
-            Text(mirrored?.message ?: if (needsWash) "꼬질꼬질해졌어요…\n깨끗하게 씻겨줄래요?" else "안녕! 준비됐나요?\n오늘도 함께 달려요.",
-                Modifier.padding(16.dp), fontSize = 18.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold)
-        }
+    Surface(color=MaterialTheme.colorScheme.primaryContainer,shape=RoundedCornerShape(24.dp),modifier=Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
         val mascot = when (mirrored?.mood) {
             "FUEL" -> R.drawable.mascot_fuel; "WASH" -> R.drawable.mascot_wash; "OIL" -> R.drawable.mascot_oil
             "ANGRY" -> R.drawable.mascot_angry; "EXHAUSTED" -> R.drawable.mascot_exhausted; else -> if (needsWash) R.drawable.mascot_wash else R.drawable.mascot_normal
         }
-        Image(painterResource(mascot), "베모링 캐릭터 · ${mirrored?.mood ?: "NORMAL"}",
-            Modifier.align(Alignment.CenterHorizontally).height(190.dp).fillMaxWidth())
-        Text(data.model, Modifier.align(Alignment.CenterHorizontally), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(10.dp), modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text(data.plate.ifBlank { "차량 번호 미등록" }, Modifier.padding(horizontal = 20.dp, vertical = 8.dp), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Box(Modifier.fillMaxWidth().height(190.dp)) {
+                Image(painterResource(mascot), "베모링 캐릭터 · ${mirrored?.mood ?: "NORMAL"}",
+                    Modifier.align(Alignment.Center).height(190.dp).fillMaxWidth())
+                Surface(color=MaterialTheme.colorScheme.surface,shape=RoundedCornerShape(14.dp),
+                    modifier=Modifier.align(Alignment.TopEnd).widthIn(max=180.dp)) {
+                    Text(mirrored?.message ?: if(needsWash) "깨끗하게 씻겨줄래요?" else "오늘도 함께 달려요.",
+                        Modifier.padding(horizontal=10.dp,vertical=8.dp),fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold)
+                }
+            }
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp),verticalAlignment=Alignment.CenterVertically) {
+                Text(data.model,Modifier.weight(1f),fontSize=12.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(data.nickname,Modifier.weight(1f),textAlign=TextAlign.Center,
+                    fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold)
+                Text(data.plate.ifBlank { "번호판 미등록" },Modifier.weight(1f),textAlign=TextAlign.End,
+                    fontSize=14.sp,fontWeight=FontWeight.SemiBold)
+            }
         }
     }
-    Text("차량 컨디션", Modifier.fillMaxWidth(), textAlign = TextAlign.Center, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         buildList {
             if (data.fuel != "전기차") add("남은 연료" to (mirrored?.fuelStatus ?: "차량 연결 필요"))
@@ -488,29 +492,25 @@ class MainActivity : ComponentActivity() {
                 else if (mirrored == null && data.entries.any { it.kind == "세차" }) "차량 연결 필요" else "세차 기록이 필요해요"))
         }.forEach { (label, hint) ->
             Surface(Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(label, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium)
                     val value = percent(when (label) { "남은 연료" -> "fuel"; "남은 배터리" -> "battery"; else -> "cleanliness" })
-                    Text(value?.let { "$it %" } ?: "—", fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    Text(value?.let { "$it %" } ?: "—", fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
                     if (value != null) LinearProgressIndicator(progress = { value / 100f }, modifier = Modifier.fillMaxWidth())
-                    Text(hint, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(hint, fontSize = 12.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
     }
-    Panel {
-        Text("최근 관리", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         kinds.forEach { kind ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(kind, Modifier.weight(1f), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                val remaining = mirrored?.oilRemainingKm
-                Text(if (kind == MAINTENANCE && remaining != null)
-                    if (remaining <= 0) "교체 시기 · 설정 기준" else "약 ${remaining.toInt()} km 남음"
-                    else data.entries.filter { it.kind == kind && !it.cancelled }.maxByOrNull { it.date }?.date?.toString() ?: "기록 없음", fontSize = 14.sp)
-            }
+            val date = data.entries.filter {it.kind == kind && !it.cancelled}.maxByOrNull {it.date}?.date
+            Text("$kind ${date?.let { "${it.monthValue}/${it.dayOfMonth}" } ?: "—"}",Modifier.weight(1f),
+                fontSize=12.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    NearbyPlaces(search)
+    com.vemoring.companion.ForecastWeatherPanel(vehicleId=data.vehicleId,enabled=mirrored?.demo != true)
+    com.vemoring.companion.NearbyQuickLinks(onSearch = search)
 }
 
 @Composable internal fun NearbyPlaces(search: (String) -> Unit) {
@@ -545,7 +545,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable private fun RecordRow(entry: Entry) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("${entry.kind} · ${entry.title}", fontWeight = FontWeight.Bold, color = careColor(entry.kind))
+            Text("${if(entry.kind == MAINTENANCE) entry.maintenanceType.label else entry.kind} · ${entry.title}", fontWeight = FontWeight.Bold, color = careColor(entry.kind))
             Text(entry.date.toString(), fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (entry.detail.isNotBlank()) Text(entry.detail, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -710,6 +710,7 @@ class MainActivity : ComponentActivity() {
 @Composable internal fun RecordEditor(existing: Entry?, initial: LocalDate, busy: Boolean, close: () -> Unit, save: (Entry) -> Unit,
     remove: (() -> Unit)? = null) {
     var kind by rememberSaveable { mutableStateOf(existing?.kind ?: kinds[0]) }
+    var maintenanceType by rememberSaveable { mutableStateOf((existing?.maintenanceType ?: com.vemoring.companion.MaintenanceType.GENERAL).name) }
     var title by rememberSaveable { mutableStateOf(existing?.title ?: "") }
     var detail by rememberSaveable { mutableStateOf(existing?.detail ?: "") }
     var dateString by rememberSaveable { mutableStateOf((existing?.date ?: initial).toString()) }
@@ -719,14 +720,24 @@ class MainActivity : ComponentActivity() {
     val memoFocus = remember { FocusRequester() }
     PhoneFormDialog(if (existing == null) "관리 기록 추가" else "관리 기록 수정", busy,
         title.isNotBlank() && LocalDate.parse(dateString) <= LocalDate.now(SeoulZone), close,
-        save = { save(existing?.copy(kind = kind, title = title.trim(), date = LocalDate.parse(dateString), detail = detail.trim(),
+        save = { save(existing?.copy(kind = kind, maintenanceType = if(kind == MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), date = LocalDate.parse(dateString), detail = detail.trim(),
             completedAt = if(manual) null else existing.completedAt, source = if(manual) "Manual" else existing.source)
-            ?: Entry(kind = kind, title = title.trim(), date = LocalDate.parse(dateString), detail = detail.trim())) }) { finishInput ->
+            ?: Entry(kind = kind, maintenanceType = if(kind == MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), date = LocalDate.parse(dateString), detail = detail.trim())) }) { finishInput ->
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     kinds.forEach { value -> FilterChip(selected = kind == value, enabled = !busy && (existing?.completedAt == null || manual), onClick = { kind = value }, label = { Text(value) }) }
                 }
+                if(kind == MAINTENANCE) {
+                    Text("정비 항목")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        com.vemoring.companion.MaintenanceType.entries.forEach { item ->
+                            FilterChip(selected = maintenanceType == item.name, enabled = !busy,
+                                onClick = { maintenanceType = item.name }, label = { Text(item.label) },
+                                modifier = Modifier.heightIn(min = 48.dp))
+                        }
+                    }
+                }
                 OutlinedTextField(title, { title = it }, enabled = !busy, label = { Text("기록 이름 (필수)") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next), keyboardActions = KeyboardActions(onNext = { memoFocus.requestFocus() }),
+                    keyboardOptions = KoreanTextKeyboardOptions.copy(imeAction = ImeAction.Next), keyboardActions = KeyboardActions(onNext = { memoFocus.requestFocus() }),
                     modifier = Modifier.fillMaxWidth().testTag("record-title"))
                 OutlinedButton(onClick = {
                     finishInput()
@@ -736,7 +747,7 @@ class MainActivity : ComponentActivity() {
                 }, enabled = !busy && (existing?.completedAt == null || manual), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("날짜: $dateString") }
                 OutlinedTextField(detail, { detail = it }, enabled = !busy, label = { Text("장소, 금액, 메모") },
                     modifier = Modifier.fillMaxWidth().focusRequester(memoFocus).testTag("record-memo"), minLines = 2, maxLines = 5,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }))
+                    keyboardOptions = KoreanTextKeyboardOptions.copy(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }))
                 Text("자동 기록의 메모를 수정해도 원래 감지 시점은 유지돼요.", fontSize = 12.sp)
                 if (existing?.completedAt != null) Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(manual, { manual = it }); Text("수동 기록으로 전환 (다음 날부터 계산)")
@@ -778,14 +789,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
             OutlinedTextField(model, { model = it }, enabled = !busy, label = { Text("차종 (직접 입력 가능)") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }), modifier = Modifier.fillMaxWidth().testTag("car-model"))
+                keyboardOptions = KoreanTextKeyboardOptions.copy(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }), modifier = Modifier.fillMaxWidth().testTag("car-model"))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("휘발유", "경유", "하이브리드", "전기차").forEach { value ->
                 FilterChip(selected = fuel == value, enabled = !busy, onClick = { fuel = value }, label = { Text(value) })
             } }
             OutlinedTextField(nickname, { nickname = it }, enabled = !busy, label = { Text("차량 닉네임 (필수)") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }), modifier = Modifier.fillMaxWidth().testTag("car-nickname"))
+                keyboardOptions = KoreanTextKeyboardOptions.copy(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }), modifier = Modifier.fillMaxWidth().testTag("car-nickname"))
             OutlinedTextField(plate, { plate = it }, enabled = !busy, label = { Text("번호판 (선택)") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }), modifier = Modifier.fillMaxWidth().testTag("car-plate"))
+                keyboardOptions = KoreanTextKeyboardOptions.copy(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }), modifier = Modifier.fillMaxWidth().testTag("car-plate"))
             OptionalCareDate("마지막 주유·충전일", lastFuel, !busy, finishInput) { lastFuel = it }
             OptionalCareDate("마지막 세차일", wash, !busy, finishInput) { wash = it }
             OptionalCareDate("마지막 정비일", oil, !busy, finishInput) { oil = it }
@@ -812,7 +823,7 @@ class MainActivity : ComponentActivity() {
     var value by rememberSaveable { mutableStateOf(initial) }
     PhoneFormDialog("닉네임 변경", busy, value.isNotBlank(), close, { save(value.trim()) }) { finishInput ->
         OutlinedTextField(value, { value = it }, enabled = !busy, label = { Text("닉네임") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }))
+            keyboardOptions = KoreanTextKeyboardOptions.copy(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }))
     }
 }
 

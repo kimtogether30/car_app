@@ -2,8 +2,9 @@ package com.example.vemoring.phone
 
 import java.time.LocalDate
 import java.util.UUID
+import org.json.JSONObject
 
-/** Third record kind: a resolved vehicle warning. Wire value stays "oil" so vehicle data and history are unchanged. */
+/** General maintenance contains explicitly selected work items; legacy oil records become general maintenance. */
 internal const val MAINTENANCE = "정비"
 /** Records saved before the rename used "엔진오일 교체"; read them as 정비 without rewriting stored data. */
 internal fun normalizeKind(kind: String): String = if (kind == "엔진오일 교체") MAINTENANCE else kind
@@ -11,7 +12,8 @@ internal fun normalizeKind(kind: String): String = if (kind == "엔진오일 교
 internal data class Entry(val id: String = UUID.randomUUID().toString(), val kind: String,
     val title: String, val date: LocalDate, val detail: String, val completedAt: String? = null,
     val visitId: String? = null, val cancelled: Boolean = false, val source: String = "Manual", val appliedAt: String? = null,
-    val washEvidence: String = "EstimatedVisit", val deleted: Boolean = false)
+    val washEvidence: String = "EstimatedVisit", val deleted: Boolean = false,
+    val maintenanceType: com.vemoring.companion.MaintenanceType = com.vemoring.companion.MaintenanceType.GENERAL)
 
 internal fun deletePhoneRecord(entries: List<Entry>,id: String): List<Entry> = entries.map {
     if(it.id==id) it.copy(cancelled=true,deleted=true) else it
@@ -31,3 +33,7 @@ internal fun updateLatestPhoneRecords(entries: List<Entry>, dates: Map<String, L
     }
     return result.sortedByDescending { it.date }
 }
+
+internal fun Entry.wireJson(): JSONObject = JSONObject().put("id", id).put("kind", when(kind) {
+    "세차" -> "wash"; "주유" -> "fuel"; else -> "maintenance" }).put("maintenanceType", if(kind == MAINTENANCE) maintenanceType.name else null).put("title", title).put("date", date)
+    .put("detail", detail).put("completedAt", completedAt).put("visitId", visitId).put("cancelled", cancelled).put("source", source).put("appliedAt", appliedAt).put("washEvidence",washEvidence).put("deleted",deleted)

@@ -99,3 +99,7 @@ val forecast = WeeklyWeatherRepository().fetch(latitude, longitude)
 - 기존 `WASH_POLICY.md`, `CARE_IMPLEMENTATION_DETAILS.md`와 충돌하는 거리 동일=정차, 구간 배분/날씨 연결 규칙은 이 문서의 2026-11-11 합의를 우선한다. 이 문서는 세차 시설 자동 완료 기준을 대체하지 않는다.
 
 검증 결과는 `WEATHER_VALIDATION.md`에 기록한다. 문서 작성은 미구현 구간의 작동 보장이 아니다.
+
+## 2026-11-12 홈 연결 후속 작업
+
+이 인계의 주간 UI·자동 갱신·세차 추천 보류 항목은 사용자 요청으로 후속 구현했다. 현재 화면·지역·갱신·추천 기준은 [WEATHER_UI.md](WEATHER_UI.md)를 따른다. 주행 날씨 보정과 미래 예보 추천의 분리는 유지한다.

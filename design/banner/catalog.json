@@ -1150,6 +1150,13 @@
       "body": "차량 안내에 따라 워셔액을 보충해 줘!",
       "mood": "OIL",
       "art": null
+    },
+    {
+      "key": "MAINTENANCE_DONE",
+      "title": "정비 기록을 저장했어!",
+      "body": "관리해 줘서 고마워!",
+      "mood": "NORMAL",
+      "art": null
     }
   ]
 }

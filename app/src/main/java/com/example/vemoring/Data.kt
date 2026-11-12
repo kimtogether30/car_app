@@ -7,17 +7,18 @@ import java.time.LocalDate
 import java.util.UUID
 
 enum class CareKind(val label: String, val key: String) {
-    WASH("세차", "lastWash"), FUEL("주유", "lastFuel"), OIL("정비", "lastOil");
+    WASH("세차", "lastWash"), FUEL("주유", "lastFuel"), MAINTENANCE("정비", "lastOil");
     val wire: String get() = name.lowercase()
 }
 
 data class CareRecord(val id: String = UUID.randomUUID().toString(), val date: LocalDate,
     val kind: CareKind, val title: String, val detail: String = "", val completedAt: String? = null,
     val visitId: String? = null, val cancelled: Boolean = false, val source: String = "Manual", val appliedAt: String? = null,
-    val washEvidence: String = "EstimatedVisit", val deleted: Boolean = false) {
+    val washEvidence: String = "EstimatedVisit", val deleted: Boolean = false,
+    val maintenanceType: com.vemoring.companion.MaintenanceType = com.vemoring.companion.MaintenanceType.GENERAL) {
     fun json() = JSONObject().put("id", id).put("date", date.toString()).put("kind", kind.wire)
         .put("title", title).put("detail", detail).put("completedAt", completedAt).put("visitId", visitId)
-        .put("cancelled", cancelled).put("source", source).put("appliedAt", appliedAt).put("washEvidence",washEvidence).put("deleted",deleted)
+        .put("maintenanceType", if(kind == CareKind.MAINTENANCE) maintenanceType.name else null).put("cancelled", cancelled).put("source", source).put("appliedAt", appliedAt).put("washEvidence",washEvidence).put("deleted",deleted)
 }
 
 data class CarProfile(val brand: String = "", val model: String = "", val nickname: String = "",
@@ -69,7 +70,7 @@ class GarageStore(private val context: Context) {
         val recordsJson = legacyString("care_history_v1")?.let(::JSONArray)
         val records = if (recordsJson != null) readRecords(recordsJson) else CareKind.entries.mapNotNull { kind ->
             parseDay(personal.optString(kind.key))?.takeUnless { it > LocalDate.now(java.time.ZoneId.of("Asia/Seoul")) }?.let {
-                CareRecord("setup-${kind.wire}", it, kind, kind.label)
+                CareRecord("setup-${if(kind == CareKind.MAINTENANCE) "oil" else kind.wire}", it, kind, kind.label)
             }
         }
         val brand=legacyString("vehicle_brand") ?: "";val model=legacyString("vehicle_model") ?: ""
@@ -152,10 +153,10 @@ fun applyPhoneAuthority(data: AppData,authority: com.vemoring.companion.CareAuth
 }
 
 fun careRecordFromJson(r: JSONObject) = CareRecord(r.getString("id"), requireNotNull(parseDay(r.getString("date"))),
-    CareKind.entries.first { it.wire == r.getString("kind") }, r.getString("title"), r.optString("detail"),
+    if(r.getString("kind")=="oil") CareKind.MAINTENANCE else CareKind.entries.first { it.wire == r.getString("kind") }, r.getString("title"), r.optString("detail"),
     r.optString("completedAt").takeUnless { it.isBlank() || it == "null" },
     r.optString("visitId").takeUnless { it.isBlank() || it == "null" }, r.optBoolean("cancelled"), r.optString("source", "Manual"),
-    r.optString("appliedAt").takeUnless { it.isBlank() || it == "null" },r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"))
+    r.optString("appliedAt").takeUnless { it.isBlank() || it == "null" },r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(r.optString("maintenanceType")))
 
 fun deleteRecord(records: List<CareRecord>,id: String): List<CareRecord> = records.map {
     if(it.id==id) it.copy(cancelled=true,deleted=true) else it

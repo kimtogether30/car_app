@@ -54,10 +54,15 @@ class CareConditionTest {
         assertEquals(false, evaluate(vehicle = clear).signals.vehicleWarning)
     }
     @Test fun approvedMileageAndMatchingRecordAreRequiredForOilChange() {
-        val oil = CareRecord("oil", today.minusDays(100), CareKind.OIL, "교체")
+        val oil = CareRecord("oil", today.minusDays(100), CareKind.MAINTENANCE, "교체",
+            maintenanceType = com.vemoring.companion.MaintenanceType.ENGINE_OIL)
         val data = AppData(profile, listOf(oil))
         val vehicle = snapshot(VehicleField.ODOMETER to Reading.available(SignalValue("15000", 15000.0)))
         val config = MaintenanceConfig("km", oilId = "oil@${oil.date}", oilKm = 10000.0, intervalKm = 5000.0)
+        assertEquals(0.0, evaluate(data, vehicle, config).oilRemainingKm!!, 0.0)
+        for(type in com.vemoring.companion.MaintenanceType.entries.filter { it != com.vemoring.companion.MaintenanceType.ENGINE_OIL }) {
+            assertNull(evaluate(data.copy(records = listOf(oil.copy(maintenanceType = type))), vehicle, config).oilRemainingKm)
+        }
         assertEquals(MascotMood.NORMAL, evaluate(data, vehicle, config).signals.mood())
         assertNull(evaluate(data, vehicle, config.copy(unit = "")).oilRemainingKm)
         assertNull(evaluate(data, vehicle, config.copy(oilId = "old")).oilRemainingKm)
@@ -65,7 +70,7 @@ class CareConditionTest {
     }
     @Test fun recordsAndEnergyComposeIntoRedThenCharcoalAndClearAfterCare() {
         val wash = CareRecord("wash", today.minusDays(40), CareKind.WASH, "세차")
-        val oil = CareRecord("oil", today.minusDays(100), CareKind.OIL, "교체")
+        val oil = CareRecord("oil", today.minusDays(100), CareKind.MAINTENANCE, "교체")
         val vehicle = snapshot(VehicleField.FUEL to Reading.percent(0),
             VehicleField.ODOMETER to Reading.available(SignalValue("15000", 15000.0)))
         val data = AppData(profile, listOf(wash, oil))

@@ -106,7 +106,7 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo, onDockChoice: (Boolean) -
                         ChoiceRow(models, model) { model = it; next() }
                     }
                     if (VehicleCatalog.categories(brand).isEmpty()) {
-                        OutlinedTextField(model, { model = it }, label = { Text("차종") }, singleLine = true,
+                        OutlinedTextField(model, { model = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, label = { Text("차종") }, singleLine = true,
                             modifier = Modifier.fillMaxWidth())
                         Button(onClick = { next() }, enabled = model.isNotBlank(),
                             modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) { Text("다음") }
@@ -129,10 +129,10 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo, onDockChoice: (Boolean) -
                 4 -> {
                     OutlinedTextField(nickname, { nickname = it }, label = { Text("차량 닉네임") },
                         supportingText = { Text("한글과 영문 모두 사용할 수 있어요. 키보드의 한/영 버튼으로 전환해 주세요.") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
+                        keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions.copy(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                         singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(plate,{plate=it},label={Text("번호판 (선택)")},singleLine=true,modifier=Modifier.fillMaxWidth(),
+                    OutlinedTextField(plate,{plate=it}, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions,label={Text("번호판 (선택)")},singleLine=true,modifier=Modifier.fillMaxWidth(),
                         supportingText={Text("입력하지 않아도 차량을 등록할 수 있어요.")})
                     Button(modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp), enabled = nickname.text.isNotBlank(), onClick = { focusManager.clearFocus(); next() }) { Text("다음") }
                 }
@@ -210,7 +210,7 @@ fun VehicleDialog(profile: CarProfile, records: List<CareRecord>, close: () -> U
     var fuel by rememberSaveable { mutableStateOf(profile.fuel) }
     var wash by rememberSaveable { mutableStateOf(records.latest(CareKind.WASH)?.toString()) }
     var lastFuel by rememberSaveable { mutableStateOf(records.latest(CareKind.FUEL)?.toString()) }
-    var oil by rememberSaveable { mutableStateOf(records.latest(CareKind.OIL)?.toString()) }
+    var oil by rememberSaveable { mutableStateOf(records.latest(CareKind.MAINTENANCE)?.toString()) }
     AlertDialog(onDismissRequest = close, title = { Text(if(register) "차량 등록" else "차량 정보 편집") }, text = {
         Column(Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ChoiceRow(VehicleCatalog.brands, brand) { brand = it; model = "" }
@@ -218,10 +218,10 @@ fun VehicleDialog(profile: CarProfile, records: List<CareRecord>, close: () -> U
                 Text(category, fontSize = 12.sp, color = Blue)
                 ChoiceRow(models, model) { model = it }
             }
-            OutlinedTextField(model, { model = it }, label = { Text("차종 (직접 입력 가능)") }, singleLine = true)
+            OutlinedTextField(model, { model = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, label = { Text("차종 (직접 입력 가능)") }, singleLine = true)
             ChoiceRow(listOf("휘발유", "경유", "하이브리드", "전기차"), fuel) { fuel = it }
-            OutlinedTextField(nickname, { nickname = it }, label = { Text("차량 닉네임") }, singleLine = true)
-            OutlinedTextField(plate, { plate = it }, label = { Text("번호판 (선택)") }, singleLine = true)
+            OutlinedTextField(nickname, { nickname = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, label = { Text("차량 닉네임") }, singleLine = true)
+            OutlinedTextField(plate, { plate = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, label = { Text("번호판 (선택)") }, singleLine = true)
             DateInput("마지막 주유·충전일", lastFuel?.let(LocalDate::parse), { lastFuel = it?.toString() })
             DateInput("마지막 세차일", wash?.let(LocalDate::parse), { wash = it?.toString() })
             DateInput("마지막 정비일", oil?.let(LocalDate::parse), { oil = it?.toString() })
@@ -230,6 +230,6 @@ fun VehicleDialog(profile: CarProfile, records: List<CareRecord>, close: () -> U
     }, confirmButton = { TextButton(enabled = nickname.isNotBlank() && model.isNotBlank(), onClick = {
         save(profile.copy(brand = brand, model = model.trim(), nickname = nickname.trim(), plate = plate.trim(), fuel = fuel),
             mapOf(CareKind.WASH to wash?.let(LocalDate::parse), CareKind.FUEL to lastFuel?.let(LocalDate::parse),
-                CareKind.OIL to oil?.let(LocalDate::parse)))
+                CareKind.MAINTENANCE to oil?.let(LocalDate::parse)))
     }) { Text("저장하기") } }, dismissButton = { TextButton(onClick = close) { Text("취소") } })
 }

@@ -28,10 +28,11 @@ object DrivingWeatherSync {
                     var changed=false
                     // Serialize external requests across cars; protect PC/phone/network budget.
                     lock.withLock {
-                        pending.filter {DrivingWeatherPolicy.readyAt(it)<=now}.take(24).forEach {t ->
-                            val weather=repository.fetch(t)
-                            if(weather!=null && store.attachWeather(t.id,weather)) changed=true
+                        val fetched=pending.filter {DrivingWeatherPolicy.readyAt(it)<=now}.take(24).mapNotNull {t ->
+                            repository.fetch(t)?.let {t.id to it}
                         }
+                        // One journal write for the batch instead of one per travel segment.
+                        changed=store.attachWeather(fetched)>0
                     }
                     if(changed) CareExchange.weatherChanged(app,vehicleId)
                     // Finished data may become available later. A single sleeping job, not SDK polling.
