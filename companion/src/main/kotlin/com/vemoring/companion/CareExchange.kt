@@ -149,14 +149,22 @@ object CareExchange {
             j.optJSONObject("care")?.optJSONArray("intervals")?.let { journal.importIntervals(it) }
             journal.saveAuthority(state)
             journal.receivedRevision(snapshot.revision)
-            canonical.value = state
-            val score = journal.score(JSONArray(state.records))
-            BannerNotifications.recordChanges(context,previous,state)
-            if (!j.optBoolean("demo")) CareNotifications.evaluate(context, journal, state, score, j.optJSONObject("care"),j.put("observedAt",snapshot.capturedAt))
+            j.optJSONObject("care")?.optJSONArray("washVisits")?.let {frame ->
+                val visits=FacilityWashStore(context,snapshot.vehicleId)
+                visits.importVehicle(frame,System.currentTimeMillis()).forEach {wash -> applyDetection(context,snapshot.vehicleId,wash)}
+                val candidate=visits.phoneCandidate(System.currentTimeMillis())
+                WashAssistSignals.target.value=candidate?.let {WashAssistTarget(snapshot.vehicleId,it.id,
+                    it.fixes.first().at+FacilityWashPolicy.LIFETIME_MS)}
+            }
+            val finalState=requireNotNull(journal.authority())
+            canonical.value = finalState
+            val score = journal.score(JSONArray(finalState.records))
+            BannerNotifications.recordChanges(context,previous,finalState)
+            if (!j.optBoolean("demo")) CareNotifications.evaluate(context, journal, finalState, score, j.optJSONObject("care"),j.put("observedAt",snapshot.capturedAt))
             DrivingWeatherSync.enqueue(context,snapshot.vehicleId)
             CareDailyCheck.schedule(context)
             JSONObject().put("schema", 2).put("vehicleId", snapshot.vehicleId).put("ack", snapshot.revision)
-                .put("authority", state.json()).put("cleanliness", score.displayed ?: JSONObject.NULL).put("intervalAck", intervalAck(j))
+                .put("authority", finalState.json()).put("cleanliness", score.displayed ?: JSONObject.NULL).put("intervalAck", intervalAck(j))
                 .put("weatherIntervals",journal.weatherReply())
         }
     }

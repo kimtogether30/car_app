@@ -393,12 +393,13 @@ class MainActivity : ComponentActivity() {
     }
     pendingSearch?.let { PhoneNavigationPicker(it) { pendingSearch = null } }
     if (connection) AlertDialog(onDismissRequest = { connection = false }, title = { Text("데이터 연결") },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        text = { Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState()),verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(link.message)
             received?.let {latest -> Text("현재 수신 차량: ${JSONObject(latest.snapshot.content).getJSONObject("profile").optString("nickname")}")}
             vehicleData?.let {Text("조회 중인 차량: ${it.nickname}")}
             selectedReceived?.let { Text("마지막 수신: ${it.timeLabel()}\n차량: ${vehicleData?.nickname}") }
             Text("연결 차량의 관리 기준과 기록은 이 휴대폰에서 확정해요. 차량에는 연결 시 동기화됩니다.")
+            PhoneWashAssistControl()
             OutlinedButton(onClick = { connection = false; bluetoothDialog = true }) { Text("블루투스 차량 연결") }
             OutlinedButton(onClick={connection=false;vehiclePicker=true}) {Text("등록 차량 선택")}
         } }, confirmButton = { TextButton(onClick = { connection = false }) { Text("확인") } })

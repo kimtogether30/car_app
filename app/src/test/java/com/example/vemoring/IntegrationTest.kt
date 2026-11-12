@@ -52,13 +52,16 @@ class IntegrationTest {
             JSONObject("""{"elements":[
                 {"type":"node","id":1,"lat":37.5,"lon":127.0,"tags":{"name":"Test Fuel"}},
                 {"type":"way","id":2,"center":{"lat":37.501,"lon":127.0},"tags":{"name":"Test Wash"}},
-                {"type":"node","id":3,"lat":37.5,"lon":127.0,"tags":{}}
+                {"type":"node","id":3,"lat":37.5,"lon":127.0,"tags":{}},
+                {"type":"node","id":4,"lat":37.5,"lon":127.0,"tags":{"amenity":"car_wash"}}
             ]}""")
         }
         PlaceKind.entries.forEach { kind ->
             val result=fake.places(Coordinates(37.5,127.0,1000),kind)
             assertEquals(ResultState.Available,result.state)
-            assertEquals(2,result.value!!.size)
+            assertEquals(if(kind==PlaceKind.Wash) 3 else 2,result.value!!.size)
+            if(kind==PlaceKind.Wash) assertEquals("세차장",result.value!!.single {it.id=="node/4"}.name)
+            assertFalse(result.value!!.any {it.id=="node/3"})
             assertEquals(0.0,result.value!![0].distanceMeters,0.01)
             assertEquals("주소 미제공",result.value!![0].address)
         }

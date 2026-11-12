@@ -50,7 +50,8 @@ object VehicleCareRuntime {
                     .put("speedAt",snapshot[VehicleField.SPEED].receivedAtMillis)
                     .put("gear",snapshot[VehicleField.GEAR].takeIf {it.state==ReadingState.Available}?.value?.rawState?.let(::normalizedGear))
                     .put("gearAt",snapshot[VehicleField.GEAR].receivedAtMillis).put("source",if(demo) "Demo" else "Real"))
-                .put("warnings", warnings).put("automaticDetection", "Held: verified wash polygons, location accuracy and motion evidence required")
+                .put("warnings", warnings).put("automaticDetection", "Facility radius visit estimate; requires live location and vehicle exit")
+                .put("washVisits",if(demo) JSONArray() else VehicleWashRuntime.frame(context,id))
                 .put("request", outgoing.request).put("rejectedVisits",outgoing.rejectedVisits).put("deletedRecords",outgoing.deletedRecords)
         } }
 }

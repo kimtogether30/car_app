@@ -85,7 +85,8 @@ class VehicleIconMonitor : Service() {
                 val careSnapshots=repository.state.map {it to it.motion()}.distinctUntilChanged {old,next ->
                     old.second==next.second && old.first.readings.filterKeys {it!=VehicleField.SPEED}==next.first.readings.filterKeys {it!=VehicleField.SPEED}
                 }.map {it.first}
-                combine(careSnapshots, IconMonitorVisibility.visible, IconMonitorTestSource.input, configs,IconMonitorVisibility.viewedVehicleId) { snapshot, visible, preview, config,viewed ->
+                val washSnapshots=combine(careSnapshots,VehicleWashRuntime.revision) {snapshot,_ -> snapshot}
+                combine(washSnapshots, IconMonitorVisibility.visible, IconMonitorTestSource.input, configs,IconMonitorVisibility.viewedVehicleId) { snapshot, visible, preview, config,viewed ->
                     MonitorEvaluation(preview ?: IconMonitorSample(data, snapshot, config),visible,preview!=null,viewed==data.profile.vehicleId)
                 }.debounce(500).collect { (sample, visible, preview,viewingSource) ->
                         val snapshot = sample.snapshot

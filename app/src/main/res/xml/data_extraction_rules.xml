@@ -7,12 +7,16 @@
     <cloud-backup>
         <exclude domain="sharedpref" path="weekly_forecast_v1.xml" />
         <exclude domain="sharedpref" path="care_journal_v1.xml" />
+        <exclude domain="sharedpref" path="facility_wash_visits_v1.xml" />
+        <exclude domain="sharedpref" path="companion_publisher_v1.xml" />
         <!-- TODO: Use <include> and <exclude> to control what is backed up.
         <include .../>
         <exclude .../>
         -->
     </cloud-backup>
     <device-transfer>
+        <exclude domain="sharedpref" path="facility_wash_visits_v1.xml" />
+        <exclude domain="sharedpref" path="companion_publisher_v1.xml" />
         <exclude domain="sharedpref" path="weekly_forecast_v1.xml" />
         <exclude domain="sharedpref" path="care_journal_v1.xml" />
     </device-transfer>

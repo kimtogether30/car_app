@@ -322,6 +322,8 @@ class CareJournal(private val context: Context, val vehicleId: String) {
         synchronized(CARE_JOURNAL_LOCK) {
             check(prefs.edit().remove(key).commit())
             NotificationHistory(context).use {it.deleteVehicle(vehicleId)}
+            FacilityWashStore(context,vehicleId).clear()
+            if(WashAssistSignals.target.value?.vehicleId==vehicleId) WashAssistSignals.target.value=null
         }
     }
     companion object {

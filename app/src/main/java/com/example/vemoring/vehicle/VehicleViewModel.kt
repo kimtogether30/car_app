@@ -44,7 +44,10 @@ class VehicleViewModel(application: Application) : AndroidViewModel(application)
         else if (enabled && foreground) SharedVehicleConnection.acquire(getApplication(), this)
         else SharedVehicleConnection.release(this)
     }
-    fun refresh() = repository.refresh()
+    fun refresh() {
+        if(!demo && enabled && foreground) SharedVehicleConnection.acquire(getApplication(),this)
+        repository.refresh()
+    }
     override fun onCleared() {
         cleared = true
         if (demo) repository.close() else SharedVehicleConnection.release(this)

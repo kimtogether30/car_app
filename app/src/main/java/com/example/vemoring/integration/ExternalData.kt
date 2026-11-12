@@ -41,6 +41,7 @@ class HttpExternalDataRepository(private val request: (String, String?) -> JSONO
                 val center=item.optJSONObject("center") ?: item
                 val lat=center.number("lat"); val lon=center.number("lon")
                 val name=tags.optString("name").ifBlank { tags.optString("brand") }
+                    .ifBlank {if(kind==PlaceKind.Wash && tags.optString("amenity")=="car_wash") "세차장" else ""}
                 if(lat==null || lon==null || name.isBlank() || !Coordinates(lat,lon,1).valid()) null
                 else Place(item.optString("type")+"/"+item.optString("id"),name,
                     listOf("addr:city","addr:street","addr:housenumber").map { tags.optString(it) }.filter { it.isNotBlank() }.joinToString(" ").ifBlank { "주소 미제공" },

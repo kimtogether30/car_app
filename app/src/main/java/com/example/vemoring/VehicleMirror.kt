@@ -51,9 +51,10 @@ internal fun mirrorContent(data: AppData, snapshot: VehicleSnapshot, condition: 
     val context = LocalContext.current.applicationContext
     val fuel = snapshot[VehicleField.FUEL]
     val battery = snapshot[VehicleField.SOC]
+    val washRevision by VehicleWashRuntime.revision.collectAsState()
     LaunchedEffect(data, loaded, condition.cleanliness, condition.oilRemainingKm, mood, mode,
         fuel.realPercent(), fuel.statusText(), battery.realPercent(), battery.statusText(), snapshot.priorityWarning(),
-        snapshot[VehicleField.ODOMETER], snapshot[VehicleField.WASHER], snapshot[VehicleField.TELLTALES], snapshot[VehicleField.TRANSMISSION_OIL],snapshot.motion(),snapshot[VehicleField.GEAR]) {
+        snapshot[VehicleField.ODOMETER], snapshot[VehicleField.WASHER], snapshot[VehicleField.TELLTALES], snapshot[VehicleField.TRANSMISSION_OIL],snapshot.motion(),snapshot[VehicleField.GEAR],washRevision) {
         if (loaded && data.complete) {
             try {
                 val care = VehicleCareRuntime.payload(context, data, snapshot, mode == DataMode.Demo)
