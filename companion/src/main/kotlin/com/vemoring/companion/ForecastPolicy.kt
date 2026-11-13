@@ -10,10 +10,17 @@ import java.time.ZoneId
 val FORECAST_ZONE: ZoneId = ZoneId.of("Asia/Seoul")
 
 object ForecastLocationPolicy {
+    // Android 14 limits approximate-only clients to one update per ten minutes.
+    // This allowance is only for the phone's regional forecast, never vehicle/wash evidence.
+    const val PHONE_WEATHER_MAX_AGE_MILLIS = 600_000L
+    fun recentPhoneWeatherFix(point: TravelPoint, now: Instant): Boolean =
+        java.time.Duration.between(point.at,now).toMillis() in 0..PHONE_WEATHER_MAX_AGE_MILLIS
+    fun phoneRegion(point: TravelPoint, now: Instant): ForecastRegion? =
+        point.takeIf {recentPhoneWeatherFix(it,now)}?.let {grid(it)}
     /** Share a regional forecast for a 0.05-degree cell; this is not a claim of observation accuracy. */
-    fun region(point: TravelPoint, now: Instant): ForecastRegion? = point.takeIf {it.fresh(now)}?.let {
+    fun region(point: TravelPoint, now: Instant): ForecastRegion? = point.takeIf {it.fresh(now)}?.let {grid(it)}
+    private fun grid(it: TravelPoint) =
         ForecastRegion("현재 위치", kotlin.math.round(it.latitude*20)/20, kotlin.math.round(it.longitude*20)/20)
-    }
 }
 
 data class ForecastRegion(val name: String, val latitude: Double, val longitude: Double) {

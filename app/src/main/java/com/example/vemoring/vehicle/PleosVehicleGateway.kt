@@ -65,7 +65,8 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         var released = false
         private val unsubscribe = mutableMapOf<VehicleField, () -> Unit>()
         private var polling = false
-        // Public telltale getter is allowed; its listener requires PRIVATE_CAR_SAFETY.
+        // The getter's interface declares CAR_SAFETY; SDK 2.3.2's implementation may still deny it.
+        // Neither the privileged capability check nor privileged listener is used.
         private val warningPoll = object : Runnable {
             override fun run() {
                 if(!active) return
@@ -90,7 +91,8 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
             }
         }
         // Callback work is serialized on main; late callbacks cannot publish after close.
-        private fun <T> request(field: VehicleField, call: ((T?) -> Unit, (Exception) -> Unit) -> Unit, success: (T?) -> Unit) {
+        private fun <T> request(field: VehicleField, call: ((T?) -> Unit, (Exception) -> Unit) -> Unit,
+                               operation: String? = null, success: (T?) -> Unit) {
             if (!active) return
             pending++
             var done = false
@@ -110,8 +112,12 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
                     try { if (active) action() } catch (error: Exception) { emit(field, sdkFailure(error)) } finally { finish() }
                 }
             } }
-            try { call({ value -> complete { success(value) } }, { error -> complete { emit(field, sdkFailure(error)) } }) }
-            catch (error: Exception) { complete { emit(field, sdkFailure(error)) } }
+            fun failed(error: Exception) {
+                val reading=sdkFailure(error)
+                emit(field, if(operation==null) reading else reading.copy(reason="$operation: ${reading.state.name}"))
+            }
+            try { call({ value -> complete { success(value) } }, { error -> complete { failed(error) } }) }
+            catch (error: Exception) { complete { failed(error) } }
         }
         private fun readable(config: CapabilityConfig?) = config?.accessType == AccessType.READ || config?.accessType == AccessType.READ_WRITE
         private fun allowed(field: VehicleField, permission: String): Boolean {
@@ -257,8 +263,10 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         private fun readTelltales() {
             val safety = vehicle.getSafety()
             if (!allowed(VehicleField.LOW_FUEL, "CAR_SAFETY")) { emit(VehicleField.OIL_PRESSURE, Reading(ReadingState.PermissionDenied)); return }
-            request(VehicleField.LOW_FUEL, safety::checkTelltalesCapabilities) { config ->
-                if (!readable(config)) { emit(VehicleField.LOW_FUEL, Reading(ReadingState.Unsupported)); emit(VehicleField.OIL_PRESSURE, Reading(ReadingState.Unsupported)); return@request }
+            // Vehicle 2.3.2's capability check requires PRIVATE_CAR_SAFETY, unlike the public getter.
+            // Calling it first prevents ordinary apps from ever reaching getTelltalesInfo.
+            // Let the getter report unsupported/permission/error itself, without privileged APIs.
+            run {
                 fun update(info: ai.pleos.playground.vehicle.api.model.telltale.Telltales?) {
                     val raw = info?.let { JSONArray().also { array -> it.telltales.forEach { t ->
                         array.put(JSONObject().put("type", t.type.name).put("state", t.state.name)
@@ -272,7 +280,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
                             warningValue(value.state != TelltaleState.OFF).copy(rawState = value.state.name, color = value.color)))
                     }
                 }
-                request(VehicleField.LOW_FUEL, safety::getTelltalesInfo) { update(it) }
+                request(VehicleField.LOW_FUEL, safety::getTelltalesInfo, operation="getTelltalesInfo") { update(it) }
             }
         }
         private fun readGear() {

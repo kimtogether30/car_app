@@ -67,14 +67,46 @@ class ForecastPanelTest {
         Unit
     }
 
+    @Test fun approximateWeatherFixKeepsOriginalAgeVisibleWithoutNetwork(): Unit=runBlocking {
+        check(context.packageName.endsWith(".verification"))
+        instrumentation.uiAutomation.grantRuntimePermission(context.packageName,android.Manifest.permission.ACCESS_COARSE_LOCATION)
+        val now=Instant.now()
+        val point=TravelPoint(37.5665,126.9780,now.minusSeconds(120))
+        val region=ForecastLocationPolicy.phoneRegion(point,now)!!
+        val id="forecast-approximate-${UUID.randomUUID()}"
+        val store=ForecastStore(context,id)
+        store.region(region)
+        val forecast=WeeklyWeatherForecast(region.latitude,region.longitude,now,List(7) {
+            DailyWeatherForecast(now.atZone(FORECAST_ZONE).toLocalDate().plusDays(it.toLong()),0,10.0,23.0,0.0,0.0,0.0)
+        })
+        store.forecast(forecast)
+        compose.setContent {MaterialTheme {ForecastWeatherPanel(id,locate={point})}}
+        compose.waitUntil(15000) {compose.onAllNodesWithText("최근 확인 위치",substring=true).fetchSemanticsNodes().isNotEmpty()}
+        compose.onNodeWithText("최근 확인 위치 · "+point.at.atZone(FORECAST_ZONE)
+            .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) ).assertIsDisplayed()
+        assertTrue(compose.onAllNodesWithText("23°").fetchSemanticsNodes().isNotEmpty())
+        assertEquals(now,store.read().second!!.fetchedAt)
+        assertFalse(point.fresh(Instant.now()))
+        instrumentation.uiAutomation.takeScreenshot()?.let {bitmap ->
+            java.io.File(context.cacheDir,"forecast-approximate.png").outputStream().use {
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)
+            }
+            bitmap.recycle()
+        }
+        Unit
+    }
+
     @Test fun phoneCurrentLocationAdapterAcceptsFreshEmulatorFix(): Unit=runBlocking {
         assumeTrue(InstrumentationRegistry.getArguments().getString("weatherLocation")=="1")
         check(context.packageName.endsWith(".verification"))
         // Approximate permission only, exactly what the app requests.
         instrumentation.uiAutomation.grantRuntimePermission(context.packageName,android.Manifest.permission.ACCESS_COARSE_LOCATION)
+        // Exercise the foreground-only adapter with an actual resumed activity, even when run alone.
+        compose.setContent {MaterialTheme {androidx.compose.material3.Text("위치 수신 검증")}}
+        compose.waitForIdle()
         val point=phoneWeatherLocation(context)
-        assertNotNull("A fresh injected emulator location must reach the phone adapter",point)
-        assertTrue(point!!.fresh(Instant.now()))
+        assertNotNull("A recent approximate emulator fix must reach the weather adapter",point)
+        assertTrue(ForecastLocationPolicy.recentPhoneWeatherFix(point!!,Instant.now()))
         // Android blurs approximate locations by up to ~2 km; the forecast grid is ~0.05 degrees.
         assertEquals(37.5665,point.latitude,.05)
         assertEquals(126.9780,point.longitude,.05)

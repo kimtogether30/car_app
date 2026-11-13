@@ -32,7 +32,7 @@
 | EvBattery | getEvBatteryStateOfCharge/registerEvBatteryStateOfCharge, getCurrentEvEfficiency/getEvChargeSwitchState | 충전 스위치 != 실제 충전 진행. 전비 단위 미확인 |
 | HVAC | 온도(CELSIUS), 현재 온도, AC/AUTO/풍량/송풍 방향/내기/청정 getter | capability가 제공하는 첫 좌석 영역, 제어 없음 |
 | Odometer | getCurrentDistanceDriven/registerDistanceDriven, getTripCurrentDrivingDistance/getTripCurrentDrivingTime | 거리/시간 단위 자동 확인 불가 |
-| Safety | getEngineOilLevelState/getBrakeFluidLevelState/hasLowWasherFluidWarning/getTelltalesInfo | 스마트키 배터리 미지원. registerTelltales는 PRIVATE_CAR_SAFETY라 사용하지 않음 |
+| Safety | getEngineOilLevelState/getBrakeFluidLevelState/hasLowWasherFluidWarning/getTelltalesInfo | 스마트키 배터리 미지원. telltale capability/listener는 PRIVATE_CAR_SAFETY라 사용하지 않음. getter도 2.3.2 내부 구현 권한 불일치로 거절됨: SDK_LOCATION_DIAGNOSIS_2026_11_13.md |
 | FusedLocation | isSupported/initialize/release/getLastKnownLocation/registerFusedLocationCallback/unregisterFusedLocationCallback | 오래되거나 잘못된 위치를 외부 조회에 사용하지 않음 |
 | FusedLocation | addProximityAlert/removeProximityAlert/showLocationAccessBlockedPopup | SDK 차단 안내는 권한 허용 기능이 아님 |
 | NaviHelper | initialize/addListener/removeListener/release | 초기화 완료 콜백 이후 조회 |

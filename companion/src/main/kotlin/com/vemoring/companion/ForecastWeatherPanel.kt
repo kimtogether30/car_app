@@ -60,6 +60,7 @@ private fun ForecastWeatherContent(vehicleId: String,vehicle: Boolean,enabled: B
     var lastManualAt by remember {mutableLongStateOf(0)}
     var now by remember {mutableStateOf(Instant.now())}
     var located by remember {mutableStateOf(false)}
+    var locationAt by remember {mutableStateOf<Instant?>(null)}
     var permissionAttempted by remember {mutableStateOf(false)}
     // Weather uses a ~5 km grid, so the phone asks for approximate location only. Requesting FINE as well is what
     // makes Android 12+ show the "precise / approximate" choice; asking for COARSE alone shows a single question.
@@ -106,11 +107,12 @@ private fun ForecastWeatherContent(vehicleId: String,vehicle: Boolean,enabled: B
                 var gotLocation=false
                 try {
                     val point=latestLocate?.let {it.invoke()} ?: if(latestLocate==null && !vehicle) phoneWeatherLocation(context) else null
-                    val selected=point?.let {ForecastLocationPolicy.region(it,Instant.now())}
+                    val selected=point?.let {if(vehicle) ForecastLocationPolicy.region(it,Instant.now())
+                        else ForecastLocationPolicy.phoneRegion(it,Instant.now())}
                     if(selected==null) throw IllegalStateException("location unavailable")
                     if(region!=selected) forecast=null
                     if(region!=selected) withContext(Dispatchers.IO) {store?.region(selected)}
-                    region=selected;located=true;gotLocation=true
+                    region=selected;located=true;gotLocation=true;locationAt=point.at
                     if(force || ForecastRefreshPolicy.due(forecast,selected,Instant.now())) {
                         val next=repository.fetch(selected.latitude,selected.longitude)
                         withContext(Dispatchers.IO) {store?.forecast(next)}
@@ -138,7 +140,9 @@ private fun ForecastWeatherContent(vehicleId: String,vehicle: Boolean,enabled: B
             !permitted -> "현위치 날씨 · 위치 권한 필요"
             loading && !located -> "현위치 확인 중"
             !located -> "현위치 미수신 · 위치 설정 확인"
-            else -> "현재 위치"+if(stale || error != null) " · 갱신 필요" else ""
+            else -> (if(!vehicle && locationAt?.let {java.time.Duration.between(it,now).seconds>60}==true)
+                "최근 확인 위치 · "+locationAt!!.atZone(FORECAST_ZONE).format(DateTimeFormatter.ofPattern("HH:mm"))
+                else "현재 위치")+if(stale || error != null) " · 갱신 필요" else ""
         },vehicle=vehicle,
         headerActions={
             if(!permitted) TextButton(enabled=enabled && loaded,onClick={permissionAttempted=true;permissionRequest.launch(permissions)},
@@ -161,6 +165,7 @@ private fun ForecastWeatherContent(vehicleId: String,vehicle: Boolean,enabled: B
     if(showDetails) AlertDialog(onDismissRequest={showDetails=false},title={Text("날씨와 세차 추천")},text={
         Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
             Text("현재 위치 기준 · 위치 좌표를 Open-Meteo에 보내 예보를 조회해요.")
+            if(!vehicle) Text("대략적 위치의 갱신 제한을 고려해 최근 10분 이내의 위치를 사용해요. 1분이 넘으면 확인 시각을 표시해요.")
             Text(if(stamp==null) "아직 받은 예보가 없어요." else "마지막 수신 $stamp${if(stale) " · 갱신 필요" else ""}")
             error?.let {Text(it)}
             if(!vehicle) TextButton(onClick={

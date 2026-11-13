@@ -42,6 +42,7 @@ class PhoneWashAssistService:Service() {
             for((target,fix) in input) runCatching {FacilityWashStore(applicationContext,target.vehicleId).observePhone(target.visitId,fix)}
         }
     }
+    @android.annotation.SuppressLint("MissingPermission") // Shared vehicle build has no phone GPS permission; both start/target checks below fail closed.
     override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int {
         if(intent?.action==STOP || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED) {
             stopSelf();return START_NOT_STICKY
@@ -62,6 +63,10 @@ class PhoneWashAssistService:Service() {
                 WashAssistSignals.target.collectLatest {target ->
                     if(target==null || target.expiresAt<=System.currentTimeMillis()) {
                         WashAssistSignals.status.value="세차장 방문 대기 중";return@collectLatest
+                    }
+                    // A later target can arrive after the start-time permission check (or a revocation).
+                    if(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED) {
+                        WashAssistSignals.status.value="정확한 위치 권한 필요";return@collectLatest
                     }
                     val locations=getSystemService(LocationManager::class.java)
                     if(locations==null || LocationManager.GPS_PROVIDER !in locations.allProviders) {

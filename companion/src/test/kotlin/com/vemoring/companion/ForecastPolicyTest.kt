@@ -22,6 +22,17 @@ class ForecastPolicyTest {
         assertNull(ForecastLocationPolicy.region(point,now.minusSeconds(1)))
     }
 
+    @Test fun approximatePhoneWeatherAllowsTenMinuteFixWithoutRelaxingVehicleEvidence() {
+        val point=TravelPoint(37.5665,126.9780,now.minusSeconds(120))
+        assertNotNull(ForecastLocationPolicy.phoneRegion(point,now))
+        assertNull(ForecastLocationPolicy.region(point,now))
+        assertFalse(point.fresh(now))
+        assertEquals(now.minusSeconds(120),point.at)
+        assertNotNull(ForecastLocationPolicy.phoneRegion(point.copy(at=now.minusSeconds(600)),now))
+        assertNull(ForecastLocationPolicy.phoneRegion(point.copy(at=now.minusSeconds(600).minusMillis(1)),now))
+        assertNull(ForecastLocationPolicy.phoneRegion(point.copy(at=now.plusMillis(1)),now))
+    }
+
     @Test fun recommendsEarliestConsecutiveDryPairWithoutUsingLastDayAlone() {
         assertEquals(today,WashDatePolicy.suggest(forecast(),now).date)
         val wet=forecast().copy(days=forecast().days.mapIndexed {i,d -> if(i < 2) d.copy(weatherCode=61,precipitationMm=1.0) else d})
