@@ -11,6 +11,7 @@ import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
+import org.junit.After
 import java.io.File
 import java.time.LocalDate
 import java.util.UUID
@@ -18,6 +19,16 @@ import java.util.UUID
 /** Real editor and notifications; disposable verification app, no Bluetooth radio involved. */
 class MaintenanceSimulationTest {
     @get:Rule val compose = createComposeRule()
+    private val simulationId = "maintenance-simulation-${UUID.randomUUID()}"
+
+    @After fun cleanupSimulation() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        check(context.packageName.endsWith(".verification"))
+        val manager = context.getSystemService(android.app.NotificationManager::class.java)
+        manager.activeNotifications.filter {it.tag?.startsWith("$simulationId:")==true}
+            .forEach {manager.cancel(it.tag,it.id)}
+        CareJournal(context,simulationId).deleteVehicle()
+    }
 
     @Test fun explicitWorkItemControlsSavedRecordAndNotification() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -36,7 +47,7 @@ class MaintenanceSimulationTest {
         compose.onNodeWithTag("form-save").performClick()
         compose.runOnIdle { assertEquals(MaintenanceType.ENGINE_OIL,saved!!.maintenanceType) }
         val oil = requireNotNull(saved).copy(id=UUID.randomUUID().toString())
-        val id = "maintenance-simulation-${UUID.randomUUID()}"
+        val id = simulationId
         val profile = JSONObject().put("fuel","휘발유").put("notifications",true).put("simulation",true).toString()
         val before = CareAuthority(id,1,profile,"[]")
         val afterTire = before.copy(version=2,records=JSONArray().put(tire.wireJson()).toString())
@@ -57,7 +68,6 @@ class MaintenanceSimulationTest {
         val reopened = JSONArray(CareJournal(context,id).authority()!!.records)
         assertEquals("TIRE_PRESSURE",reopened.getJSONObject(0).getString("maintenanceType"))
         assertEquals("ENGINE_OIL",reopened.getJSONObject(1).getString("maintenanceType"))
-        journal.deleteVehicle()
     }
 
     private fun capture(name: String) {

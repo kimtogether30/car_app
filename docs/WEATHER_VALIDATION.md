@@ -68,7 +68,7 @@ Android SDK/JDK/Gradle 설정은 기존 프로젝트 환경을 사용한다. 위
 adb install -r -g phone/build/outputs/apk/verification/phone-verification.apk
 adb install -r -g phone/build/outputs/apk/androidTest/verification/phone-verification-androidTest.apk
 adb shell pm grant com.example.vemoring.phone.verification android.permission.POST_NOTIFICATIONS
-adb shell am instrument -w -e class com.example.vemoring.phone.DrivingWeatherStorageTest,com.example.vemoring.phone.CareFlowTest com.example.vemoring.phone.verification.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -e class com.example.vemoring.phone.DrivingWeatherStorageTest,com.example.vemoring.phone.CareFlowTest com.example.vemoring.phone.verification.test/com.example.vemoring.phone.VerificationRunner
 # OK (16 tests)
 ```
 

@@ -79,7 +79,7 @@
 .\gradlew.bat :phone:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :phone:assembleDebug :phone:assembleVerification :phone:assembleVerificationAndroidTest --console=plain
 adb -s emulator-5554 install --no-streaming -r phone/build/outputs/apk/verification/phone-verification.apk
 adb -s emulator-5554 install --no-streaming -r phone/build/outputs/apk/androidTest/verification/phone-verification-androidTest.apk
-adb -s emulator-5554 shell am instrument -w -e class com.example.vemoring.phone.FacilityWashPipelineTest,com.example.vemoring.phone.PhoneWashAssistUiTest com.example.vemoring.phone.verification.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5554 shell am instrument -w -e class com.example.vemoring.phone.FacilityWashPipelineTest,com.example.vemoring.phone.PhoneWashAssistUiTest com.example.vemoring.phone.verification.test/com.example.vemoring.phone.VerificationRunner
 ```
 
 차량 에뮬레이터는 별도 사용자로 실행될 수 있다. 이번 공식 AVD의 현재 사용자는 `10`이었다. `adb shell am get-current-user`로 확인한 사용자에 권한·검사를 적용한다. 기본 사용자0에 부여하고 현재 사용자 권한까지 있다고 착각하면 안 된다.
