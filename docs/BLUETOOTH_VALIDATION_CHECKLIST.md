@@ -209,3 +209,12 @@ Tab S7은 Pleos 차량이 아니다. 아래에서 ‘무선 통과’는 실제 
 - 초기 준비 실패도 보존했다. 앞선 verification runner가 모든 시험 런처 alias를 숨긴 상태에서 단독 MainActivity만 실행하면 연결 알림의 `getLaunchIntentForPackage`가 null이 되어 서비스 시작 실패/FGS timeout이 났다. `host-doze-session.txt`의 최초 연결 대기 실패와 `standalone-startup-crash-preserved.txt`가 해당 증거다. 시험 앱 자체 UID로 정상 런처를 복구하고 다시 실행해 해결했다. 이 초기 실패는 IDLE 진입 전이며 절전 실패나 일반 앱 경로 통과로 섞지 않았다. 일반 앱은 정상 런처가 있는 별도 패키지이고 변경하지 않았다.
 - 증거: `standalone-idle-reconnect.json`, `standalone-idle-final.json`, `standalone-idle-cache.xml`, `standalone-after-idle.json`, `host-standalone-events.jsonl`. 모두 기존 ignored diagnostics 폴더에 보관한다. 개인 페어링 목록 UI 임시 파일은 정리했다.
 - 검사 뒤 양쪽 시험 서비스/계측 종료, 시험 런처 숨김, verification 패키지 user0 비활성화 및 해당 패키지의 잔여 NotificationRecord 0을 확인했다. 실제 앱/기록/페어링은 보존했다. 앱 코드 변경은 없으며 이번 추가 결과는 장비/OS/현재 빌드에서의 실제 측정이다.
+
+### 2026-11-14 실제 휴대폰 이동 검사
+
+- 사용자가 S24의 USB를 분리하고 기기를 들고 이동한 뒤 돌아왔다. S7은 PC 옆에 그대로 두고 기존 격리된 실제 보안 RFCOMM 송신기를 유지했다. S24는 계측 없이 앱 서비스로 수신했다. 실제 이동 거리·벽 수·최대 도달 범위는 측정하지 않았다.
+- 출발 전 `range-baseline` 저장/ACK를 확보했다. USB 분리 중 `range-distance-probe`, `range-distance-probe-2` 새 프레임을 송신했다. 00:44:40~00:51:30 KST의 41개 상태 표본은 모두 active=true였고 실제 Bluetooth 단절 표본은 0이었다. 이 표본 간격은 약 10초이며, 미관측의 순간 단절까지 없었다고 확대하지 않는다.
+- 복귀 뒤 USB 연결이 Windows 휴대용 장치로만 보이고 ADB에는 없었다. 사용자가 USB 디버깅을 껐다 켠 뒤 ADB가 복구됐다. 이는 Bluetooth 단절로 판정하지 않았다. S24 저장 프레임은 마지막 시험 메시지 `range-distance-probe-2`, revision 1794585471922로 탭의 저장 송신 프레임과 일치했다. 설정 28%와 취소/삭제 기록 3개도 보존됐다.
+- 판정: **사용자가 이동한 범위에서 실제 무선 송수신 유지 및 USB 없는 단독 수신 통과. 실제 도달 범위 밖 단절/복귀는 관측되지 않아 미검증 유지.** 기존 Bluetooth OFF/ON 및 절전 중 송신기 재시작의 자동 재연결 통과와 구별한다. USB 분리 또는 사용자 이동 자체를 무선 단절 성공으로 기록하지 않는다.
+- 증거는 기존 ignored diagnostics 폴더의 `range-baseline.json`, `range-monitor.jsonl`, `range-monitor-result.json`, `range-summary.json`, `range-publisher.xml`, `range-phone-return.json`, `host-range-events.jsonl`, `host-range-session.txt`다. 송신 계측은 `OK (1 test)`로 종료했다.
+- 양쪽 시험 서비스/계측 종료, 시험 런처 숨김과 verification user0 비활성화를 마쳤으며 해당 패키지의 잔여 NotificationRecord는 0이었다. 일반 앱·양쪽 데이터·기존 페어링을 보존했다. 앱 코드 변경은 없다.
