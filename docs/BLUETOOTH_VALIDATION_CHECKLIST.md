@@ -197,4 +197,15 @@ Tab S7은 Pleos 차량이 아니다. 아래에서 ‘무선 통과’는 실제 
 - **거리 이탈/복귀:** 실차 없이 가능하지만 사용자가 한 기기를 직접 이동해야 한다. 가까운 상태 저장/ACK → S24 USB 분리 후 실제 무선 도달 범위 밖 이동 → 탭에 새 revision 준비 → 복귀 → 실제 재연결/새 revision 저장/삭제·취소 보존 비교. USB/ADB 연결 해제를 Bluetooth 단절로 판정하지 않는다. 실제 기기 이동 없이 Bluetooth OFF/ON만 실행한 결과로 거리 검사를 대체하지 않는다.
 - **휴대폰 재부팅:** 지금 장비로 가능하다. 재부팅 전 차량별 장부·마지막 프레임 기준을 저장하고, 사용자가 재부팅 뒤 잠금을 해제한 다음 자동 재시작 여부와 앱을 다시 열었을 때 복원을 각각 구별해 검사한다. 현재 service는 START_NOT_STICKY이므로 재부팅 직후 자동 재연결을 이미 구현된 기능으로 가정하지 않는다.
 - **실제 센서:** S7은 일반 Android이므로 Pleos Vehicle Service/연료·기어·경고등 센서를 제공하지 않는다. 공식 Cold Boot AVD+Virtual Console에서 SDK별 입력 검사를 하고, S7↔S24에서는 해당 입력 뒤의 실제 무선 전송을 검사하는 분리 검증이 가능하다. 공식 AVD는 Bluetooth 동글 연동을 지원하지 않으므로 이 둘을 실차 SDK→실물 무선의 단일 경로 통과라고 기록하지 않는다. 경고등 getter 권한 문제의 해결 경로는 `SDK_LOCATION_DIAGNOSIS_2026_11_13.md` 참조.
-- 재조사 당시 ADB에는 S7만 표시됐다. S24 재연결과 거리 이동 가능 여부를 사용자에게 문의했다. 위 추가 절차는 아직 실행 결과가 아니며, 기존 통과 결과에 합산하지 않는다.
+- 재조사 당시 ADB에는 S7만 표시됐다. 이후 사용자가 S24 재연결 및 ‘자리에서 검사만 가능’을 알려 줬다. 실제 거리 이동 검사는 제외했고 아래 강제 절전 검사를 실행했다. 위 재부팅/거리/실제 센서 절차는 여전히 실행 결과가 아니다.
+
+### 2026-11-14 단독 휴대폰 앱의 강제 깊은 절전 검사 완료
+
+- S24 verification 앱은 **계측을 실행하지 않고 실제 MainActivity UI에서** 페어링된 S7을 선택했다. S7만 송신 시험 실행기를 사용했다. 휴대폰 서비스가 `isForeground=true`, 연결 알림 2041을 게시하고 탭에서 ACK를 확인한 뒤 HOME/화면 OFF로 전환했다.
+- `battery unplug` 및 `deviceidle force-idle` 후 `mState=IDLE / mLightState=OVERRIDE`를 직접 확인했다. 영구 절전 whitelist에 시험 앱은 없고 ActiveInstrumentation도 없었다. 이 상태에서 `standalone-deep-idle-1` 프레임이 실제 무선으로 저장됐다.
+- 휴대폰은 계속 IDLE로 두고 탭의 시험 실행기/송신 서비스만 종료·재시작했다. 휴대폰 UI 조작 없이 자동 재연결됐고 `standalone-idle-reconnect` 프레임 저장 및 탭의 수신 ACK를 확인했다.
+- 재연결 후 첫 증거와 마지막 증거 사이 **133.15초** 동안 동일 휴대폰 PID 30194가 유지됐고 양끝 모두 IDLE이었다. 중간 B 프레임, 마지막 A 프레임 `standalone-idle-final`도 저장됐다. 이는 수분 규모의 강제 깊은 절전에서 단독 앱 수신/차량 전환/자동 재연결 통과이며, 자연 절전 수시간·삼성 앱 종료·배터리 소비 검증은 아니다.
+- `deviceidle unforce`, `battery reset`으로 `mForceIdle=false / ACTIVE`를 복구했다. 이후 `standalone-after-idle` 새 프레임 저장, 설정 28%, 취소/삭제 기록 3개 보존을 확인했다. 정상 조건으로 다시 시작한 송신 계측은 `OK (1 test)`(`host-standalone-clean.txt`)로 종료했다.
+- 초기 준비 실패도 보존했다. 앞선 verification runner가 모든 시험 런처 alias를 숨긴 상태에서 단독 MainActivity만 실행하면 연결 알림의 `getLaunchIntentForPackage`가 null이 되어 서비스 시작 실패/FGS timeout이 났다. `host-doze-session.txt`의 최초 연결 대기 실패와 `standalone-startup-crash-preserved.txt`가 해당 증거다. 시험 앱 자체 UID로 정상 런처를 복구하고 다시 실행해 해결했다. 이 초기 실패는 IDLE 진입 전이며 절전 실패나 일반 앱 경로 통과로 섞지 않았다. 일반 앱은 정상 런처가 있는 별도 패키지이고 변경하지 않았다.
+- 증거: `standalone-idle-reconnect.json`, `standalone-idle-final.json`, `standalone-idle-cache.xml`, `standalone-after-idle.json`, `host-standalone-events.jsonl`. 모두 기존 ignored diagnostics 폴더에 보관한다. 개인 페어링 목록 UI 임시 파일은 정리했다.
+- 검사 뒤 양쪽 시험 서비스/계측 종료, 시험 런처 숨김, verification 패키지 user0 비활성화 및 해당 패키지의 잔여 NotificationRecord 0을 확인했다. 실제 앱/기록/페어링은 보존했다. 앱 코드 변경은 없으며 이번 추가 결과는 장비/OS/현재 빌드에서의 실제 측정이다.
