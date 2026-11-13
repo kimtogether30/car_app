@@ -53,13 +53,19 @@ object MirrorBus {
 
     internal suspend fun receive(context: Context, snapshot: MirrorSnapshot) = withContext(Dispatchers.IO) {
         mutex.withLock {
-            val journal = MirrorJournal(cachedVehicles.value[snapshot.vehicleId]?.snapshot)
+            val previous = cachedVehicles.value[snapshot.vehicleId]
+            val journal = MirrorJournal(previous?.snapshot)
             if (journal.accept(snapshot)) {
                 val now = System.currentTimeMillis()
                 val next=ReceivedMirror(snapshot,now)
                 MirrorCacheStore(context).save(next)
                 cachedVehicles.value=cachedVehicles.value+(snapshot.vehicleId to next)
                 cached.value = next
+            } else if(previous != null && cached.value?.snapshot?.vehicleId != snapshot.vehicleId) {
+                // A reconnect can resend a car's already-saved revision after another car was viewed/received.
+                // Select that car's saved frame without accepting stale content or inventing a fresh receive time.
+                MirrorCacheStore(context).save(previous)
+                cached.value = previous
             }
         }
     }

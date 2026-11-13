@@ -318,6 +318,10 @@ class MainActivity : ComponentActivity() {
                     } else if(garageReady && fleet.isEmpty()) {
                         Text("등록한 차량이 없어요.")
                         Button(onClick={addingCar=true}) {Text("차량 등록")}
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick={bluetoothDialog=true},modifier=Modifier.heightIn(min=48.dp)) {
+                            Text("차량 앱에서 가져오기")
+                        }
                     } else CircularProgressIndicator()
                 }
             } else Column(Modifier.widthIn(max = 600.dp).fillMaxSize()

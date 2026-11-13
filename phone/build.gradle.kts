@@ -31,6 +31,7 @@ android {
     testBuildType = "verification"
     sourceSets.getByName("main").kotlin.directories.add(rootProject.file("companion/src/main/kotlin").path)
     sourceSets.getByName("test").kotlin.directories.add(rootProject.file("companion/src/test/kotlin").path)
+    sourceSets.getByName("androidTest").kotlin.directories.add(rootProject.file("companion/src/androidTest/kotlin").path)
 }
 
 androidComponents {

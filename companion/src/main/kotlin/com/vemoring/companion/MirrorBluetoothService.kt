@@ -63,7 +63,10 @@ class MirrorBluetoothService : Service() {
             stopSelf(); return START_NOT_STICKY
         }
         val address = intent.getStringExtra("peer")
-        if (!BluetoothAdapter.checkBluetoothAddress(address ?: "")) { stopSelf(); return START_NOT_STICKY }
+        if (!BluetoothAdapter.checkBluetoothAddress(address ?: "")) {
+            MirrorBus.link.value=MirrorLink(false,"연결할 기기를 다시 선택해 주세요.")
+            stopSelf(); return START_NOT_STICKY
+        }
         try {
             if (adapter!!.getRemoteDevice(address).bondState != BluetoothDevice.BOND_BONDED) {
                 MirrorBus.link.value = MirrorLink(false, "시스템 설정에서 먼저 기기를 페어링해 주세요.")
@@ -181,6 +184,9 @@ class MirrorBluetoothService : Service() {
                 // CONNECTED is reported only after a complete, valid application snapshot.
                 var first = true
                 val outputMutex = Mutex()
+                val frameMutex = Mutex()
+                // Only accessed under frameMutex; independent of UI/cache selection.
+                var sessionSnapshot: MirrorSnapshot? = null
                 suspend fun send(response: JSONObject) = outputMutex.withLock {
                     val bytes = response.toString().toByteArray(Charsets.UTF_8)
                     require(bytes.size in 1..MirrorSnapshot.MAX_BYTES)
@@ -188,19 +194,25 @@ class MirrorBluetoothService : Service() {
                 }
                 val settingsWriter = launch {
                     kotlinx.coroutines.flow.combine(CareExchange.canonical,CareExchange.weatherRevision) {a,_ -> a}.drop(1).collect { candidate ->
-                        val received = MirrorBus.received.value?.snapshot
-                        val authority=candidate?.takeIf {it.vehicleId==received?.vehicleId}
-                            ?: received?.let {CareJournal(this@MirrorBluetoothService,it.vehicleId).authority()}
-                        if (authority != null && received?.vehicleId == authority.vehicleId)
-                            send(JSONObject().put("schema", 2).put("vehicleId", authority.vehicleId)
-                                .put("ack", received.revision).put("authority", authority.json())
-                                .put("weatherIntervals",CareJournal(this@MirrorBluetoothService,authority.vehicleId).weatherReply()))
+                        frameMutex.withLock {
+                            val received = sessionSnapshot
+                            val authority=candidate?.takeIf {it.vehicleId==received?.vehicleId}
+                                ?: received?.let {CareJournal(this@MirrorBluetoothService,it.vehicleId).authority()}
+                            if (authority != null && received?.vehicleId == authority.vehicleId)
+                                send(JSONObject().put("schema", 2).put("vehicleId", authority.vehicleId)
+                                    .put("ack", received.revision).put("authority", authority.json())
+                                    .put("weatherIntervals",CareJournal(this@MirrorBluetoothService,authority.vehicleId).weatherReply()))
+                        }
                     }
                 }
                 try { while (isActive) {
                     val snapshot = MirrorFrames.read(client.inputStream)
-                    MirrorBus.receive(this@MirrorBluetoothService, snapshot)
-                    send(CareExchange.receive(this@MirrorBluetoothService, snapshot))
+                    frameMutex.withLock {
+                        MirrorBus.receive(this@MirrorBluetoothService, snapshot)
+                        val response = CareExchange.receive(this@MirrorBluetoothService, snapshot)
+                        sessionSnapshot=snapshot
+                        send(response)
+                    }
                     ensureActive()
                     if (first) { timeout.cancel(); first = false; retries=0 }
                     MirrorBus.link.value = MirrorLink(true, "차량 데이터 연결됨", true)
@@ -213,6 +225,9 @@ class MirrorBluetoothService : Service() {
             catch (_: Exception) {
                 if (isActive) MirrorBus.link.value = MirrorLink(false, "연결 끊김 · 마지막 데이터 유지", true)
             } finally { timeout?.cancel(); runCatching { connected?.close() }; if (socket === connected) socket = null }
+            // Closing a cancelled blocking RFCOMM read may throw IOException rather than CancellationException.
+            // Do not let that old session overwrite a stop/rejection message or announce another retry.
+            ensureActive()
             val wait=ConnectionRetry.delayAfterFailure(retries)
             if(wait==null) {
                 MirrorBus.link.value=MirrorLink(false,"자동 재연결 3회 실패 · 차량 앱과 블루투스를 확인한 뒤 데이터 연결에서 다시 연결해 주세요.",true)
@@ -234,7 +249,11 @@ class MirrorBluetoothService : Service() {
         closeSession()
         if (registered) unregisterReceiver(events)
         scope.cancel()
-        MirrorBus.link.value = MirrorLink(false, "연결 종료 · 마지막 데이터 유지")
+        val last=MirrorBus.link.value
+        // A startup rejection already contains an actionable permission/pairing message.
+        // Do not overwrite it with a generic shutdown message before the UI can display it.
+        MirrorBus.link.value = if(last.running || last.active) MirrorLink(false,"연결 종료 · 마지막 데이터 유지")
+            else last.copy(active=false,running=false)
         super.onDestroy()
     }
     private fun notification(message: String): Notification {
@@ -252,7 +271,35 @@ class MirrorBluetoothService : Service() {
         val SERVICE_UUID: UUID = UUID.fromString("7ff67821-9d45-4a95-8c28-92306fdab461")
         fun hasConnectPermission(context: Context) = Build.VERSION.SDK_INT < 31 ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+        private fun rejectStart(context: Context,message: String) {
+            context.stopService(Intent(context,MirrorBluetoothService::class.java))
+            MirrorBus.link.value=MirrorLink(false,message)
+        }
         fun start(context: Context, host: Boolean, address: String) {
+            // Reject unavailable prerequisites before creating an FGS obligation. In particular, newer Android
+            // can terminate the app when an ineligible service exits without ever entering the foreground.
+            if(!hasConnectPermission(context)) {
+                rejectStart(context,"주변 기기 권한을 허용한 뒤 데이터 연결에서 다시 연결해 주세요.")
+                return
+            }
+            if(!BluetoothAdapter.checkBluetoothAddress(address)) {
+                rejectStart(context,"연결할 기기를 다시 선택해 주세요.")
+                return
+            }
+            try {
+                val bluetooth=context.getSystemService(BluetoothManager::class.java)?.adapter
+                if(bluetooth==null || !bluetooth.isEnabled) {
+                    rejectStart(context,"블루투스를 켠 뒤 데이터 연결에서 다시 연결해 주세요.")
+                    return
+                }
+                if(bluetooth.getRemoteDevice(address).bondState!=BluetoothDevice.BOND_BONDED) {
+                    rejectStart(context,"시스템 설정에서 먼저 기기를 페어링해 주세요.")
+                    return
+                }
+            } catch(_:SecurityException) {
+                rejectStart(context,"주변 기기 권한을 허용한 뒤 데이터 연결에서 다시 연결해 주세요.")
+                return
+            }
             ContextCompat.startForegroundService(context, Intent(context, MirrorBluetoothService::class.java)
                 .setAction(if (host) HOST else CONNECT).putExtra("peer", address))
         }

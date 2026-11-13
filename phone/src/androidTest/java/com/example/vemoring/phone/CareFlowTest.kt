@@ -43,14 +43,18 @@ class CareFlowTest {
     @Test fun multipleCarsKeepTheirOwnCachedFramesAndRejectOldReplays()=runBlocking {
         val a=UUID.randomUUID().toString();val b=UUID.randomUUID().toString()
         val one=snapshot(a,7);val two=snapshot(b,20)
-        MirrorBus.receive(context,one);MirrorBus.receive(context,two)
+        MirrorBus.receive(context,one)
+        val savedOne=MirrorBus.vehicles.value.getValue(a)
+        MirrorBus.receive(context,two)
         MirrorBus.receive(context,one.copy(revision=6))
         assertEquals(7L,MirrorBus.vehicles.value.getValue(a).snapshot.revision)
         assertEquals(20L,MirrorBus.vehicles.value.getValue(b).snapshot.revision)
         val reopened=MirrorCacheStore(context).loadAll()
         assertEquals(7L,reopened.getValue(a).snapshot.revision)
         assertEquals(20L,reopened.getValue(b).snapshot.revision)
-        assertEquals(b,MirrorCacheStore(context).load()!!.snapshot.vehicleId)
+        assertEquals(a,MirrorCacheStore(context).load()!!.snapshot.vehicleId)
+        assertEquals(savedOne,MirrorBus.received.value)
+        assertEquals(savedOne.receivedAt,MirrorCacheStore(context).load()!!.receivedAt)
     }
     @Test fun explicitRecordDeletionWinsAcrossOldVersionsWithoutTouchingOtherCars()=runBlocking {
         val id=UUID.randomUUID().toString();val other=UUID.randomUUID().toString();val first=snapshot(id)

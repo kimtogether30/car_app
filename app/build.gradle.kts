@@ -21,6 +21,12 @@ android {
     }
 
     buildTypes {
+        create("verification") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".verification"
+            matchingFallbacks.add("debug")
+            signingConfig = getByName("debug").signingConfig
+        }
         release {
             optimization {
                 enable = true
@@ -28,6 +34,8 @@ android {
             }
         }
     }
+    // Explicit opt-in only: physical radio fixtures must never enter the real vehicle garage/stream.
+    testBuildType = if(providers.gradleProperty("vehicleVerification").orNull == "true") "verification" else "debug"
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -36,6 +44,12 @@ android {
         compose = true
     }
     sourceSets.getByName("main").kotlin.directories.add(rootProject.file("companion/src/main/kotlin").path)
+    sourceSets.getByName("androidTest").kotlin.directories.add(rootProject.file("companion/src/androidTest/kotlin").path)
+    sourceSets.getByName("verification").kotlin.directories.add(file("src/debug/java").path)
+}
+
+androidComponents {
+    beforeVariants(selector().withBuildType("debug")) { it.hostTests["UnitTest"]?.enable = true }
 }
 
 dependencies {
@@ -62,5 +76,6 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    add("verificationImplementation", libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
