@@ -190,3 +190,11 @@ Tab S7은 Pleos 차량이 아니다. 아래에서 ‘무선 통과’는 실제 
 - 실제 거리 이탈/복귀, 제3의 잘못된 페어링 상대, 구버전 APK/다른 UUID 조합, 장기 Doze/제조사 절전·전체 폰 재부팅·실제 배터리 소비는 미실행이다. 화면 OFF 결과는 계측 프로세스가 실행 중인 짧은 검사이므로 단독 앱의 장시간 생존으로 확대하지 않는다. 실제 Pleos SDK/연료/차속/세차 시설 판정은 이번 장비에서 계속 미지원/미검증이다.
 
 최종 정리 완료: 양쪽 verification 서비스/계측을 종료하고 verification 패키지만 user0에서 비활성화했다. 해당 패키지의 남은 NotificationRecord가 없음을 확인했다. 일반 앱 두 개와 양쪽 시험 자료의 데이터는 보존했다. 다른 앱의 알림/페어링/절전 설정은 변경하지 않았다.
+
+### 추가 검증이 가능한 항목과 실행 조건 (2026-11-14 재조사)
+
+- **단독 수신 앱의 강제 Doze:** 실차 없이 두 기기로 가능하다. 격리된 verification 앱에서 연결한 뒤 수신 측 계측을 종료하고도 production foreground service가 동작하는 상태를 준비한다. 송신 쪽에서 고유 revision을 준비하고 수신기를 HOME/화면 OFF로 둔 다음 `dumpsys deviceidle force-idle`의 실제 IDLE 상태를 확인한다. 진입 전/중/해제 후의 저장 프레임 revision·원래 관측 시각·ACK를 비교한다. 계측을 수신기에 다시 시작하여 확인하면 절전 조건을 바꾸므로 검사 중에는 저장 파일/OS 서비스 상태를 읽는다. 종료 시 반드시 `deviceidle unforce` 및 `battery reset`, 시험 패키지 비활성화를 수행한다. 강제 Doze 1회 통과는 삼성의 수시간 절전/실제 배터리 소비 통과로 확대하지 않는다. [Android 공식 검사 절차](https://developer.android.com/training/monitoring-device-state/doze-standby#testing_doze).
+- **거리 이탈/복귀:** 실차 없이 가능하지만 사용자가 한 기기를 직접 이동해야 한다. 가까운 상태 저장/ACK → S24 USB 분리 후 실제 무선 도달 범위 밖 이동 → 탭에 새 revision 준비 → 복귀 → 실제 재연결/새 revision 저장/삭제·취소 보존 비교. USB/ADB 연결 해제를 Bluetooth 단절로 판정하지 않는다. 실제 기기 이동 없이 Bluetooth OFF/ON만 실행한 결과로 거리 검사를 대체하지 않는다.
+- **휴대폰 재부팅:** 지금 장비로 가능하다. 재부팅 전 차량별 장부·마지막 프레임 기준을 저장하고, 사용자가 재부팅 뒤 잠금을 해제한 다음 자동 재시작 여부와 앱을 다시 열었을 때 복원을 각각 구별해 검사한다. 현재 service는 START_NOT_STICKY이므로 재부팅 직후 자동 재연결을 이미 구현된 기능으로 가정하지 않는다.
+- **실제 센서:** S7은 일반 Android이므로 Pleos Vehicle Service/연료·기어·경고등 센서를 제공하지 않는다. 공식 Cold Boot AVD+Virtual Console에서 SDK별 입력 검사를 하고, S7↔S24에서는 해당 입력 뒤의 실제 무선 전송을 검사하는 분리 검증이 가능하다. 공식 AVD는 Bluetooth 동글 연동을 지원하지 않으므로 이 둘을 실차 SDK→실물 무선의 단일 경로 통과라고 기록하지 않는다. 경고등 getter 권한 문제의 해결 경로는 `SDK_LOCATION_DIAGNOSIS_2026_11_13.md` 참조.
+- 재조사 당시 ADB에는 S7만 표시됐다. S24 재연결과 거리 이동 가능 여부를 사용자에게 문의했다. 위 추가 절차는 아직 실행 결과가 아니며, 기존 통과 결과에 합산하지 않는다.

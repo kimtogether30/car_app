@@ -23,6 +23,15 @@ Pleos 문의에 필요한 최소 내용: 위 SDK 인터페이스/구현의 권�
 - [API별 권한 확인 지침](https://document.pleos.ai/docs/pleos-only/connect-sdk-pleos/Vehicle/vehicle-permission)
 - [공식 Maven 버전 목록](https://nexus-playground.pleos.ai/repository/maven-releases/ai/pleos/playground/Vehicle/maven-metadata.xml)
 
+## 2026-11-14 재조사 및 해결 경로
+
+- 공식 Maven metadata를 다시 직접 조회했다. latest/release는 여전히 2.3.2이고 공개 버전은 2.0.3/2.3.2다. 수정 버전이 배포됐다는 근거는 없으므로 현재 SDK를 임의 변경하지 않는다.
+- ‘Vehicle Service로 조회하면 된다’는 별도 우회 경로가 아니다. 현재 `vehicle.getSafety().getTelltalesInfo`가 SDK를 통해 해당 서비스를 조회하는 경로이며, getter 단독 진단에서도 거절됐다. 실차 확보만으로 같은 권한 문제가 해결된다고 단정할 수 없다.
+- 일반 Android `CarPropertyManager`도 현재 확인한 대체 수단이 아니다. 공식 `ENGINE_OIL_LEVEL`은 오일 **양**이며 압력 경고와 다르고, `CAR_ENGINE_DETAILED` signature/privileged 권한도 요구한다. 임의 vendor ID나 오일 양을 압력 경고로 치환하지 않는다. [공식 VehiclePropertyIds](https://developer.android.com/reference/android/car/VehiclePropertyIds#ENGINE_OIL_LEVEL).
+- 실행 가능한 해결 순서: (1) 기존 단독 getter 재현 보고서로 Pleos에 인터페이스/구현 권한 불일치 확인 요청, (2) 일반 앱에 허용된 API 또는 수정 SDK/Vehicle Service/AVD 조합을 제공받음, (3) 공식 Cold Boot AVD에서 권한 granted와 Virtual Console의 경고 ON/OFF를 비교하여 실제 콜백·앱 캐릭터 변경 재검사. 임의 특권 부여나 SDK 검사를 제거한 결과를 배포 검증으로 쓰지 않는다.
+- 문의 초안(아직 외부 전송하지 않음): “Vehicle SDK 2.3.2 / Vehicle Service 2.3.22 / Connect AVD 2.1.0에서 CAR_SAFETY granted 상태로 Safety.getTelltalesInfo만 직접 호출해도 SecurityException(getTelltalesInfo need Permission)이 발생합니다. 인터페이스 RequiresPermission은 CAR_SAFETY이나 SafetyImpl의 RequiresCustomPermission은 PRIVATE_CAR_SAFETY로 확인됩니다. 일반 공모전 앱에서 사용할 공식 getter/권한 조합 또는 수정 SDK·서비스·AVD를 안내해 주세요.”
+- SDK 입력 이후의 캐릭터/알림/실제 무선 전송은 격리된 표본으로 검사할 수 있고 실제 무선 검사는 이미 수행했다. 이 결과는 거절된 SDK 입력 자체의 성공을 증명하지 않는다. 절전·거리·재부팅 추가 계획과 결과는 `BLUETOOTH_VALIDATION_CHECKLIST.md`에만 기록한다.
+
 ## 휴대폰 현위치: 요청 수명·오래된 응답 처리 보완
 
 - 이전 선택적 검사는 실제 화면을 띄우지 않고 foreground 전용 위치 어댑터를 호출했다. 이제 Compose 화면을 연 뒤 요청한다.
