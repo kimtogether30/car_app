@@ -27,6 +27,7 @@ import org.junit.Test
 import java.io.*
 import java.time.Instant
 import java.time.LocalDate
+import java.util.UUID
 
 /** Opt-in physical RFCOMM harness. Only disposable app IDs; no real garage, SDK, or external weather API. */
 @SuppressLint("MissingPermission")
@@ -265,10 +266,14 @@ class BluetoothPhysicalHarnessTest {
     }
 
     private suspend fun rawClient(mode: String) {
-        val socket=peer().createRfcommSocketToServiceRecord(MirrorBluetoothService.SERVICE_UUID)
+        val socket=peer().createRfcommSocketToServiceRecord(if(mode=="wrongUuid") UUID.fromString("00000000-0000-0000-0000-000000000001") else MirrorBluetoothService.SERVICE_UUID)
         rawSocket=socket
         val timeout=scope.launch {delay(30_000);socket.close()}
         try {
+            if(mode=="wrongUuid") {
+                try {socket.connect();error("Unexpected service at wrong UUID")} catch(_:IOException) {report("rawClient:wrongUuid-rejected")}
+                return
+            }
             socket.connect()
             val out=DataOutputStream(socket.outputStream)
             fun expectClosed() {try {assertEquals(-1,socket.inputStream.read())} catch(_: IOException) { /* RFCOMM reports EOF as IOException on Samsung. */ }}
@@ -282,11 +287,25 @@ class BluetoothPhysicalHarnessTest {
                 expectClosed()
             } else {
                 val frame=frames.single()
-                val reply=JSONObject().put("schema",2).put("vehicleId",if(mode=="wrongVehicle") "wrong-car" else frame.vehicleId)
+                if(mode=="saveNoAck") {
+                    MirrorBus.receive(context,frame)
+                    CareExchange.receive(context,frame)
+                    report("rawClient:saved-without-ack",JSONObject().put("vehicleId",frame.vehicleId).put("revision",frame.revision))
+                    return
+                }
+                if(mode=="delayedAck") {
+                    delay(6000)
+                    val resent=MirrorFrames.read(socket.inputStream)
+                    assertEquals(frame.revision,resent.revision)
+                    assertEquals(frame.vehicleId,resent.vehicleId)
+                    report("rawClient:delayedAck",JSONObject().put("sameRevision",true))
+                }
+                val reply=JSONObject().put("schema",if(mode=="wrongAckSchema") 99 else 2).put("vehicleId",if(mode=="wrongVehicle") "wrong-car" else frame.vehicleId)
                     .put("ack",if(mode=="futureAck") frame.revision+1 else frame.revision)
                 val bytes=reply.toString().toByteArray()
                 out.writeInt(bytes.size);out.write(bytes);out.flush()
-                if(mode!="ack") expectClosed()
+                if(mode=="duplicateAck") {out.writeInt(bytes.size);out.write(bytes);out.flush();delay(1000);report("rawClient:duplicateAck")}
+                if(mode !in setOf("ack","delayedAck","duplicateAck")) expectClosed()
             }
         } finally {timeout.cancel();socket.close();rawSocket=null}
     }

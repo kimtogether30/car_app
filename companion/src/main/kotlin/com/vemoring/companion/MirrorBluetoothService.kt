@@ -23,7 +23,7 @@ import java.io.IOException
 import java.util.UUID
 import org.json.JSONObject
 
-/** Secure RFCOMM, an explicitly selected bonded peer, one channel, no discovery or polling. */
+/** Secure RFCOMM to one selected bonded peer. Reconnect sleeps are capped; no discovery or wake locks. */
 @SuppressLint("MissingPermission") // CONNECT is checked before starting and failures close the session.
 class MirrorBluetoothService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -173,6 +173,10 @@ class MirrorBluetoothService : Service() {
             var connected: BluetoothSocket? = null
             var timeout: Job? = null
             try {
+                if(adapter!!.getRemoteDevice(peer).bondState!=BluetoothDevice.BOND_BONDED) {
+                    MirrorBus.link.value=MirrorLink(false,"페어링이 해제됐어요. 시스템 설정에서 페어링한 뒤 기기를 다시 선택해 주세요.",true)
+                    break
+                }
                 MirrorBus.load(this@MirrorBluetoothService)
                 MirrorBus.link.value = MirrorLink(false, "차량 앱에 연결 중이에요…", true)
                 val client = adapter!!.getRemoteDevice(peer).createRfcommSocketToServiceRecord(SERVICE_UUID)
@@ -228,13 +232,12 @@ class MirrorBluetoothService : Service() {
             // Closing a cancelled blocking RFCOMM read may throw IOException rather than CancellationException.
             // Do not let that old session overwrite a stop/rejection message or announce another retry.
             ensureActive()
-            val wait=ConnectionRetry.delayAfterFailure(retries)
-            if(wait==null) {
-                MirrorBus.link.value=MirrorLink(false,"자동 재연결 3회 실패 · 차량 앱과 블루투스를 확인한 뒤 데이터 연결에서 다시 연결해 주세요.",true)
-                break
-            }
-            retries++
-            MirrorBus.link.value=MirrorLink(false,"차량 연결 재시도 중 ($retries/3) · 마지막 데이터 유지",true)
+            val wait=BluetoothReconnectPolicy.delayAfterFailure(retries)
+            val fastRetry=retries<3
+            retries=(retries+1).coerceAtMost(BluetoothReconnectPolicy.MAX_FAILURES)
+            MirrorBus.link.value=MirrorLink(false,if(fastRetry)
+                "차량 연결 재시도 중 ($retries/3) · 마지막 데이터 유지"
+                else "차량 재연결 대기 · ${wait/1000}초 후 다시 시도 · 마지막 데이터 유지",true)
             delay(wait)
             }
         }

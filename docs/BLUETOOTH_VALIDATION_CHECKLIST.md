@@ -27,7 +27,7 @@
 - [ ] BT-06 사용자가 선택한 페어링 상대만 연결. 다른 페어링 기기·미페어링 기기·잘못된 상대는 데이터 수신/저장 금지.
 - [ ] BT-07 앱 서버 시작→휴대폰 연결→프로토콜 확인→전체 스냅샷 저장→ACK 순서. 소켓만 열린 상태를 ‘데이터 연결됨’으로 표시하지 않음.
 - [ ] BT-08 상대 앱 미설치/구버전, UUID/프로토콜 불일치, 연결 대기/타임아웃의 안내와 자원 해제 확인. 같은 v2라도 구버전이 오인식 취소 필드를 처리하는지 확인하고, 최신 양쪽 빌드의 결과와 구별.
-- [ ] BT-09 범위 이탈/복귀, Bluetooth OFF/ON, ACL 재연결, 수동 종료/재연결. 마지막 데이터와 마지막 수신 시각 유지, 무한 재시도·폴링 없음.
+- [ ] BT-09 범위 이탈/복귀, Bluetooth OFF/ON, ACL 재연결, 수동 종료/재연결. 마지막 데이터와 마지막 수신 시각 유지. 2026-11-14 사용자 장기 자동 복구 요청 이후에는 사용자가 켠 연결 서비스 안에서만 1/3/10초 뒤 30/60/120/300초 대기 재연결을 허용한다. 고속 무한 루프·기기 검색·위치 조회·wake lock은 없으며 사용자가 종료하면 예약도 취소한다.
 
 ## 메시지·ACK·재전송
 
@@ -230,3 +230,29 @@ Tab S7은 Pleos 차량이 아니다. 아래에서 ‘무선 통과’는 실제 
 - 증거는 기존 ignored diagnostics의 `range2-monitor.jsonl`, `range2-monitor-result.json`, `range2-phone-before-resume.json`, `range2-phone-services-before.txt`, `range2-info-state.txt`, `range2-host-before-resume.json`, `range2-manual-recovery.json`, `host-range2-events-final.jsonl`에 보존했다. 복구 검사 세션 `host-range2-resume-session.txt`는 `OK (1 test)`로 종료했다.
 - 처음 정보창으로 이동하려던 좌표 터치는 자동 승인 검토가 실제 연결 시작 가능성을 이유로 거절했다. 먼저 읽기 전용 UI와 소스의 `connect={connection=true}`를 확인한 뒤 정보창만 열었으며, 수동 연결은 그 이후 별도 단계로 수행했다. 자동 재연결 관찰 전에 연결 버튼을 누른 것으로 간주하지 않는다.
 - 양쪽 시험 서비스/계측을 종료하고 verification 패키지를 user0에서 비활성화했다. 해당 패키지 잔여 NotificationRecord는 0, 일반 앱·양쪽 데이터·기존 페어링은 보존했다.
+
+### 장기 자동 복구 보완 및 추가 전송 검사 (2026-11-14)
+
+- 사용자 요청에 따라 Bluetooth만 별도 `BluetoothReconnectPolicy`를 적용했다. 1/3/10초 빠른 재시도 뒤 30/60/120/300초로 간격을 늘리고 이후 최대 5분 대기를 유지한다. 유효 프레임 저장/ACK 성공 시 빠른 단계로 초기화한다. 기존 차량 위치용 `ConnectionRetry`의 3회 제한은 바꾸지 않았다. 명시적으로 켜진 foreground 연결 서비스 안에서 coroutine delay만 사용하며, 스캔/새 권한/알람/wake lock/위치 수집은 추가하지 않았다. 권한·Bluetooth OFF·페어링 해제·사용자 종료는 별도 중단 조건이다.
+- **단독 앱 장기 복구 통과:** S24는 계측 없이 실제 UI로 연결했다. S7 송신 서비스만 중단해 기존 빠른 재시도 예산을 넘겼고, 실제 BluetoothSocket 로그에서 실패 뒤 60초 간격으로 다음 connect가 실행됨을 확인했다. 휴대폰 HOME/화면 OFF 상태에서 탭만 복구하자 사용자 연결 조작 없이 `long-reconnect-restored` 저장 및 ACK가 성공했다. A 설정 28%, 취소/삭제 기록 3개가 유지됐다. 로그 `long-reconnect-result.json`, `long-reconnect-phone.json`, `long-reconnect-socket-timing.txt`. 이 실행은 장시간 송신기 부재의 실제 무선 복구이며, 수정 후 실제 거리 이동을 다시 한 실행은 아니다. 최대 5분 단계는 단위 검사로 확인했고 실제 5분 부재 반복을 완료한 것으로 확대하지 않는다.
+- **프로토콜 추가 검사 통과:** 다른 RFCOMM UUID는 연결되지 않았다. schema=99 ACK는 거부됐으며 이 검사는 기존 CareExchange의 schema 검사도 포함한다. 6초 늦은 ACK에서 같은 revision 재전송을 확인했고 중복 ACK 뒤에도 정상 연결로 복구했다. `phone-protocol-session.txt`는 `OK (1 test)`로 종료했다. 이전에 이미 있던 ACK 버전 검사를 새 버그 수정이라고 기록하지 않는다.
+- **저장 직후 ACK 유실/대량 중단 복구 통과:** 격리된 J 차량에 260개 시험 구간을 만들었다. 시험 수신기가 실제 무선 첫 128개를 production 저장 경로에 반영한 뒤 ACK 없이 연결을 닫았다. 이후 정상 수신기로 재연결해 전체 260개와 송신 deliveredIntervals 260개, 최종 송신 묶음 0개를 확인했다. B 차량은 0개로 유지됐다. 첫 재연결 직후 status는 비동기 처리 전의 128개였고 후속 최종값은 260개다. 초기 status의 host pending=null은 시험 보고기가 송신 J를 목록에 넣지 않는 한계이며 실제 pending=0 증거로 쓰지 않았다. 최종값은 송신 journal과 publisher를 직접 읽어 확인했다. `bulk-interrupted.json`, `bulk-final.json`, `phone-bulk-session.txt`(`OK (1 test)`).
+- **사용자 종료/반복 복구 통과:** 재시도 중 휴대폰 연결 서비스를 명시 종료하고 탭을 복구해도 35초 뒤 자동 연결되지 않았다. 이어 정상 시작 후 실제 단절/재연결 5회를 반복해 각 고유 프레임을 저장했다. 연결 서비스는 1개였고 계측 포함 휴대폰 PSS는 전후 114176→104074 KB였다. 짧은 측정이므로 누수 부재·실제 배터리 소비·삼성 장시간 생존을 보장하지 않는다. `stop-cancels-reconnect.json`, `reconnect-cycles.jsonl`, `reconnect-pss-before.txt`, `reconnect-pss-after.txt`.
+- 새 정책/기존 위치 재시도 단위 검사 6개 통과. 두 앱 debug/verification 및 계측 APK 빌드, verification lint 통과(`reconnect-build.txt`). 하위 CareExchange가 이미 하는 ACK schema 검사를 중복하지 않도록 정리한 최종 APK 재빌드와 lint도 통과했다(`reconnect-final-build.txt`). 최종 APK에서 schema=99 실제 무선 거부와 정상 재연결을 다시 확인했다.
+- **강제 종료/재부팅 저장 복원 통과:** 정상 세션 종료 뒤 시험 앱 force-stop 및 S24 전체 재부팅을 실행했다. 부팅 후 잠금 해제·ADB 승인 뒤 A/J 차량의 authority version, 설정, 기록 수, 취소/삭제 수, 구간 수를 재부팅 전 JSON과 비교해 완전히 동일함을 확인했다. A는 version12/연료28%/기록5개(취소·삭제3)/구간131개, J는 version1/구간260개였다. 이후 앱 시작과 명시적 연결 후 새 무선 프레임도 정상 수신했다. 이 검사는 재부팅 자동 서비스 시작 통과가 아니다. 연결 서비스는 START_NOT_STICKY이며 OS force-stop/재부팅 뒤 사용자가 다시 연결하는 현재 동작을 구별한다. `phone-before-reboot.json`, `phone-after-reboot.json`, `phone-after-force-stop.xml`.
+- **앱 알림 OFF 중 수신 통과:** 격리된 K 차량만 notifications=false로 설정한 뒤, 시각을 정렬한 새 LOW 합성 표본을 실제 무선으로 보냈다. 프레임은 저장됐고 알림 내역은 FUEL_NEEDED / Disabled로 남았다. 시스템 전체 DND나 다른 앱 알림 설정은 건드리지 않았다. `app-notifications-off.json`. 최종 phone 계측은 `client-final-reconnect-session.txt`에서 `OK (1 test)`로 종료했다.
+- 최종 일반 앱도 양쪽에 `install -r` 업데이트했다. 사용자 데이터/페어링은 보존했다. 수정 후 실제 거리 재검사는 아래 후속 결과로 기록한다.
+
+### 수정 후 실제 거리 자동 복구 (2026-11-14)
+
+- S24는 최종 APK를 계측 없이 실제 UI에서 연결하고 HOME으로 전환했다. S7은 최종 검증 송신 세션을 유지했다. 사용자가 S24 USB만 분리하고 더 멀리 이동했으며 Bluetooth ON을 유지하도록 안내했다.
+- **14:36:32 KST 실제 단절 → 14:40:48 KST 자동 재연결/ACK**를 관측했다. 단절 중 `range-fixed-while-away` 새 프레임을 준비했고 복귀 시 `range-fixed-after-return`을 추가 송신했다. 휴대폰의 앱 연결 버튼·Bluetooth OFF/ON·앱 재시작 없이 복구했다. 탭 측 최종 프레임 송신 1분 뒤에도 active=true/수신 저장 응답 확인 상태를 유지했다.
+- 휴대폰 USB 승인 뒤 읽은 동일 PID 25147의 BluetoothSocket 로그에 기존 초기 재시도 뒤 14:37:32, 14:38:38 등의 실제 연결 시도가 남아 장기 대기 루프가 계속 동작함을 확인했다. 최종 2분 단계의 예약 재시도로 가까이 돌아온 기기에 연결됐다. 복귀 즉시가 아닌 다음 대기 시점에 연결되는 현재 정책의 지연은 남는다.
+- `range-fixed-result.json`은 Lost=true/Returned=true다. 기존 실패한 `range2-*`와 이번 통과 증거를 분리했다. 측정 거리는 알 수 없으며 다른 차량/기종의 도달 범위나 배터리 소비를 보장하지 않는다. `range-fixed-monitor.jsonl`, `range-fixed-host-final.json` 참조. USB 복구 후 휴대폰 저장 내용을 읽어 A 차량 마지막 메시지 `range-fixed-after-return`, 연료 알림 28%, 취소/삭제 기록 3개 유지를 확인했다(`range-fixed-phone-final.json`). 소켓 로그상 실제 연결은 14:40:46 KST다(`range-fixed-socket-timing.txt`).
+
+### 깊은 절전(IDLE) 중 장기 자동 복구 (2026-11-14)
+
+- 위 수정 후 거리 검사에 이어 같은 S24 수신 프로세스(PID 25147, 계측 없음)를 `dumpsys deviceidle force-idle`로 실제 `mState=IDLE`에 둔 채 S7 송신 서비스를 중단해 기존 빠른 재시도 구간을 넘겼다(시작 14:44:51 KST, `deep-long-start.json`).
+- S7에 `deep-long-restored` 새 프레임을 준비하고 송신 서비스만 재시작했다. 휴대폰 조작 없이 **IDLE 상태 그대로 14:46:52 KST까지 자동 재연결**되어 S7 status active=true, 휴대폰 저장 프레임 메시지 `deep-long-restored`(revision 1794635849491)를 확인했다. 수신 PID는 시작 전과 같은 25147이다(`deep-long-result.json`).
+- 이 결과는 강제 Doze 1회의 실제 무선 복구다. 삼성 장시간 자연 절전, 실제 배터리 소비, 앱 대기 버킷 제한, 5분 단계 반복까지 통과한 것으로 확대하지 않는다.
+- 종료 처리: `deviceidle unforce`/`battery reset` 적용 후 양쪽 `mState=ACTIVE`, `mForceIdle=false`, USB 전원 표시 원복을 확인했다. Codex 세션이 결과 기록 직전 사용량 한도로 멈춰, 이후 세션에서 양쪽 시험 서비스(`stop`)·계측·verification 프로세스를 종료하고 verification 패키지만 user0에서 비활성화했다. 해당 패키지의 활성 NotificationRecord 0, vemoring 프로세스 0을 확인했다. 일반 앱·양쪽 데이터·페어링은 보존했다. 재연결 정책/날씨 재시도 단위 검사(2+5) 재실행도 통과했다.
