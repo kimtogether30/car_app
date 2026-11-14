@@ -31,7 +31,7 @@ class HttpExternalDataRepository(private val request: (String, String?) -> JSONO
                 PlaceKind.Wash -> "amenity=car_wash"
                 PlaceKind.Repair -> "shop=car_repair"
             }
-            val output=if(kind==PlaceKind.Wash) "out body geom;" else "out center tags;"
+            val output=if(kind==PlaceKind.Wash || kind==PlaceKind.Repair) "out body geom;" else "out center tags;"
             val query="[out:json][timeout:20];nwr(around:10000,${point.latitude},${point.longitude})[$tag];$output"
             val json=request("https://overpass-api.de/api/interpreter", query)
             if(json.has("remark")) throw java.io.IOException("Overpass incomplete response")
@@ -46,7 +46,7 @@ class HttpExternalDataRepository(private val request: (String, String?) -> JSONO
                 if(lat==null || lon==null || name.isBlank() || !Coordinates(lat,lon,1).valid()) null
                 else Place(item.optString("type")+"/"+item.optString("id"),name,
                     listOf("addr:city","addr:street","addr:housenumber").map { tags.optString(it) }.filter { it.isNotBlank() }.joinToString(" ").ifBlank { "주소 미제공" },
-                    lat,lon,distanceMeters(point,lat,lon),if(kind==PlaceKind.Wash) mappedWashSite(item) else null)
+                    lat,lon,distanceMeters(point,lat,lon),if(kind==PlaceKind.Wash) mappedWashSite(item) else if(kind==PlaceKind.Repair) mappedRepairSite(item) else null)
             }.sortedBy { it.distanceMeters }.take(20)
             Result.success(values,"Real · © OpenStreetMap contributors / ODbL").copy(detail="OSM 등록 장소 · 영업/충전 가용 상태 미확인")
         } catch(e: Exception) { Result(ResultState.Error, detail=safeError(e)) }
@@ -97,3 +97,11 @@ private fun requestJson(url: String, query: String?): JSONObject {
 private class HttpFailure(val code: Int): Exception()
 private fun safeError(e: Exception) = if(e is HttpFailure) "HTTP ${e.code}" else e.javaClass.simpleName
 private fun JSONObject.number(key: String): Double? = if(isNull(key)) null else optDouble(key).takeIf(Double::isFinite)
+
+/** Require a distinguishable mapped repair-shop WAY, never a POI radius or a fuel parcel. */
+internal fun mappedRepairSite(item:JSONObject):com.vemoring.companion.WashSite? {
+    if(item.optString("type")!="way" || item.optJSONObject("tags")?.optString("shop")!="car_repair") return null
+    val copy=JSONObject(item.toString())
+    copy.getJSONObject("tags").put("amenity","car_wash")
+    return mappedWashSite(copy)
+}

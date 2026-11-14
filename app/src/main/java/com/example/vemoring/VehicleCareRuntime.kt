@@ -20,6 +20,7 @@ object VehicleCareRuntime {
         withContext(Dispatchers.IO) { mutex.withLock {
             val id = vehicleCareId(data.profile)
             val journal = CareJournal(context, id)
+            if(!demo) VehicleWashRuntime.powerChanged(snapshot)
             val unit = MaintenanceStore(context, data.profile).distanceUnit()
             if (!demo) journal.observeDistance(confirmedKilometres(snapshot[VehicleField.ODOMETER], unit),
                 snapshot[VehicleField.ODOMETER].receivedAtMillis, session, System.currentTimeMillis(),SharedVehicleConnection.travelPoint.value)
@@ -43,6 +44,7 @@ object VehicleCareRuntime {
                     .put("gearAt",snapshot[VehicleField.GEAR].receivedAtMillis).put("source",if(demo) "Demo" else "Real"))
                 .put("automaticDetection", "Mapped wash area; 3-minute motion-qualified dwell and corroborated vehicle exit; cancelable estimate")
                 .put("washVisits",if(demo) JSONArray() else VehicleWashRuntime.frame(context,id))
+                .put("oilVisits",if(demo) JSONArray() else EngineOilVisitStore(context,id).frame())
                 .put("request", outgoing.request).put("rejectedVisits",outgoing.rejectedVisits).put("deletedRecords",outgoing.deletedRecords)
                 .put("fuelEpisode",fuelEpisode?.json() ?: JSONObject.NULL).put("oilLedger",if(demo) JSONObject.NULL else oilLedger.frame())
         } }

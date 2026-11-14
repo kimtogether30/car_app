@@ -27,9 +27,10 @@ object BannerNotifications {
             val saved = history.record(event)
             if(saved.cancelled || saved.delivery == NotificationDelivery.Delivered) return saved.delivery
             val manager = c.getSystemService(NotificationManager::class.java)
-            val question = event.bannerKey == "WASH_QUESTION"
+            val oilQuestion=event.bannerKey=="OIL_CONFIRMATION"
+            val question = event.bannerKey == "WASH_QUESTION" || oilQuestion
             val channel = if(question) CareNotifications.WASH_CONFIRMATION_CHANNEL else CHANNEL
-            manager.createNotificationChannel(NotificationChannel(channel,if(question) "세차 인식 확인" else "차량 상태 배너",NotificationManager.IMPORTANCE_HIGH))
+            manager.createNotificationChannel(NotificationChannel(channel,if(question) "관리 기록 인식 확인" else "차량 상태 배너",NotificationManager.IMPORTANCE_HIGH))
             val blocked = when {
                 !enabled -> NotificationDelivery.Disabled
                 !CareNotifications.allowed(c) -> NotificationDelivery.PermissionBlocked
@@ -39,7 +40,7 @@ object BannerNotifications {
             if(blocked != null) { history.delivery(event.vehicleId,event.eventId,blocked); return blocked }
             val launch = notificationActivityIntent(c)
             val open = PendingIntent.getActivity(c,event.eventId.hashCode(),launch
-                .setData(uri(event.vehicleId,event.eventId)).putExtra("vehicleId",event.vehicleId).putExtra("careEvent",event.eventId),
+                .setData(uri(event.vehicleId,event.eventId)).putExtra("vehicleId",event.vehicleId).putExtra("careEvent",event.eventId).putExtra("openCareRecords",oilQuestion),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             val face=when(event.mood) {"FUEL"->"fuel";"WASH"->"wash";"OIL"->"oil";"ANGRY"->"angry";"EXHAUSTED"->"exhausted";else->"normal"}
             val iconId = c.resources.getIdentifier("face_$face","drawable",c.packageName).takeIf {it!=0}
@@ -56,14 +57,14 @@ object BannerNotifications {
                 val cancel = PendingIntent.getBroadcast(c,event.eventId.hashCode(),Intent(c,CareCancelReceiver::class.java)
                     .setData(uri(event.vehicleId,event.visitId)).putExtra("vehicleId",event.vehicleId).putExtra("visitId",event.visitId),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-                builder.addAction(Notification.Action.Builder(null,"세차 안 했어요",cancel).build())
+                builder.addAction(Notification.Action.Builder(null,if(oilQuestion) "교체 안 했어요" else "세차 안 했어요",cancel).build())
                 val confirm = PendingIntent.getBroadcast(c,(event.eventId+":confirm").hashCode(),Intent(c,CareCancelReceiver::class.java)
                     .setData(uri(event.vehicleId,event.visitId).buildUpon().appendQueryParameter("answer","yes").build())
                     .putExtra("vehicleId",event.vehicleId).putExtra("visitId",event.visitId).putExtra("confirmed",true),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-                builder.addAction(Notification.Action.Builder(null,"맞아요",confirm).build())
+                if(!oilQuestion) builder.addAction(Notification.Action.Builder(null,"맞아요",confirm).build())
             }
-            builder.addAction(Notification.Action.Builder(null,"알림 내역",open).build())
+            builder.addAction(Notification.Action.Builder(null,if(oilQuestion) "기록 보기" else "알림 내역",open).build())
             val result = runCatching {
                 manager.notify("${event.vehicleId}:${event.eventId}",if(event.visitId != null) 3011 else 3010,builder.build())
                 NotificationDelivery.Delivered
@@ -80,6 +81,12 @@ object BannerNotifications {
         val event = CareNotificationEntry(journal.vehicleId,"detected:${wash.visitId}",d.key,d.title,d.body,d.mood,d.art,
             wash.completedAt.toEpochMilli(),source=if(profile.optBoolean("simulation")) "Simulation" else "Real",visitId=wash.visitId)
         if(dispatch(c,event,enabled) == NotificationDelivery.Delivered) journal.markNotified(event.eventId)
+    }
+    fun oilDetected(c:Context,journal:CareJournal,visit:EngineOilVisit) {
+        val profile=JSONObject(requireNotNull(journal.authority()).profile)
+        val d=definition("OIL_CONFIRMATION",profile)
+        dispatch(c,CareNotificationEntry(journal.vehicleId,"detected:${visit.id}",d.key,d.title,d.body,d.mood,d.art,
+            visit.exit!!.at,source=if(profile.optBoolean("simulation")) "Simulation" else "Real",visitId=visit.id),profile.optBoolean("notifications",true))
     }
 
     fun evaluate(c: Context,journal: CareJournal,authority: CareAuthority,score: WashScore,telemetry: JSONObject?,snapshot: JSONObject? = null) {

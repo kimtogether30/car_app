@@ -29,6 +29,7 @@ class EngineOilLedgerTest {
         .put("nickname","fixture").put("plate","").put("fuelAlert",20).put("washAlert",30).put("notifications",false)
     @After fun cleanup() {
         CareJournal(context,id).deleteVehicle()
+        EngineOilVisitStore(context,id).clear()
         context.getSharedPreferences("engine_oil_v1",Context.MODE_PRIVATE).edit().clear().commit()
         base.deleteDatabase(prefix+"care_notification_history_v1.db")
     }
@@ -91,4 +92,66 @@ class EngineOilLedgerTest {
         CareExchange.editPhone(context,id,p,actual)
         assertTrue(JSONArray(journal.authority()!!.records).getJSONObject(0).getBoolean("deleted"))
     }
+    private fun oilVisit():EngineOilVisit {
+        val now=System.currentTimeMillis()
+        val site=WashSite("repair/fixture",37.0,127.0,listOf(WashPoint(36.999,126.999),WashPoint(36.999,127.001),
+            WashPoint(37.001,127.001),WashPoint(37.001,126.999),WashPoint(36.999,126.999)))
+        fun fix(at:Long,lat:Double=37.0,speed:Double=0.0)=FacilityFix(lat,127.0,at,at,accuracyM=5.0,
+            speedMps=speed,speedAt=at,gear=if(speed>0) "D" else "P",gearAt=at)
+        return EngineOilVisit(id,site,fix(now-1_820_000),fix(now-20_000),fix(now-10_000,37.002,4.0),fix(now-1000,37.002),15000.0)
+    }
+    @Test fun oilVisitIsAppliedOnceAndNoAnswerKeepsEstimateButNoRejectsReplay()=runBlocking {
+        val p=profile();val journal=CareJournal(context,id)
+        journal.saveAuthority(CareAuthority(id,1,p.toString(),"[]"))
+        val visit=oilVisit()
+        assertTrue(CareExchange.detectedOil(context,visit))
+        assertFalse(CareExchange.detectedOil(context,visit))
+        val records=JSONArray(journal.authority()!!.records)
+        assertEquals(1,records.length());assertEquals("ENGINE_OIL",records.getJSONObject(0).getString("maintenanceType"))
+        assertEquals("EstimatedOilVisit",records.getJSONObject(0).getString("source"))
+        assertTrue(journal.pendingWashConfirmation()!!.oil)
+        assertNotNull(CareJournal(context,id).pendingWashConfirmation()) // no answer/reopen preserves applied record
+        assertTrue(CareExchange.cancel(context,id,visit.id))
+        assertTrue(JSONArray(journal.authority()!!.records).getJSONObject(0).getBoolean("cancelled"))
+        assertFalse(CareExchange.detectedOil(context,visit))
+        CareExchange.editPhone(context,id,p,records)
+        assertTrue(JSONArray(journal.authority()!!.records).getJSONObject(0).getBoolean("cancelled"))
+    }
+    @Test fun offOnStateSurvivesReopeningAndDuplicatesDoNotResetOffTime() {
+        val visit=oilVisit();val store=EngineOilVisitStore(context,id)
+        store.power(VerifiedVehiclePower.OFF,visit.off,listOf(visit.site))
+        store.power(VerifiedVehiclePower.OFF,visit.off.copy(at=visit.off.at+1000,receivedAt=visit.off.at+1000),listOf(visit.site))
+        val reopened=EngineOilVisitStore(context,id)
+        reopened.power(VerifiedVehiclePower.ON,visit.on!!,listOf(visit.site))
+        assertTrue(reopened.observe(visit.exit!!,visit.odometerKm))
+        assertTrue(reopened.observe(visit.stop!!,null))
+        val saved=EngineOilVisit.from(EngineOilVisitStore(context,id).frame().getJSONObject(0))
+        assertEquals(visit.off.at,saved.off.at)
+        assertEquals(visit.id,saved.id)
+        assertTrue(EngineOilVisitPolicy.complete(saved,System.currentTimeMillis()))
+    }
+    @Test fun onlyPositionsOrBluetoothGapDoNotCreateOilVisit() {
+        val v=oilVisit();val store=EngineOilVisitStore(context,id)
+        assertFalse(store.observe(v.off,10000.0));assertFalse(store.observe(v.on!!,10000.0))
+        assertFalse(store.observe(v.exit!!,15000.0));assertFalse(store.observe(v.stop!!,15000.0))
+        assertEquals(0,store.frame().length())
+    }
+
+    @Test fun recentKnownReplacementDoesNotBecomeAnotherEstimate()=runBlocking {
+        val p=profile().put("oilEstimate","약 1개월 전")
+        val journal=CareJournal(context,id);journal.saveAuthority(CareAuthority(id,1,p.toString(),"[]"))
+        assertFalse(CareExchange.detectedOil(context,oilVisit()))
+        assertEquals(0,JSONArray(journal.authority()!!.records).length())
+    }
+    @Test fun overdueKnownReplacementAllowsEstimate()=runBlocking {
+        val p=profile().put("oilEstimate","6개월 이상 전")
+        val journal=CareJournal(context,id);journal.saveAuthority(CareAuthority(id,1,p.toString(),"[]"))
+        assertTrue(CareExchange.detectedOil(context,oilVisit()))
+    }
+    @Test fun electricVehicleNeverGetsOilEstimate()=runBlocking {
+        val p=profile().put("model","현대 아이오닉 5").put("fuel","전기차")
+        val journal=CareJournal(context,id);journal.saveAuthority(CareAuthority(id,1,p.toString(),"[]"))
+        assertFalse(CareExchange.detectedOil(context,oilVisit()))
+    }
+
 }

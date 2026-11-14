@@ -14,13 +14,11 @@ class AutomaticSetupTests {
 
     @Test fun completeIdentitySkipsVehicleQuestionsAndSavesConfirmedValues() {
         var saved: CarProfile? = null
-        var requestedGuide = false
         compose.setContent {
             MaterialTheme { SetupScreen(VehicleIdentityReading(ReadingState.Available,
-                ConfirmedVehicleInfo("현대", "코나", "전기차", "12라 1234")),
-                onDockChoice = { requestedGuide = it }) { profile, _ -> saved = profile } }
+                ConfirmedVehicleInfo("현대", "코나", "전기차", "12라 1234"))) { profile, _ -> saved = profile } }
         }
-        compose.onNodeWithText("나에게 맞는 차량 관리의 시작 · 1 / 4").assertIsDisplayed()
+        compose.onNodeWithText("나에게 맞는 차량 관리의 시작 · 1 / 3").assertIsDisplayed()
         compose.onNodeWithText("어떤 브랜드의\n차량을 타고 계신가요?").assertDoesNotExist()
         compose.onNodeWithText("마지막 충전일:", substring = true).performScrollTo().assertIsDisplayed()
         compose.onAllNodes(isToggleable())[0].performScrollTo().performClick()
@@ -28,8 +26,6 @@ class AutomaticSetupTests {
         compose.onNodeWithText("다음").performScrollTo().performClick()
         compose.onNode(hasSetTextAction() and hasText("차량 닉네임", substring = true)).performTextInput("우리 코나")
         compose.onNodeWithText("다음").performScrollTo().performClick()
-        compose.onNodeWithText("하단 바에 VEMORING을\n추가할까요?").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("네, 추가 방법 볼게요").performScrollTo().performClick()
         compose.onNodeWithText("전기차 · 12라 1234").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("VEMORING 시작하기").performScrollTo().performClick()
         compose.runOnIdle {
@@ -37,7 +33,6 @@ class AutomaticSetupTests {
             assertEquals("전기차", saved?.fuel)
             assertEquals("12라 1234", saved?.plate)
             assertEquals("우리 코나", saved?.nickname)
-            assertTrue(requestedGuide)
         }
     }
 
@@ -45,7 +40,7 @@ class AutomaticSetupTests {
         compose.setContent { MaterialTheme {
             SetupScreen(VehicleIdentityReading(ReadingState.Available, ConfirmedVehicleInfo("기아", "니로"))) { _, _ -> }
         } }
-        compose.onNodeWithText("나에게 맞는 차량 관리의 시작 · 1 / 5").assertIsDisplayed()
+        compose.onNodeWithText("나에게 맞는 차량 관리의 시작 · 1 / 4").assertIsDisplayed()
         compose.onNodeWithText("주유 방식을 선택해 주세요").assertIsDisplayed()
         compose.onNodeWithText("하이브리드").performScrollTo().performClick()
         compose.onNodeWithText("‹ 이전").performScrollTo().performClick()

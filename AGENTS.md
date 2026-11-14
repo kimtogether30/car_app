@@ -35,9 +35,16 @@
 - General maintenance and warning-light product paths are retired. Keep only legacy serialization compatibility; only explicitly marked ENGINE_OIL records reset the oil cycle.
 - Follow `docs/engine-oil/ENGINE_OIL_POLICY.md` and the supplied JSON. The latest 30-minute verified vehicle-power OFF→ON policy supersedes the earlier 20-minute continuous-dwell proposal. Do not use Bluetooth loss, engine idle stop, RPM=0, P/N or zero speed as vehicle power OFF.
 - Use model-specific severe recurring intervals and label model-only shortest references honestly. Preserve enrollment anchors; initial history may use 20km/day, but later actual odometer gaps must never also receive average distance.
-- No vehicle power API is currently validated in Vehicle SDK 2.3.2. Keep automatic garage confirmation inactive until the required real power/location evidence is supported and tested; manual engine-oil records remain available. Do not call a fixture a physical ignition/garage test.
+- No vehicle power API is currently validated in Vehicle SDK 2.3.2. Automatic garage estimates require supported, tested real power/location evidence; unavailable evidence keeps that path inactive. manual engine-oil records remain available. Do not call a fixture a physical ignition/garage test.
 
 ## Shared vehicle/phone UI structure (latest user instruction)
 
 - Keep both apps' UI hierarchy aligned. Home uses the shared CareHomeLayout: header, character/vehicle identity, energy/cleanliness, latest care dates, weather, nearby links. Platform text/touch sizing may adapt to the display.
 - Do not display an engine-oil percentage or enlarged oil-status card. Keep the internal due calculation; indicate the due condition through the character, launcher icon and notification banner. A due alert does not create a replacement record.
+
+## Latest engine-oil confirmation and onboarding changes
+
+- User explicitly changed oil confirmation to wash-style estimates: apply a qualifying visit first; no answer keeps it; “교체 안 했어요” cancels and persists rejection tombstones. This overrides the earlier yes-before-record policy. Keep ENGINE_OIL/source EstimatedOilVisit distinct from manual/confirmed work.
+- Actual OFF/ON must come from supported AAOS IGNITION_STATE callbacks (OFF/LOCK → ON), never engine RPM, speed, gear, reconnection or missing SDK data. Normal CAR_POWERTRAIN permission and property support must be checked. A supported signal alone does not validate facility position or actual hardware behavior.
+- Remove the dock/pinned-bar onboarding prompt and proactive pin invitation. The user knows pinned icon limitations; do not ask whether to add it.
+- Vehicle-unregistered entry screens should use centered, bounded-width content and large readable labels/buttons on tablets and vehicles.

@@ -69,6 +69,32 @@ object CareExchange {
         CareNotifications.detected(context, store, wash)
         return true
     }
+    suspend fun detectedOil(context:Context,visit:EngineOilVisit):Boolean=withContext(Dispatchers.IO) {
+        mutex.withLock {applyOilDetection(context,visit)}
+    }
+    private fun applyOilDetection(context:Context,visit:EngineOilVisit):Boolean {
+        val now=System.currentTimeMillis()
+        if(!EngineOilVisitPolicy.complete(visit,now)) return false
+        val journal=CareJournal(context,visit.vehicleId);val state=journal.authority() ?: return false
+        val profile=JSONObject(state.profile).put("vehicleId",visit.vehicleId)
+        val assessment=EngineOilCatalog.assess(context,profile,state.records)
+        if(assessment.reason=="엔진오일 교체 대상이 아니에요" || EngineOilCatalog.rule(context,profile.optString("model"),profile.optString("fuel"))==null) return false
+        val records=JSONArray(state.records)
+        val hasDate=(0 until records.length()).map {records.getJSONObject(it)}.any {
+            isEngineOilRecord(it) && !it.optBoolean("cancelled") && !it.optBoolean("deleted")
+        } || EngineOilLedger(context,visit.vehicleId).frame().optString("initialDate").isNotBlank()
+        if(hasDate && assessment.due!=true || visit.id in journal.rejectedVisits() || "oil-record:${visit.id}" in journal.deletedRecords()) return false
+        if((0 until records.length()).any {records.getJSONObject(it).optString("visitId")==visit.id}) return false
+        val completed=java.time.Instant.ofEpochMilli(visit.exit!!.at)
+        records.put(JSONObject().put("id","oil-record:${visit.id}").put("kind","maintenance").put("maintenanceType","ENGINE_OIL")
+            .put("title","자동 추정 엔진오일 교체").put("detail","같은 정비소에서 전원 OFF→ON 30분 이상, 출차 및 다음 정차 확인")
+            .put("date",completed.atZone(CARE_ZONE).toLocalDate()).put("completedAt",completed).put("appliedAt",java.time.Instant.ofEpochMilli(now))
+            .put("visitId",visit.id).put("source","EstimatedOilVisit").put("odometerKm",visit.odometerKm).put("cancelled",false))
+        val next=state.copy(version=state.version+1,records=records.toString())
+        validate(next);journal.saveAuthority(next);canonical.value=next;confirmationRevision.value++
+        BannerNotifications.oilDetected(context,journal,visit)
+        return true
+    }
     suspend fun cancel(context: Context, vehicleId: String, visitId: String): Boolean = withContext(Dispatchers.IO) {
         mutex.withLock {
             val store = CareJournal(context, vehicleId)
@@ -150,6 +176,17 @@ object CareExchange {
             j.optJSONObject("care")?.optJSONArray("intervals")?.let { journal.importIntervals(it) }
             journal.saveAuthority(state)
             journal.receivedRevision(snapshot.revision)
+            j.optJSONObject("care")?.optJSONArray("oilVisits")?.let {visits ->
+                require(visits.length()<=64)
+                val motion=j.optJSONObject("care")?.optJSONObject("motion")
+                val now=System.currentTimeMillis()
+                val stopped=motion?.optString("source")=="Real" && motion.optBoolean("stationary") &&
+                    now-motion.optLong("speedAt") in 0..5000 && now-motion.optLong("gearAt") in 0..35000 && now-snapshot.capturedAt in 0..15000
+                if(stopped) repeat(visits.length()) {n ->
+                    val visit=EngineOilVisit.from(visits.getJSONObject(n));require(visit.vehicleId==snapshot.vehicleId)
+                    applyOilDetection(context,visit)
+                }
+            }
             j.optJSONObject("care")?.optJSONArray("washVisits")?.let {frame ->
                 val visits=FacilityWashStore(context,snapshot.vehicleId)
                 visits.importVehicle(frame,System.currentTimeMillis()).forEach {wash -> applyDetection(context,snapshot.vehicleId,wash)}

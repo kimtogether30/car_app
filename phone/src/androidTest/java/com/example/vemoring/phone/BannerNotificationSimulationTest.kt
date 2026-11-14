@@ -120,7 +120,7 @@ class BannerNotificationSimulationTest {
     @Test fun remainingCareDesignsPostWithBothThemesAndPersistOnlyOnce() {
         assertTrue(CareNotifications.allowed(context))
         val definitions=BannerCatalog.entries.values.filter {it.art!=null}
-        assertEquals(6,definitions.size)
+        assertEquals(11,definitions.size)
         for(dark in listOf(false,true)) {
             val config=Configuration(base.resources.configuration).apply {
                 uiMode=(uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
@@ -135,7 +135,7 @@ class BannerNotificationSimulationTest {
                 assertNotEquals(d.key,0,resource)
                 val dimensions=BitmapFactory.Options().apply {inJustDecodeBounds=true}
                 BitmapFactory.decodeResource(themed.resources,resource,dimensions)
-                assertEquals(1080,dimensions.outWidth);assertEquals(340,dimensions.outHeight)
+                assertEquals(1080,dimensions.outWidth);assertTrue(dimensions.outHeight in 302..340)
                 val e=event(d.key,"${d.key}:$dark")
                 assertEquals(NotificationDelivery.Delivered,BannerNotifications.dispatch(themed,e))
                 val posted=awaitNotification(e.eventId)
@@ -151,7 +151,7 @@ class BannerNotificationSimulationTest {
             }
         }
         NotificationHistory(context).use {h ->
-            assertEquals(12,h.recent(id,200).size)
+            assertEquals(22,h.recent(id,200).size)
             val e=h.recent(id,1).single();h.markRead(id,e.eventId)
         }
         NotificationHistory(context).use {assertTrue(it.recent(id,1).single().read)}
@@ -190,6 +190,25 @@ class BannerNotificationSimulationTest {
         assertFalse(done.notification.actions.any {it.title.toString()=="세차 안 했어요"})
         assertNull(journal.pendingWashConfirmation())
         assertEquals(100,journal.score(JSONArray(journal.authority()!!.records)).displayed)
+    }
+    @Test fun oilEstimateNotificationRejectActionCancelsPersistedRecord()=runBlocking {
+        val p=profile().put("vehicleId",id).put("model","현대 아반떼").put("nickname","fixture").put("plate","")
+        val journal=CareJournal(base,id).apply {saveAuthority(CareAuthority(id,1,p.toString(),"[]"))}
+        val now=System.currentTimeMillis()
+        val site=WashSite("repair/notification-fixture",37.0,127.0,listOf(WashPoint(36.999,126.999),WashPoint(36.999,127.001),
+            WashPoint(37.001,127.001),WashPoint(37.001,126.999),WashPoint(36.999,126.999)))
+        fun fix(at:Long,lat:Double=37.0,speed:Double=0.0)=FacilityFix(lat,127.0,at,at,accuracyM=5.0,
+            speedMps=speed,speedAt=at,gear=if(speed>0) "D" else "P",gearAt=at)
+        val visit=EngineOilVisit(id,site,fix(now-1_820_000),fix(now-20_000),fix(now-10_000,37.002,4.0),fix(now-1000,37.002),15000.0)
+        assertTrue(CareExchange.detectedOil(base,visit))
+        val posted=awaitNotification("detected:${visit.id}")
+        assertEquals(listOf("교체 안 했어요","기록 보기"),posted.notification.actions.map {it.title.toString()})
+        assertEquals(1,JSONArray(journal.authority()!!.records).length())
+        posted.notification.actions.first().actionIntent.send()
+        val until=System.currentTimeMillis()+4000
+        while(journal.pendingWashConfirmation()!=null && System.currentTimeMillis()<until) Thread.sleep(30)
+        assertTrue(JSONArray(journal.authority()!!.records).getJSONObject(0).getBoolean("cancelled"))
+        assertFalse(CareExchange.detectedOil(base,visit))
     }
     @Test fun hybridFuelOnlyAndUnsupportedWarningsDoNotPostEvenIfMarkedEligible() {
         val journal=seed()

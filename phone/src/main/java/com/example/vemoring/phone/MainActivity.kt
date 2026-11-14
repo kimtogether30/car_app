@@ -194,7 +194,7 @@ private class PhoneStore(context: android.content.Context) {
     }
 }
 
-private data class NotificationRequest(val vehicle: String,val event: String,val nonce: Long = System.nanoTime())
+private data class NotificationRequest(val vehicle: String,val event: String,val records: Boolean = false,val nonce: Long = System.nanoTime())
 class MainActivity : ComponentActivity() {
     private var notificationRequest by mutableStateOf<NotificationRequest?>(null)
     override fun onNewIntent(intent: android.content.Intent) {
@@ -202,7 +202,7 @@ class MainActivity : ComponentActivity() {
     }
     private fun readNotification(intent: android.content.Intent) {
         val vehicle=intent.getStringExtra("vehicleId");val event=intent.getStringExtra("careEvent")
-        if(vehicle!=null && event!=null) notificationRequest=NotificationRequest(vehicle,event)
+        if(vehicle!=null && event!=null) notificationRequest=NotificationRequest(vehicle,event,intent.getBooleanExtra("openCareRecords",false))
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -240,7 +240,8 @@ class MainActivity : ComponentActivity() {
     var historyVehicle by rememberSaveable {mutableStateOf<String?>(null)}
     var historyEvent by remember {mutableStateOf<Pair<String,String>?>(null)}
     LaunchedEffect(notificationRequest) {notificationRequest?.let {
-        historyVehicle=it.vehicle;historyEvent=it.vehicle to it.event;notifications=true
+        if(it.records) {tab=1;notifications=false}
+        else {historyVehicle=it.vehicle;historyEvent=it.vehicle to it.event;notifications=true}
     }}
     var pendingSearch by rememberSaveable { mutableStateOf<String?>(null) }
     var bluetoothDialog by rememberSaveable { mutableStateOf(false) }
@@ -260,6 +261,11 @@ class MainActivity : ComponentActivity() {
         if(fleet.none {it.vehicleId==selectedVehicleId}) selectedVehicleId=directory.second?.takeIf {id -> fleet.any {it.vehicleId==id}}
             ?: received?.snapshot?.vehicleId?.takeIf {id -> fleet.any {it.vehicleId==id}} ?: fleet.firstOrNull()?.vehicleId
     }
+    var openedRecordRequest by remember {mutableStateOf<Long?>(null)}
+    LaunchedEffect(notificationRequest,fleet) {notificationRequest?.takeIf {it.records && it.nonce!=openedRecordRequest && fleet.any {v -> v.vehicleId==it.vehicle}}?.let {
+        selectedVehicleId=it.vehicle;tab=1;notifications=false;openedRecordRequest=it.nonce
+        if(it.event.startsWith("detected:")) runCatching {CareExchange.dismissConfirmation(context,it.vehicle,it.event.removePrefix("detected:"))}
+    }}
     LaunchedEffect(selectedVehicleId) {selectedVehicleId?.let {withContext(Dispatchers.IO) {store.select(it)}}}
     val selectedAuthority=fleet.firstOrNull {it.vehicleId==selectedVehicleId}
     val selectedReceived=receivedVehicles[selectedVehicleId]
@@ -314,16 +320,17 @@ class MainActivity : ComponentActivity() {
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             val current = vehicleData
             if (current == null) {
-                Column(Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement=Arrangement.Center) {
                     if (loadFailed) {
                         Text("저장된 정보를 읽지 못했어요.")
                         Button(onClick = { retry++ }) { Text("다시 시도") }
                     } else if(garageReady && fleet.isEmpty()) {
-                        Text("등록한 차량이 없어요.")
-                        Button(onClick={addingCar=true}) {Text("차량 등록")}
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick={bluetoothDialog=true},modifier=Modifier.heightIn(min=48.dp)) {
-                            Text("차량 앱에서 가져오기")
+                        Text("등록한 차량이 없어요.",fontSize=30.sp,lineHeight=40.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
+                        Spacer(Modifier.height(28.dp))
+                        Button(onClick={addingCar=true},modifier=Modifier.widthIn(max=420.dp).fillMaxWidth().heightIn(min=64.dp)) {Text("차량 등록",fontSize=23.sp)}
+                        Spacer(Modifier.height(16.dp))
+                        OutlinedButton(onClick={bluetoothDialog=true},modifier=Modifier.widthIn(max=420.dp).fillMaxWidth().heightIn(min=64.dp)) {
+                            Text("차량 앱에서 가져오기",fontSize=22.sp)
                         }
                     } else CircularProgressIndicator()
                 }
@@ -340,14 +347,14 @@ class MainActivity : ComponentActivity() {
                             scope.launch {
                                 try {
                                     val cancelled = CareExchange.cancel(context, candidate.vehicleId, candidate.visitId)
-                                    snackbar.showSnackbar(if(cancelled) "잘못 인식한 세차를 취소했어요. 이전 기준으로 다시 계산했어요."
+                                    snackbar.showSnackbar(if(cancelled) if(candidate.oil) "잘못 인식한 엔진오일 교체를 취소했어요. 이전 기준으로 다시 계산했어요." else "잘못 인식한 세차를 취소했어요. 이전 기준으로 다시 계산했어요."
                                         else "이미 처리됐거나 취소 가능한 기간이 지난 기록이에요.")
                                 } catch (_: Exception) { snackbar.showSnackbar("취소를 저장하지 못했어요. 다시 시도해 주세요.") }
                                 finally { busy = false }
                             }
                         }
                     }, onDismiss = { scope.launch {
-                        runCatching { CareExchange.dismissConfirmation(context, candidate.vehicleId, candidate.visitId) }
+                        runCatching { CareExchange.dismissConfirmation(context, candidate.vehicleId, candidate.visitId); if(candidate.oil) tab=1 }
                             .onFailure { snackbar.showSnackbar("배너를 닫지 못했어요. 다시 시도해 주세요.") }
                     } })
                 }

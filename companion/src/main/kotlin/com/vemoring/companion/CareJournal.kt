@@ -186,10 +186,10 @@ class CareJournal(private val context: Context, val vehicleId: String) {
             val visit = r.optString("visitId").takeUnless { it.isBlank() || it == "null" }
             val completed = r.optString("completedAt").takeUnless { it.isBlank() || it == "null" }?.let(Instant::parse)
             val applied = r.optString("appliedAt").takeUnless { it.isBlank() || it == "null" }?.let(Instant::parse) ?: completed
-            if (visit == null || completed == null || applied == null || r.optBoolean("cancelled") ||
+            if (visit == null || completed == null || applied == null || r.optBoolean("cancelled") || r.optString("kind")!="wash" && r.optString("source")!="EstimatedOilVisit" ||
                 r.optString("washEvidence") in listOf("ClearFacilityPattern","UserRecord","VerifiedCompletion") ||
                 dismissed.optBoolean(visit) || now < applied || now > applied.plusSeconds(7*86400L)) null
-            else WashConfirmation(vehicleId, visit, completed, applied)
+            else WashConfirmation(vehicleId, visit, completed, applied,r.optString("source")=="EstimatedOilVisit")
         }.maxByOrNull { it.appliedAt }
     }
     fun dismissWashConfirmation(visitId: String) {
@@ -327,6 +327,7 @@ class CareJournal(private val context: Context, val vehicleId: String) {
             NotificationHistory(context).use {it.deleteVehicle(vehicleId)}
             FacilityWashStore(context,vehicleId).clear()
             EngineOilLedger(context,vehicleId).clear()
+            EngineOilVisitStore(context,vehicleId).clear()
             if(WashAssistSignals.target.value?.vehicleId==vehicleId) WashAssistSignals.target.value=null
         }
     }

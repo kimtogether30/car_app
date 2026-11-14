@@ -37,9 +37,7 @@ class SetupReadabilityTests {
         capture("05-nickname")
         compose.onNode(hasSetTextAction() and hasText("차량 닉네임", substring = true)).performTextInput("가독성 확인")
         compose.onNodeWithText("다음").performScrollTo().performClick()
-        capture("06-dock-question")
-        compose.onNodeWithText("나중에 할게요").performScrollTo().performClick()
-        capture("07-summary")
+        capture("06-summary")
         compose.onNodeWithText("VEMORING 시작하기").performScrollTo().performClick()
         compose.runOnIdle { assertTrue(finished) }
     }
@@ -67,12 +65,9 @@ class SetupReadabilityTests {
         compose.onNodeWithText("다음").performScrollTo().performClick()
         compose.onNode(hasSetTextAction() and hasText("차량 닉네임", substring = true)).performTextInput("몽글이 한글")
         compose.onNodeWithText("다음").performScrollTo().performClick()
-        compose.onNodeWithText("네, 추가 방법 볼게요").performScrollTo().performClick()
         compose.onNodeWithText("VEMORING 시작하기").performScrollTo().performClick()
-        compose.onNodeWithText("하단 바에 VEMORING 놓기").assertIsDisplayed()
-        compose.onNodeWithText("방법 확인했어요").performClick()
-        compose.waitUntil(15000) { compose.onAllNodesWithText("이번 주 날씨").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("홈", useUnmergedTree = true).assertIsDisplayed()
+        // Saving removes the setup root before the home root is attached. Wait through that transition.
+        compose.waitUntil(15000) { runCatching {compose.onAllNodesWithText("이번 주 날씨").fetchSemanticsNodes().isNotEmpty()}.getOrDefault(false) }
         compose.onNodeWithText("홈", useUnmergedTree = true).assertIsDisplayed()
         compose.runOnIdle {
             assertEquals("몽글이 한글", store.load().profile.nickname)

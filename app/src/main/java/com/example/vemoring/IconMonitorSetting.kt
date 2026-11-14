@@ -21,8 +21,6 @@ fun IconMonitorSetting() {
     var enabled by remember { mutableStateOf<Boolean?>(null) }
     var receiving by remember {mutableStateOf<Boolean?>(null)}
     var saving by remember { mutableStateOf(false) }
-    var showGuide by remember { mutableStateOf(false) }
-    if (showGuide) GnbPinGuide { showGuide = false }
     LaunchedEffect(Unit) {
         enabled = withContext(Dispatchers.IO) {
             context.getSharedPreferences(VehicleIconMonitor.PREFS, Context.MODE_PRIVATE)
@@ -54,9 +52,7 @@ fun IconMonitorSetting() {
         Column(Modifier.weight(1f)) {
             Text("앱 밖에서 상태 아이콘 갱신", fontSize = 26.sp)
             Text("아이콘 갱신을 꺼도 위의 차량 정보 수신 설정은 유지돼요.", fontSize = 19.sp)
-            TextButton(onClick = { showGuide = true }, modifier = Modifier.heightIn(min = 64.dp)) {
-                Text("하단 바에 추가하는 방법", fontSize = 21.sp)
-            }
+
         }
         Switch(checked = enabled == true, enabled = enabled != null && !saving, onCheckedChange = { next ->
             saving = true

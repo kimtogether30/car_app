@@ -39,11 +39,13 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     private val appContext = context.applicationContext
     private val handler = Handler(Looper.getMainLooper())
     private var current: Session? = null
-    private val speed=CarSpeedSource(appContext)
+    private var powerPublish:((Reading)->Unit)?=null
+    private val speed=CarSpeedSource(appContext) {powerPublish?.invoke(it)}
     override fun start(publish: (VehicleField, Reading) -> Unit) {
         close()
+        powerPublish={publish(VehicleField.IGNITION,it)}
         speed.start {publish(VehicleField.SPEED,it)}
-        val sdkPublish:(VehicleField,Reading)->Unit = {field,reading -> if(field!=VehicleField.SPEED) publish(field,reading)}
+        val sdkPublish:(VehicleField,Reading)->Unit = {field,reading -> if(field!=VehicleField.SPEED && field!=VehicleField.IGNITION) publish(field,reading)}
         val sdkVehicle = try { Vehicle(appContext) } catch (error: Exception) {
             VehicleField.entries.forEach { sdkPublish(it, sdkFailure(error)) }; return
         }
@@ -54,7 +56,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
     }
     override fun refresh() { speed.refresh();current?.refresh() }
     override fun readFuel(done: (Reading) -> Unit) { current?.readFuel(done) ?: done(Reading(ReadingState.Disconnected)) }
-    override fun close() { speed.close();current?.close(); current = null }
+    override fun close() { powerPublish=null;speed.close();current?.close(); current = null }
 
     private inner class Session(val vehicle: Vehicle, val publish: (VehicleField, Reading) -> Unit) {
         var active = true
@@ -72,6 +74,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         }
         init { handler.postDelayed(gearPoll,30000) }
         fun emit(field: VehicleField, reading: Reading) {
+            if(field==VehicleField.IGNITION || field==VehicleField.SPEED) return // Owned by the AAOS adapter.
             handler.post { if (active) {
                 publish(field, reading)
 

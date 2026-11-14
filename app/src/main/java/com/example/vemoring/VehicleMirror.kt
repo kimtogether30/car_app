@@ -48,7 +48,7 @@ internal fun mirrorContent(data: AppData, snapshot: VehicleSnapshot, condition: 
     LaunchedEffect(data, loaded, condition.cleanliness, condition.oilRemainingKm, mood, mode,
         // Whole fuel reading (incl. receive time): a refuel confirmation read with an unchanged value must still publish.
         fuel, battery.realPercent(), battery.statusText(),
-        snapshot[VehicleField.ODOMETER], snapshot.motion(),snapshot[VehicleField.GEAR],washRevision) {
+        snapshot[VehicleField.ODOMETER], snapshot[VehicleField.IGNITION], snapshot.motion(),snapshot[VehicleField.GEAR],washRevision) {
         if (loaded && data.complete) {
             try {
                 val care = VehicleCareRuntime.payload(context, data, snapshot, mode == DataMode.Demo)

@@ -3,7 +3,7 @@ import org.junit.Assert.*
 import org.junit.Test
 class BannerCatalogTest {
  @Test fun onlyCareBannersRemain() {
-  assertEquals(6,BannerCatalog.entries.values.count {it.art!=null})
+  assertEquals(11,BannerCatalog.entries.values.count {it.art!=null})
   assertFalse(BannerCatalog.entries.containsKey("ABS"))
   assertNull(BannerPolicy.recordCompletion("maintenance",MaintenanceType.GENERAL))
   assertEquals("OIL_DONE",BannerPolicy.recordCompletion("maintenance",MaintenanceType.ENGINE_OIL)?.key)

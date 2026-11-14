@@ -112,8 +112,6 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     var tab by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(homeLaunchRequest) { if (homeLaunchRequest > 0) tab = 0 }
     var setupRequested by rememberSaveable { mutableStateOf(startWithSetup) }
-    var dockGuideAfterSetup by rememberSaveable { mutableStateOf(false) }
-    var showDockGuide by rememberSaveable { mutableStateOf(false) }
     var editCar by rememberSaveable { mutableStateOf(false) }
     var notifications by rememberSaveable { mutableStateOf(false) }
     var editName by rememberSaveable { mutableStateOf(false) }
@@ -201,13 +199,10 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
                     Text(loadError!!); Button(onClick = { retry++ }) { Text("다시 시도") }
                 }
                 !loaded -> Box(contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                !data.complete || setupRequested -> SetupScreen(detected = identity,
-                    onDockChoice = { dockGuideAfterSetup = it }) { profile, dates ->
+                !data.complete || setupRequested -> SetupScreen(detected = identity) { profile, dates ->
                     save(data.copy(profile = profile, records = updateLatest(data.records, dates), complete = true)) {
                         setupRequested = false
                         tab = 0
-                        showDockGuide = dockGuideAfterSetup
-                        dockGuideAfterSetup = false
                     }
                 }
                 else -> Scaffold(containerColor = Background, bottomBar = {
@@ -236,7 +231,7 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
                                                 if(it.visitId == candidate.visitId) it.copy(cancelled = true) else it
                                             }))
                                         }, onDismiss = { scope.launch {
-                                            runCatching { com.vemoring.companion.CareExchange.dismissConfirmation(context, candidate.vehicleId, candidate.visitId) }
+                                            runCatching { com.vemoring.companion.CareExchange.dismissConfirmation(context, candidate.vehicleId, candidate.visitId); if(candidate.oil) tab=1 }
                                                 .onFailure { error = "배너를 닫지 못했어요. 다시 시도해 주세요." }
                                         } })
                                     }
@@ -257,7 +252,6 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
             }
         }
     }
-    if (showDockGuide) GnbPinGuide { showDockGuide = false }
     proposedWash?.let { proposed ->
         AlertDialog(onDismissRequest = { proposedWash = null; proposedWashSaved = null },
             title = { Text("같은 날 자동 세차 기록이 있어요") }, text = {

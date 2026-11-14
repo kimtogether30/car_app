@@ -19,7 +19,7 @@ import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
-data class WashConfirmation(val vehicleId: String, val visitId: String, val completedAt: Instant, val appliedAt: Instant)
+data class WashConfirmation(val vehicleId: String, val visitId: String, val completedAt: Instant, val appliedAt: Instant,val oil:Boolean=false)
 
 @Composable
 fun rememberWashConfirmation(vehicleId: String?, authority: CareAuthority?): State<WashConfirmation?> {
@@ -47,17 +47,17 @@ fun WashConfirmationBanner(confirmation: WashConfirmation, busy: Boolean, onReje
             Row(horizontalArrangement=Arrangement.spacedBy(16.dp)) {
                 BannerArtwork("mascot_normal","",Modifier.size(if(vehicle) 96.dp else 64.dp),mascot=true)
                 Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Text("세차한 것 같아!", fontSize = if(vehicle) 26.sp else 20.sp)
-                    Text("세차한 게 맞아? 세차 구역 체류와 출차를 감지해서 세차로 기록했어. 답하지 않거나 ‘맞아요’를 누르면 기록을 유지해. 아니라면 알려줘!",
+                    Text(if(confirmation.oil) "엔진오일 교체한 것 같아!" else "세차한 것 같아!", fontSize = if(vehicle) 26.sp else 20.sp)
+                    Text(if(confirmation.oil) "정비소 방문과 차량 전원·출차를 확인해 엔진오일 교체로 추정 기록했어요. 답하지 않으면 기록을 유지해요. 교체하지 않았다면 알려 주세요." else "세차한 게 맞아? 세차 구역 체류와 출차를 감지해서 세차로 기록했어. 답하지 않거나 ‘맞아요’를 누르면 기록을 유지해. 아니라면 알려줘!",
                         color=if(dark) Color(0xFFBAC3D0) else Color(0xFF64748B),fontSize = if(vehicle) 21.sp else 16.sp, lineHeight = if(vehicle) 30.sp else 24.sp)
                 }
             }
             Row(Modifier.fillMaxWidth(),horizontalArrangement = Arrangement.spacedBy(12.dp,androidx.compose.ui.Alignment.End)) {
                 FilledTonalButton(enabled = !busy, onClick = onReject,shape=RoundedCornerShape(8.dp),
                     colors=ButtonDefaults.filledTonalButtonColors(containerColor=if(dark) Color(0xFF314762) else Color(0xFFDDEAFF),contentColor=if(dark) Color(0xFFE1ECFF) else Color(0xFF2563C7)),modifier = Modifier.heightIn(min = if(vehicle) 64.dp else 48.dp)
-                    .testTag("wash-reject")) { Text("세차 안 했어요", fontSize = if(vehicle) 22.sp else 16.sp) }
+                    .testTag("wash-reject")) { Text(if(confirmation.oil) "교체 안 했어요" else "세차 안 했어요", fontSize = if(vehicle) 22.sp else 16.sp) }
                 TextButton(enabled = !busy, onClick = onDismiss, modifier = Modifier.heightIn(min = if(vehicle) 64.dp else 48.dp)
-                    .testTag("wash-dismiss")) { Text("맞아요", fontSize = if(vehicle) 22.sp else 16.sp) }
+                    .testTag("wash-dismiss")) { Text(if(confirmation.oil) "기록 보기" else "맞아요", fontSize = if(vehicle) 22.sp else 16.sp) }
             }
         }
     }
