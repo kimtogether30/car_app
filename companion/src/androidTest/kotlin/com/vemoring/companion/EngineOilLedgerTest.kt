@@ -154,4 +154,60 @@ class EngineOilLedgerTest {
         assertFalse(CareExchange.detectedOil(context,oilVisit()))
     }
 
+    @Test fun sameShopResumeSurvivesReopenThenExitAndStopCreatesCancelableEstimate()=runBlocking {
+        val v=oilVisit();val sites=listOf(v.site);val store=EngineOilVisitStore(context,id)
+        store.observe(v.off.copy(accuracyM=null),null,sites)
+        val loading=v.off.copy(at=v.off.at+60_000,receivedAt=v.off.at+60_000,speedMps=null,speedAt=null,gear=null,gearAt=null)
+        store.observe(loading,null,sites)
+        val reopened=EngineOilVisitStore(context,id)
+        reopened.observe(v.on!!.copy(accuracyM=null),null,sites)
+        assertEquals(0,reopened.frame().length()) // Still inside; resume alone never records a replacement.
+        reopened.observe(v.exit!!,v.odometerKm,sites)
+        assertEquals(0,reopened.frame().length())
+        reopened.observe(v.stop!!,null,sites)
+        val saved=EngineOilVisit.from(reopened.frame().getJSONObject(0))
+        assertEquals(OilVisitEvidence.SAME_PLACE_RECEIVING_GAP,saved.evidence)
+        assertEquals(v.off.at,saved.off.at)
+        val journal=CareJournal(context,id);journal.saveAuthority(CareAuthority(id,1,profile().toString(),"[]"))
+        assertTrue(CareExchange.detectedOil(context,saved));assertFalse(CareExchange.detectedOil(context,saved))
+        val record=JSONArray(journal.authority()!!.records).getJSONObject(0)
+        assertTrue(record.getString("detail").contains("시동 확인 아님"))
+        assertTrue(CareJournal(context,id).pendingWashConfirmation()!!.oil)
+        assertTrue(CareExchange.cancel(context,id,saved.id));assertFalse(CareExchange.detectedOil(context,saved))
+    }
+    @Test fun continuouslyReceivedParkingNeverBecomesAReceivingGap() {
+        val v=oilVisit();val store=EngineOilVisitStore(context,id);val sites=listOf(v.site)
+        for(at in v.off.at..v.on!!.at step 10_000L) {
+            store.observe(v.off.copy(at=at,receivedAt=at,speedAt=at,gearAt=at),null,sites)
+        }
+        store.observe(v.exit!!,v.odometerKm,sites);store.observe(v.stop!!,null,sites)
+        assertEquals(0,store.frame().length())
+    }
+    @Test fun movingOutsideDifferentShopAndPhoneResumeCannotCompleteGap() {
+        val v=oilVisit();val sites=listOf(v.site)
+        for(mode in listOf("moving","outside","different","phone","short","far","overlap")) {
+            val store=EngineOilVisitStore(context,id);store.clear();store.observe(v.off,null,sites)
+            when(mode) {
+                "moving" -> {val at=v.off.at+60_000;store.observe(v.off.copy(at=at,receivedAt=at,speedAt=at,gearAt=at,speedMps=2.0,gear="D"),null,sites);store.observe(v.on!!,null,sites)}
+                "outside" -> {val at=v.off.at+60_000;store.observe(v.off.copy(at=at,receivedAt=at,speedAt=at,gearAt=at,latitude=37.002),null,sites);store.observe(v.on!!,null,sites)}
+                "different" -> store.observe(v.on!!,null,listOf(v.site.copy(id="repair/other")))
+                "phone" -> store.observe(v.on!!.copy(phone=true),null,sites)
+                "short" -> store.observe(v.on!!.copy(at=v.on.at-1000,receivedAt=v.on.receivedAt-1000),null,sites)
+                "far" -> store.observe(v.on!!.copy(latitude=37.0003),null,sites)
+                "overlap" -> {val at=v.off.at+60_000;store.observe(v.off.copy(at=at,receivedAt=at,speedAt=at,gearAt=at),null,sites+v.site.copy(id="repair/overlap"));store.observe(v.on!!,null,sites)}
+            }
+            store.observe(v.exit!!,v.odometerKm,sites);store.observe(v.stop!!,null,sites)
+            assertEquals(mode,0,store.frame().length())
+        }
+    }
+
+    @Test fun returningInsideBeforeNextStopInvalidatesThePreviousExit() {
+        val v=oilVisit();val sites=listOf(v.site);val store=EngineOilVisitStore(context,id)
+        store.observe(v.off,null,sites);store.observe(v.on!!,null,sites);store.observe(v.exit!!,v.odometerKm,sites)
+        val at=v.exit.at+1000
+        store.observe(v.off.copy(at=at,receivedAt=at,speedAt=at,gearAt=at,speedMps=1.0,gear="D"),null,sites)
+        store.observe(v.stop!!,null,sites)
+        assertEquals(0,store.frame().length())
+    }
+
 }

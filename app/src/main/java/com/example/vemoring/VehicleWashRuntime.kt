@@ -63,19 +63,21 @@ object VehicleWashRuntime {
                     val power=snapshot[VehicleField.IGNITION]
                     val powerAt=power.receivedAtMillis ?: 0
                     val oilPower=when(power.value?.rawState) {"OFF","LOCK"->VerifiedVehiclePower.OFF;"ON"->VerifiedVehiclePower.ON;else->null}
-                    if(EngineOilCatalog.rule(app,receiving.profile.fullModel,receiving.profile.fuel)!=null && power.state==ReadingState.Available && oilPower!=null && powerAt>lastPowerAt && receivedAt-powerAt in 0..15000 && kotlin.math.abs(fix.at-powerAt)<=15000 && EngineOilVisitPolicy.usable(fix)) {
-                        if(receivedAt-repairsAt>15*60_000 || repairSites.isEmpty() && receivedAt-repairsAt>=60_000) {
-                            repairsAt=receivedAt
-                            val repair=repository.places(point,PlaceKind.Repair)
-                            repairSites=if(repair.state==ResultState.Available) repair.value.orEmpty().mapNotNull {it.washSite} else emptyList()
-                        }
-                        if(garage.receiving()?.profile?.vehicleId==receiving.profile.vehicleId) {
-                            EngineOilVisitStore(app,receiving.profile.vehicleId).power(oilPower,fix.copy(at=powerAt),repairSites)
-                            lastPowerAt=powerAt
-                        }
+                    val oilEnabled=EngineOilCatalog.rule(app,receiving.profile.fullModel,receiving.profile.fuel)!=null
+                    if(oilEnabled && EngineOilVisitPolicy.resumeUsable(fix) &&
+                        (fix.liveSpeed()==0.0 && fix.liveGear()!=null || power.state==ReadingState.Available && oilPower!=null && powerAt>lastPowerAt && receivedAt-powerAt in 0..15000) &&
+                        (receivedAt-repairsAt>15*60_000 || repairSites.isEmpty() && receivedAt-repairsAt>=60_000)) {
+                        repairsAt=receivedAt
+                        val repair=repository.places(point,PlaceKind.Repair)
+                        repairSites=if(repair.state==ResultState.Available) repair.value.orEmpty().mapNotNull {it.washSite} else emptyList()
+                    }
+                    if(garage.receiving()?.profile?.vehicleId!=receiving.profile.vehicleId) continue
+                    if(oilEnabled && power.state==ReadingState.Available && oilPower!=null && powerAt>lastPowerAt && receivedAt-powerAt in 0..15000 && kotlin.math.abs(fix.at-powerAt)<=15000 && EngineOilVisitPolicy.usable(fix)) {
+                        EngineOilVisitStore(app,receiving.profile.vehicleId).power(oilPower,fix.copy(at=powerAt),repairSites)
+                        lastPowerAt=powerAt
                     }
                     val km=confirmedKilometres(snapshot[VehicleField.ODOMETER],MaintenanceStore(app,receiving.profile).distanceUnit())
-                    if(EngineOilVisitStore(app,receiving.profile.vehicleId).observe(fix,km)) revision.value++
+                    if(EngineOilVisitStore(app,receiving.profile.vehicleId).observe(fix,km,if(oilEnabled) repairSites else emptyList())) revision.value++
                 } catch(cancelled:CancellationException) {throw cancelled}
                 catch(_:Exception) { /* No invented location, wash, or coordinate logging on failure. */ }
             }

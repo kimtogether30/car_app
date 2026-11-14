@@ -87,7 +87,8 @@ object CareExchange {
         if((0 until records.length()).any {records.getJSONObject(it).optString("visitId")==visit.id}) return false
         val completed=java.time.Instant.ofEpochMilli(visit.exit!!.at)
         records.put(JSONObject().put("id","oil-record:${visit.id}").put("kind","maintenance").put("maintenanceType","ENGINE_OIL")
-            .put("title","자동 추정 엔진오일 교체").put("detail","같은 정비소에서 전원 OFF→ON 30분 이상, 출차 및 다음 정차 확인")
+            .put("title","자동 추정 엔진오일 교체").put("detail",if(visit.evidence==OilVisitEvidence.SAME_PLACE_RECEIVING_GAP) "같은 정비소의 20m 이내 정차 위치에서 30분 이상 수신 공백 후 재수신, 출차 및 다음 정차로 추정 (시동 확인 아님)" else "같은 정비소에서 전원 OFF→ON 30분 이상, 출차 및 다음 정차 확인")
+            .put("oilVisitEvidence",visit.evidence.name)
             .put("date",completed.atZone(CARE_ZONE).toLocalDate()).put("completedAt",completed).put("appliedAt",java.time.Instant.ofEpochMilli(now))
             .put("visitId",visit.id).put("source","EstimatedOilVisit").put("odometerKm",visit.odometerKm).put("cancelled",false))
         val next=state.copy(version=state.version+1,records=records.toString())

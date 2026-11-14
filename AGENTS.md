@@ -48,3 +48,10 @@
 - Actual OFF/ON must come from supported AAOS IGNITION_STATE callbacks (OFF/LOCK → ON), never engine RPM, speed, gear, reconnection or missing SDK data. Normal CAR_POWERTRAIN permission and property support must be checked. A supported signal alone does not validate facility position or actual hardware behavior.
 - Remove the dock/pinned-bar onboarding prompt and proactive pin invitation. The user knows pinned icon limitations; do not ask whether to add it.
 - Vehicle-unregistered entry screens should use centered, bounded-width content and large readable labels/buttons on tablets and vehicles.
+
+## Latest engine-oil receiving-gap inference (user override)
+
+- The user now authorizes wash-style same-place receiving-gap inference for engine oil, in addition to verified power. This supersedes the earlier requirement that every automatic oil visit have actual OFF/ON evidence.
+- Persist the last real stationary vehicle fix in a distinguishable mapped repair-shop area. A fresh stationary vehicle fix in the same mapped facility within20m after a30-minute receiving gap may qualify inferred dwell; continuous live parking must keep advancing the anchor and cannot manufacture a gap.
+- Both endpoint fixes need fresh zero vehicle speed and fresh gear. Phone positions, a Bluetooth reconnection by itself, stale/replayed points, observed departure/movement or different/ambiguous facilities do not qualify. As in wash inference, unknown position accuracy stays unknown; use mapped boundary uncertainty guards, never invent accuracy.
+- Keep verified AAOS power and SAME_PLACE_RECEIVING_GAP evidence distinct. Never label inferred gaps as actual ignition OFF/ON. Retain due/unknown-history rules, actual vehicle exit and next stop, preapply/no-answer-keep/negative-cancel behavior and terminal rejection IDs.

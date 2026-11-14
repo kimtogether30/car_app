@@ -40,4 +40,26 @@ class EngineOilVisitPolicyTest {
         assertFalse(EngineOilVisitPolicy.complete(v.copy(stop=v.stop!!.copy(speedMps=1.0)),now))
         assertFalse(EngineOilVisitPolicy.complete(v.copy(stop=v.stop!!.copy(speedAt=now-100000)),now))
     }
+    @Test fun receivingGapIsAnEstimateWithThirtyMinuteBoundaryAndSeparateSerialization() {
+        val v=visit().copy(evidence=OilVisitEvidence.SAME_PLACE_RECEIVING_GAP)
+        assertTrue(EngineOilVisitPolicy.complete(v,now))
+        assertEquals(v,EngineOilVisit.from(v.json()))
+        assertEquals("SAME_PLACE_RECEIVING_GAP",v.json().getString("powerSource"))
+        assertFalse(EngineOilVisitPolicy.complete(v.copy(off=v.off.copy(at=v.off.at+1000,receivedAt=v.off.at+1000)),now))
+    }
+    @Test fun resumeNeedsBothVehicleStopsFreshGearAndWithinTwentyMetres() {
+        val v=visit().copy(evidence=OilVisitEvidence.SAME_PLACE_RECEIVING_GAP)
+        assertFalse(EngineOilVisitPolicy.complete(v.copy(on=v.on!!.copy(latitude=37.0003)),now))
+        assertFalse(EngineOilVisitPolicy.complete(v.copy(off=v.off.copy(speedMps=1.0)),now))
+        assertFalse(EngineOilVisitPolicy.complete(v.copy(on=v.on!!.copy(gearAt=v.on.at-36_000)),now))
+        assertFalse(EngineOilVisitPolicy.complete(v.copy(on=v.on!!.copy(phone=true)),now))
+    }
+    @Test fun resumeDoesNotInventAccuracyAndCannotUseCachedOrReversedTime() {
+        val v=visit().copy(evidence=OilVisitEvidence.SAME_PLACE_RECEIVING_GAP)
+        assertTrue(EngineOilVisitPolicy.complete(v.copy(off=v.off.copy(accuracyM=null),on=v.on!!.copy(accuracyM=null)),now))
+        assertFalse(EngineOilVisitPolicy.complete(v.copy(on=v.on!!.copy(receivedAt=v.on.at+20_000)),now))
+        assertFalse(EngineOilVisitPolicy.complete(v.copy(on=v.on!!.copy(receivedAt=v.off.receivedAt)),now))
+        assertFalse(EngineOilVisitPolicy.complete(v.copy(off=v.off.copy(accuracyM=40.0)),now))
+    }
+
 }
