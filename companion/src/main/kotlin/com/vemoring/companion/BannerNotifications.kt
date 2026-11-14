@@ -41,7 +41,9 @@ object BannerNotifications {
             val open = PendingIntent.getActivity(c,event.eventId.hashCode(),launch
                 .setData(uri(event.vehicleId,event.eventId)).putExtra("vehicleId",event.vehicleId).putExtra("careEvent",event.eventId),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            val iconId = c.resources.getIdentifier("ic_care_notification","drawable",c.packageName).takeIf {it!=0} ?: android.R.drawable.ic_dialog_info
+            val face=when(event.mood) {"FUEL"->"fuel";"WASH"->"wash";"OIL"->"oil";"ANGRY"->"angry";"EXHAUSTED"->"exhausted";else->"normal"}
+            val iconId = c.resources.getIdentifier("face_$face","drawable",c.packageName).takeIf {it!=0}
+                ?: c.resources.getIdentifier("ic_care_notification","drawable",c.packageName).takeIf {it!=0} ?: android.R.drawable.ic_dialog_info
             val builder = Notification.Builder(c,channel).setSmallIcon(iconId).setContentTitle(event.title).setContentText(event.body)
                 .setColor(notificationColor(event.mood))
                 .setContentIntent(open).setAutoCancel(true).setOnlyAlertOnce(true).setShowWhen(true).setWhen(event.occurredAt)

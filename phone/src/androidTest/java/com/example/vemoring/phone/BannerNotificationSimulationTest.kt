@@ -60,6 +60,7 @@ class BannerNotificationSimulationTest {
         automation.executeShellCommand("am start -a android.settings.SETTINGS").let {
             android.os.ParcelFileDescriptor.AutoCloseInputStream(it).use {input->input.readBytes()}
         }
+        Thread.sleep(1000) // Let initial background launcher reconciliation finish before the first synthetic state.
         val examples=listOf(
             Triple("FUEL_NEEDED","fuel",0xFFFFC107.toInt()),
             Triple("ALL_DONE","normal",0xFF087BBF.toInt()),
@@ -71,6 +72,32 @@ class BannerNotificationSimulationTest {
         val hold=args.getString("bannerHoldMs")?.toLongOrNull()?.coerceIn(1200,30000) ?: 1200
         val only=args.getString("bannerCase")
         for((key,mascot,color) in examples.filter {only==null || it.first==only}) {
+            PhoneLauncher.sync(base,BannerCatalog[key].mood)
+            val launchers=base.packageManager.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_MAIN)
+                .addCategory(android.content.Intent.CATEGORY_LAUNCHER).setPackage(base.packageName),0)
+            assertEquals(1,launchers.size)
+            assertTrue(launchers.single().activityInfo.name.endsWith("Launcher"+BannerCatalog[key].mood.lowercase().replaceFirstChar {it.uppercase()}))
+            Thread.sleep(1000)
+            if(args.getString("showLauncher")=="1") {
+                automation.executeShellCommand("input keyevent 3").let {
+                    android.os.ParcelFileDescriptor.AutoCloseInputStream(it).use {input->input.readBytes()}
+                }
+                Thread.sleep(1500)
+                val display=base.resources.displayMetrics
+                automation.executeShellCommand("input swipe ${display.widthPixels/2} ${display.heightPixels*8/10} ${display.widthPixels/2} ${display.heightPixels*2/10} 400").let {
+                    android.os.ParcelFileDescriptor.AutoCloseInputStream(it).use {input->input.readBytes()}
+                }
+                Thread.sleep(4000)
+                automation.executeShellCommand("screencap -p").let {
+                    android.os.ParcelFileDescriptor.AutoCloseInputStream(it).use {input ->
+                        java.io.File(base.filesDir,"launcher-state-$mascot.png").outputStream().use {output -> input.copyTo(output)}
+                    }
+                }
+                automation.executeShellCommand("am start -a android.settings.SETTINGS").let {
+                    android.os.ParcelFileDescriptor.AutoCloseInputStream(it).use {input->input.readBytes()}
+                }
+                Thread.sleep(500)
+            }
             val e=event(key,"heads-up-$mascot")
             assertEquals(NotificationDelivery.Delivered,BannerNotifications.dispatch(context,e))
             val posted=awaitNotification(e.eventId)
@@ -82,6 +109,7 @@ class BannerNotificationSimulationTest {
             }
             assertEquals("Small-icon accent must follow the event, not the normal launcher",color,posted.notification.color)
             val expected=base.resources.getIdentifier("mascot_$mascot","drawable",base.packageName)
+            assertEquals(base.resources.getIdentifier("face_$mascot","drawable",base.packageName),posted.notification.smallIcon.resId)
             assertNotNull(posted.notification.getLargeIcon())
             assertEquals(expected,posted.notification.getLargeIcon().resId)
             assertEquals(BannerCatalog[key].title,posted.notification.extras.getString(Notification.EXTRA_TITLE))
