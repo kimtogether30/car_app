@@ -85,3 +85,14 @@ adb shell am instrument -w -e class com.example.vemoring.phone.DrivingWeatherSto
 - 앱 코드는 변경하지 않았다. 예보 정상화 판정에는 해당 호스트 연결이 가능한 별도 네트워크/기기 비교와 앱의 실제 예보 검사 재실행이 필요하다. 공개 좌표의 미세먼지 성공만으로 강수·7일 예보 전체를 통과 처리하지 않는다.
 
 로그: `build/diagnostics/weather-live-2026-11-14.txt`, `weather-live-air-time-2026-11-14.json` 및 `phone/build/test-results/testDebugUnitTest/TEST-*Weather*.xml`. 과거 통과 기록은 과거 실행 결과로 보존하며 이번 실패로 덮어쓰지 않는다.
+
+## 2026-11-14 연결 실패 원인 진단과 재시도 추가
+
+위 13:06 실패 이후 같은 PC에서 다시 측정했다.
+
+- 예보 서버 `api.open-meteo.com`(51.81.167.44, 미국): HTTPS 10회 모두 HTTP 200, 응답 0.5~5.5초. 연결 단계가 평소 0.17초에서 가끔 1.2초·2.2초로 튀었는데, 이는 패킷 손실 후 TCP 재전송 간격과 일치한다.
+- ICMP 30회: 예보 서버 28/30 응답(손실 약 7%, 평균 151ms), 근거리 비교 대상 8.8.8.8은 30/30(평균 30ms).
+- 판정: 사용자 로컬 네트워크·DNS 문제가 아니라, 해외 예보 서버까지의 경로(또는 해당 서버)의 간헐적 패킷 손실이다. 13:06 실패는 손실이 심한 시점에 TLS 연결 수립이 시간 초과된 것으로 본다. 앱 코드 결함이나 공급자 전체 장애 근거는 없다.
+- 조치: 공통 `requestWeatherJson`에 제한된 재시도 추가(`retryTransient`). 네트워크 오류와 5xx만 최대 3회(대기 1초, 3초), 45초가 지나면 새 시도 안 함. 4xx·잘못된 데이터는 재시도하지 않는다. 7일 예보·시간별 강수·미세먼지 호출 모두 적용. 기존 화면 재시도(10분)·자동 갱신 주기는 그대로다.
+- 재검사: `VEMORING_WEATHER_LIVE=1` 실제 호출 포함 `WeeklyWeatherRepositoryTest` 6, `DrivingWeatherTest` 8, 새 `WeatherRetryTest` 5 모두 통과. 실제 호출은 고정 공개 서울 좌표만 사용했다.
+- 경로 손실은 시점에 따라 달라지므로, 재시도 후에도 실패하면 기존대로 마지막 예보를 표시하고 10분 뒤 다시 시도한다.

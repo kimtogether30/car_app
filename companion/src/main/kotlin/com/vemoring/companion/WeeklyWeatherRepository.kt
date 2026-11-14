@@ -71,7 +71,33 @@ class WeeklyWeatherRepository(
     }
 }
 
-internal fun requestWeatherJson(url: String): JSONObject {
+/** Non-2xx reply. 4xx means our request is wrong, so it is not retried; 5xx is a server-side blip and is. */
+internal class WeatherHttpException(val status: Int) : IOException("Weather HTTP $status")
+
+/**
+ * The forecast host is overseas and the route drops a few percent of packets (measured 2026-11-14: 2/30 lost to
+ * api.open-meteo.com, 0/30 to a nearby host), so a single lost TLS handshake used to fail the whole refresh.
+ * Retry network errors and 5xx a bounded number of times; never retry 4xx or invalid data.
+ */
+internal fun <T> retryTransient(attempts: Int = 3, waitsMillis: List<Long> = listOf(1_000, 3_000), budgetMillis: Long = 45_000,
+    clock: () -> Long = System::currentTimeMillis, sleep: (Long) -> Unit = Thread::sleep, block: () -> T): T {
+    val start = clock()
+    var last: IOException? = null
+    for (attempt in 0 until attempts) {
+        if (attempt > 0) {
+            if (clock() - start >= budgetMillis) break
+            sleep(waitsMillis.getOrElse(attempt - 1) { waitsMillis.last() })
+        }
+        try { return block() }
+        catch (e: WeatherHttpException) { if (e.status in 400..499) throw e; last = e }
+        catch (e: IOException) { last = e }
+    }
+    throw last ?: IOException("Weather request not attempted")
+}
+
+internal fun requestWeatherJson(url: String): JSONObject = retryTransient { requestWeatherJsonOnce(url) }
+
+private fun requestWeatherJsonOnce(url: String): JSONObject {
     val connection = URI(url).toURL().openConnection() as HttpURLConnection
     try {
         connection.connectTimeout = 10000
@@ -79,7 +105,7 @@ internal fun requestWeatherJson(url: String): JSONObject {
         connection.instanceFollowRedirects = false
         connection.setRequestProperty("User-Agent", "Vemoring/1.0 (Android prototype)")
         val status = connection.responseCode
-        if (status !in 200..299) throw IOException("Weather HTTP $status")
+        if (status !in 200..299) throw WeatherHttpException(status)
         // Bound the public response; never log coordinates or response bodies.
         val bytes = connection.inputStream.use { input ->
             val output = java.io.ByteArrayOutputStream()
