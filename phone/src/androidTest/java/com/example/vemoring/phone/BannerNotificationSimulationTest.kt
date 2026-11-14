@@ -53,6 +53,38 @@ class BannerNotificationSimulationTest {
         CareJournal(base,id).deleteVehicle()
         base.deleteDatabase(db)
     }
+    @Test fun headsUpAccentMatchesEventWhileAnotherAppIsVisible() {
+        check(base.packageName.endsWith(".verification"))
+        PhoneLauncher.sync(base,"NORMAL")
+        val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
+        automation.executeShellCommand("am start -a android.settings.SETTINGS").let {
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(it).use {input->input.readBytes()}
+        }
+        val examples=listOf(
+            Triple("FUEL_NEEDED","fuel",0xFFFFC107.toInt()),
+            Triple("ALL_DONE","normal",0xFF087BBF.toInt()),
+            Triple("WASH_NEEDED","wash",0xFFE86BA2.toInt()),
+            Triple("ENGINE","oil",0xFF8E5ACC.toInt()),
+            Triple("FUEL_ENGINE","angry",0xFFE5484D.toInt()),
+            Triple("ALL_ENGINE","exhausted",0xFF747C88.toInt()))
+        for((key,mascot,color) in examples) {
+            val e=event(key,"heads-up-$mascot")
+            assertEquals(NotificationDelivery.Delivered,BannerNotifications.dispatch(context,e))
+            val posted=awaitNotification(e.eventId)
+            Thread.sleep(1200)
+            automation.executeShellCommand("screencap -p").let {
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(it).use {input ->
+                    java.io.File(base.filesDir,"notification-headsup-$mascot.png").outputStream().use {output -> input.copyTo(output)}
+                }
+            }
+            assertEquals("Small-icon accent must follow the event, not the normal launcher",color,posted.notification.color)
+            val expected=base.resources.getIdentifier("mascot_$mascot","drawable",base.packageName)
+            assertNotNull(posted.notification.getLargeIcon())
+            assertEquals(expected,posted.notification.getLargeIcon().resId)
+            assertEquals(BannerCatalog[key].title,posted.notification.extras.getString(Notification.EXTRA_TITLE))
+            manager.cancel(posted.tag,posted.id)
+        }
+    }
     @Test fun allSixtySixDesignsPostWithBothThemesAndPersistOnlyOnce() {
         assertTrue(CareNotifications.allowed(context))
         val definitions=BannerCatalog.entries.values.filter {it.art!=null}

@@ -43,6 +43,7 @@ object BannerNotifications {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             val iconId = c.resources.getIdentifier("ic_care_notification","drawable",c.packageName).takeIf {it!=0} ?: android.R.drawable.ic_dialog_info
             val builder = Notification.Builder(c,channel).setSmallIcon(iconId).setContentTitle(event.title).setContentText(event.body)
+                .setColor(notificationColor(event.mood))
                 .setContentIntent(open).setAutoCancel(true).setOnlyAlertOnce(true).setShowWhen(true).setWhen(event.occurredAt)
                 .setLargeIcon(character(c,event.mood))
             if(event.source == "Simulation") builder.setSubText("시뮬레이션")
@@ -210,6 +211,15 @@ object BannerNotifications {
 
     fun cancelVisit(c: Context,vehicle: String,visit: String) { NotificationHistory(c).use { it.cancelVisit(vehicle,visit) } }
     private fun uri(vehicle:String,event:String): Uri = Uri.Builder().scheme("vemoring").authority("notification").appendPath(vehicle).appendPath(event).build()
+    // System UI tints the monochrome small icon/badge from this per-event accent, independently of the launcher.
+    private fun notificationColor(mood:String): Int = when(mood) {
+        "FUEL" -> 0xFFFFC107.toInt()
+        "WASH" -> 0xFFE86BA2.toInt()
+        "OIL" -> 0xFF8E5ACC.toInt()
+        "ANGRY" -> 0xFFE5484D.toInt()
+        "EXHAUSTED" -> 0xFF747C88.toInt()
+        else -> 0xFF087BBF.toInt()
+    }
     private fun character(c: Context,mood:String): Icon? {
         val name=when(mood) { "FUEL"->"fuel";"WASH"->"wash";"OIL"->"oil";"ANGRY"->"angry";"EXHAUSTED"->"exhausted";else->"normal" }
         val id=c.resources.getIdentifier("mascot_$name","drawable",c.packageName)

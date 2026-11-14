@@ -30,6 +30,13 @@
 
 Android가 접힌 알림의 제목·본문·아이콘과 시스템 장식을 관리하므로 제공 이미지는 펼친 BigPicture 알림 및 앱 내역에서 사용한다. HIGH 채널 게시와 실제 heads-up 노출은 구별한다. [Android 알림 스타일](https://developer.android.com/develop/ui/views/notifications/expanded), [커스텀 알림 제한](https://developer.android.com/develop/ui/views/notifications/custom-notification), [알림 권한](https://developer.android.com/develop/ui/views/notifications/notification-permission).
 
+### 2026-11-14 상단 배너의 작은 아이콘 강조색 수정
+
+- 사용자 확인: 오른쪽 캐릭터가 아니라 **왼쪽 작은 앱 아이콘의 원형 배경**이 주유·경고에도 기본 파란색으로 남았다. `setLargeIcon`은 이미 이벤트별 캐릭터를 선택했지만, `Notification.Builder.setColor`가 없어 작은 아이콘은 시스템 기본 강조색을 사용했다.
+- 알림 이벤트의 mood별 강조색을 지정했다. NORMAL 파랑, FUEL 노랑, WASH 분홍, OIL 보라, ANGRY 빨강, EXHAUSTED 회색이다. 작은 자동차 모양과 상태별 큰 캐릭터·제목·본문은 유지한다. 알림 생성 시 이벤트 상태를 사용하므로 앱 런처 아이콘이 NORMAL이어도 주유 알림은 FUEL 색을 갖는다. 시스템이 가독성 대비를 보정하므로 실제 주유 아이콘 배경은 진한 금색 계열로 표시될 수 있다.
+- 휴대폰 AVD `Vemoring_Phone_API_34`만 실행하고 격리된 verification 패키지로 검사했다. 다른 앱(설정)이 화면에 열린 상태에서 6종의 실제 상단 배너를 게시하여 Notification.color, 큰 캐릭터 리소스, 문구를 확인했다. 수정 전 APK는 FUEL 강조색이 0으로 회귀 검사 실패, 수정 후 6종 검사는 `OK (1 test)`다. 주유 금색/경고 보라/복합 빨강·회색의 실제 System UI 스크린샷도 확인했다.
+- 두 앱 debug APK와 폰 verification/계측 APK 빌드, 폰 verification lint 통과. 알림 소리·채널 중요도·경고 판정·Bluetooth 자동 복구 코드는 변경하지 않았다. 자료: `build/diagnostics/notification-icon/`의 `before-fix-test.txt`, `after-fix-test.txt`, `after-fuel.png`, `after-oil.png`, `after-angry.png`, `after-exhausted.png`, `build.txt`. 초기 수정 전 PNG는 설정 앱 첫 시작 화면만 찍혀 비교 증거로 쓰지 않는다. 삼성 One UI 실기기 재검사는 이번 실행에 포함되지 않는다.
+
 ## 검증 범위
 
 격리된 `com.example.vemoring.phone.verification` 앱에만 시뮬레이션을 허용하고 모든 시험 이벤트에 ‘시뮬레이션’을 표시한다. 실제 SDK/무선 수신이 성공한 것으로 취급하지 않는다. 결과·로그·화면은 `build/diagnostics/banner/`에 보관한다.
