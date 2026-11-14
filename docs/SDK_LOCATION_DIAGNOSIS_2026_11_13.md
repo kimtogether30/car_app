@@ -32,6 +32,18 @@ Pleos 문의에 필요한 최소 내용: 위 SDK 인터페이스/구현의 권�
 - 문의 초안(아직 외부 전송하지 않음): “Vehicle SDK 2.3.2 / Vehicle Service 2.3.22 / Connect AVD 2.1.0에서 CAR_SAFETY granted 상태로 Safety.getTelltalesInfo만 직접 호출해도 SecurityException(getTelltalesInfo need Permission)이 발생합니다. 인터페이스 RequiresPermission은 CAR_SAFETY이나 SafetyImpl의 RequiresCustomPermission은 PRIVATE_CAR_SAFETY로 확인됩니다. 일반 공모전 앱에서 사용할 공식 getter/권한 조합 또는 수정 SDK·서비스·AVD를 안내해 주세요.”
 - SDK 입력 이후의 캐릭터/알림/실제 무선 전송은 격리된 표본으로 검사할 수 있고 실제 무선 검사는 이미 수행했다. 이 결과는 거절된 SDK 입력 자체의 성공을 증명하지 않는다. 절전·거리·재부팅 추가 계획과 결과는 `BLUETOOTH_VALIDATION_CHECKLIST.md`에만 기록한다.
 
+## 2026-11-14 엔진오일량 직접 SDK 검증
+
+- 사용자 요청으로 휴대폰 AVD를 종료한 뒤 공식 Pleos Connect v2.1.0/API34/RAM4096MB 프로필을 Cold Boot했다. SDK 2.3.2, Vehicle Service 2.3.22, 현재 사용자10에서 `EngineOilSdkDiagnosticTest`를 실행했다. 기존 앱은 `install -r`로 업데이트했고 실제 차고/정비 기록은 쓰지 않았다. 사용자 작업 중인 디자인 파일 삭제는 이 작업에 포함하지 않았다.
+- CAR_SAFETY는 `checkSelfPermission=0` 및 package dump의 granted=true였다. 이 권한은 일반 런타임 grant 대상이 아니어서 `pm grant` 시도는 changeable permission type이 아니라는 오류였으며, 기존 자동 부여 상태를 확인해 진행했다. PRIVATE 권한 부여나 SDK 권한 우회는 하지 않았다.
+- `checkEngineOilLevelStateCapabilities`: `Unsupported / ERROR_NOT_SUPPORTED_PROPERTY`.
+- `getEngineOilLevelState` 직접 호출: `IllegalArgumentException: property ID is not in carPropertyConfig list, and so it is not supported: ENGINE_OIL_LEVEL`. SDK 오류 래퍼는 현재 Error로 분류하지만 원문은 해당 차량 property 미지원이다. getter를 capability 결과와 무관하게 직접 호출해도 같았다.
+- `registerEngineOilLevelState`: 메서드는 반환됐지만 관측 중 정상/부족 값 콜백은 없었다. 등록 메서드 반환을 실제 값 수신으로 판정하지 않는다. 대조 호출 `hasLowWasherFluidWarning`도 property `0x2120071e`가 config 목록에 없다는 오류였다.
+- 부팅 직후의 일시적인 초기화 문제와 구별하려고 약 2분 뒤 같은 진단을 재실행했으나 결과는 동일했다. 두 실행 모두 진단 자체는 `OK (1 test)`지만 **정상 값 수신/부족→정상 감지는 통과하지 않았다.** 각 실행 종료 때 listener 해제와 Vehicle.release를 수행했다.
+- 같은 환경에서 `TelltaleSdkDiagnosticTest`를 대조 실행한 결과는 `PermissionDenied: getTelltalesInfo need Permission`이었다. 따라서 현재 관측한 차단 원인은 **오일량: AVD의 ENGINE_OIL_LEVEL 미지원 / 경고등 목록: 권한 거절**로 다르다. 별도 API라는 사실만으로 오일량 실수신이 가능하다고 단정하면 안 된다.
+- 현재 AVD에서는 ‘보충/교체 후 오일량 정상 복귀’를 검증할 입력이 없다. 해당 property를 제공하는 공식 시험 환경 또는 실차에서 LOW→NORMAL의 실제 getter/listener와 반복 정상 상태를 확인해야 한다. 그래도 오일량 정상 복귀와 교체 완료/교체 주기 초기화는 구별한다.
+- 증거: `build/diagnostics/engine-oil/initial-result.json`, `warm-result.json`, `telltale-comparison-result.json` 및 각 계측 로그. 앱 debug/계측 빌드는 통과했다(`build.txt`). 진단 외 production 동작 변경은 없다.
+
 ## 휴대폰 현위치: 요청 수명·오래된 응답 처리 보완
 
 - 이전 선택적 검사는 실제 화면을 띄우지 않고 foreground 전용 위치 어댑터를 호출했다. 이제 Compose 화면을 연 뒤 요청한다.
