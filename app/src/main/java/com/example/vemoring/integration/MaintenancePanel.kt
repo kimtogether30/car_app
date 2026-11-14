@@ -105,7 +105,6 @@ fun MaintenancePanel(data: AppData, snapshot: VehicleSnapshot, weather: Result<E
         Text("누적 거리: ${current?.let { "%.1f km".format(it) } ?: "단위 확인/실제 수신 필요"} · 단위 근거: User Input")
         val assessment=careCondition(data,snapshot,config).oilAssessment
         Text(assessment?.reason ?: "엔진오일 기준 확인 중")
-        assessment?.percent?.let {Text("${if(assessment.estimated) "예상 " else ""}잔여율: ${it.toInt()}%")}
         assessment?.remainingKm?.let {Text(if(it>=0) "교체 주기까지: %.0f km".format(it) else "주기 초과: %.0f km".format(-it))}
         assessment?.dueDate?.let {Text("예상 교체일: $it · 이후 하루 20km 가정")}
         config.oilRule?.let {Text("가혹조건 ${it.severeKm?.toInt()}km / ${it.severeMonths}개월 · ${it.source}")}

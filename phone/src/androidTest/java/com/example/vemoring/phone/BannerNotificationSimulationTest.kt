@@ -67,7 +67,10 @@ class BannerNotificationSimulationTest {
             Triple("OIL_NEEDED","oil",0xFF8E5ACC.toInt()),
             Triple("FUEL_OIL_NEEDED","angry",0xFFE5484D.toInt()),
             Triple("ALL_NEEDED","exhausted",0xFF747C88.toInt()))
-        for((key,mascot,color) in examples) {
+        val args=InstrumentationRegistry.getArguments()
+        val hold=args.getString("bannerHoldMs")?.toLongOrNull()?.coerceIn(1200,30000) ?: 1200
+        val only=args.getString("bannerCase")
+        for((key,mascot,color) in examples.filter {only==null || it.first==only}) {
             val e=event(key,"heads-up-$mascot")
             assertEquals(NotificationDelivery.Delivered,BannerNotifications.dispatch(context,e))
             val posted=awaitNotification(e.eventId)
@@ -82,6 +85,7 @@ class BannerNotificationSimulationTest {
             assertNotNull(posted.notification.getLargeIcon())
             assertEquals(expected,posted.notification.getLargeIcon().resId)
             assertEquals(BannerCatalog[key].title,posted.notification.extras.getString(Notification.EXTRA_TITLE))
+            if(hold>1200) Thread.sleep(hold-1200)
             manager.cancel(posted.tag,posted.id)
         }
     }

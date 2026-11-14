@@ -36,3 +36,8 @@
 - Follow `docs/engine-oil/ENGINE_OIL_POLICY.md` and the supplied JSON. The latest 30-minute verified vehicle-power OFF→ON policy supersedes the earlier 20-minute continuous-dwell proposal. Do not use Bluetooth loss, engine idle stop, RPM=0, P/N or zero speed as vehicle power OFF.
 - Use model-specific severe recurring intervals and label model-only shortest references honestly. Preserve enrollment anchors; initial history may use 20km/day, but later actual odometer gaps must never also receive average distance.
 - No vehicle power API is currently validated in Vehicle SDK 2.3.2. Keep automatic garage confirmation inactive until the required real power/location evidence is supported and tested; manual engine-oil records remain available. Do not call a fixture a physical ignition/garage test.
+
+## Shared vehicle/phone UI structure (latest user instruction)
+
+- Keep both apps' UI hierarchy aligned. Home uses the shared CareHomeLayout: header, character/vehicle identity, energy/cleanliness, latest care dates, weather, nearby links. Platform text/touch sizing may adapt to the display.
+- Do not display an engine-oil percentage or enlarged oil-status card. Keep the internal due calculation; indicate the due condition through the character, launcher icon and notification banner. A due alert does not create a replacement record.

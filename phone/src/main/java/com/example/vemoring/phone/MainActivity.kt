@@ -456,6 +456,7 @@ class MainActivity : ComponentActivity() {
     val needsWash = localCleanliness != null && localCleanliness <= data.washAlert
     val displayMood=mirrored?.mood ?: moodFor(false,needsWash,data.oilAssessment?.due==true)
     fun percent(key: String): Int? = when (key) { "fuel" -> mirrored?.fuel; "battery" -> mirrored?.battery; else -> if (mirrored != null) mirrored.cleanliness else localCleanliness }
+    CareHomeLayout(header={
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("VEMORING", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
@@ -469,6 +470,7 @@ class MainActivity : ComponentActivity() {
         Text("${if (mirrored?.demo == true) "예시 차량 데이터 · " else ""}${if(!receivingSelected) "현재 수신 대상 아님 · 저장 정보" else if (link.active) "차량 연결됨" else "${link.message} · 마지막 데이터"}\n마지막 수신 ${cached.timeLabel()}",
             fontSize = 12.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+    },character={
     Surface(color=MaterialTheme.colorScheme.primaryContainer,shape=RoundedCornerShape(24.dp),modifier=Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
         val mascot = when (displayMood) {
@@ -493,16 +495,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    if(data.fuel!="전기차") data.oilAssessment?.let {oil ->
-        Panel {
-            Text("엔진오일 교체",fontWeight=FontWeight.Bold)
-            Text(oil.reason)
-            if(oil.reference.isNotBlank()) Text(oil.reference,fontSize=12.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            oil.percent?.let {Text("${if(oil.estimated) "예상 " else ""}잔여율 ${it.toInt()}%")}
-            oil.remainingKm?.let {Text(if(it>=0) "주기까지 %.0f km".format(it) else "주기 초과 %.0f km".format(-it))}
-            oil.dueDate?.let {Text("예상 교체일 $it · 이후 하루 20km 가정")}
-        }
-    }
+    },status={
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         buildList {
             if (data.fuel != "전기차") add("남은 연료" to (mirrored?.fuelStatus ?: "차량 연결 필요"))
@@ -521,6 +514,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    },records={
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         kinds.forEach { kind ->
             val date = data.entries.filter {it.kind == kind && !it.cancelled && (kind != MAINTENANCE || it.maintenanceType == com.vemoring.companion.MaintenanceType.ENGINE_OIL)}.maxByOrNull {it.date}?.date
@@ -528,8 +522,8 @@ class MainActivity : ComponentActivity() {
                 fontSize=12.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    com.vemoring.companion.ForecastWeatherPanel(vehicleId=data.vehicleId,enabled=mirrored?.demo != true)
-    com.vemoring.companion.NearbyQuickLinks(onSearch = search)
+    },weather={ForecastWeatherPanel(vehicleId=data.vehicleId,enabled=mirrored?.demo!=true)},
+        nearby={NearbyQuickLinks(onSearch=search)})
 }
 
 @Composable internal fun NearbyPlaces(search: (String) -> Unit) {

@@ -374,6 +374,8 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
     val latest = remember(data.records) { CareKind.entries.associateWith { data.records.latest(it) } }
     HomePage { compact ->
         confirmationBanner?.invoke()
+        com.vemoring.companion.CareHomeLayout(spacing=if(compact) 4.dp else 16.dp,
+            header={
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("VEMORING", fontSize = 32.sp, lineHeight = 38.sp,
@@ -384,9 +386,7 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
             if (diagnostics != null) TextButton(onClick = diagnostics, modifier = Modifier.heightIn(min = 64.dp)) { Text("데이터 연결") }
             OutlinedButton(onClick = notifications, modifier = Modifier.heightIn(min = 64.dp)) { Text("알림") }
         }
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-            Column(Modifier.widthIn(max = 1120.dp).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 16.dp)) {
+            },character={
                 Panel(color = Color(0xFFE2F0FA), compact = compact) {
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -412,6 +412,7 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
                     }
                     }
                 }
+            },status={
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (!p.electric) Stat("남은 연료", snapshot[VehicleField.FUEL].realPercent(),
                         snapshot[VehicleField.FUEL].statusText(), Blue, Modifier.weight(1f), compact)
@@ -419,6 +420,7 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
                     Stat("차량 청결도", condition.cleanliness, if (condition.cleanliness != null)
                         condition.syncStatus else "세차 기록이 필요해요", Mint, Modifier.weight(1f), compact)
                 }
+            },records={
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(16.dp)) {
                     CareKind.entries.forEach { kind ->
                         Row(Modifier.weight(1f),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
@@ -427,14 +429,8 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
                         }
                     }
                 }
-                if(!p.electric) condition.oilAssessment?.let {oil ->
-                    Stat(if(oil.estimated) "엔진오일 예상 잔여율" else "엔진오일 관리 잔여율",oil.percent?.toInt(),
-                        oil.reason+(oil.dueDate?.let {" · 예상 교체일 $it"} ?: ""),CarePurple,Modifier.fillMaxWidth(),compact)
-                }
-                VehicleHomeWeather(p.vehicleId,demo)
-                NearbyPlacesBanner(compact = compact, slim = true)
-            }
-        }
+            },weather={VehicleHomeWeather(p.vehicleId,demo)},
+            nearby={NearbyPlacesBanner(compact=compact,slim=true)})
     }
 }
 

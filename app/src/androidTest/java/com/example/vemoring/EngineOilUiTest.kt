@@ -22,7 +22,7 @@ class EngineOilUiTest {
         compose.onNodeWithText("기록 저장").performClick()
         compose.runOnIdle {assertEquals(MaintenanceType.ENGINE_OIL,saved!!.maintenanceType)}
     }
-    @Test fun homeShowsOilCarePeriodAndNoWarningPanel() {
+    @Test fun homeUsesOilCharacterWithoutPercentageCard() {
         val date=LocalDate.now(CARE_ZONE)
         val oil=EngineOilAssessment(true,0.0,0,reason="엔진오일 교체 시기 도래",percent=0.0,dueDate=date)
         val data=AppData(CarProfile("현대","아반떼","베모링"),complete=true)
@@ -30,7 +30,10 @@ class EngineOilUiTest {
             HomeScreen(data,BatteryReading(),{},MascotMood.OIL,
                 condition=CareCondition(CareSignals(oilDue=true),oilAssessment=oil),demo=true)
         }}
-        compose.onNodeWithText("엔진오일 관리 잔여율").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("엔진오일 관리 잔여율").assertDoesNotExist()
+        compose.onNodeWithText("엔진오일 예상 잔여율").assertDoesNotExist()
+        compose.onNodeWithText("남은 연료").assertIsDisplayed()
+        compose.onNodeWithText("차량 청결도").assertIsDisplayed()
         compose.onNodeWithText("차량 안전 경고").assertDoesNotExist()
         val screenshot=compose.onRoot().captureToImage().asAndroidBitmap()
         val context=InstrumentationRegistry.getInstrumentation().targetContext
