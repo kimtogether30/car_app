@@ -218,3 +218,15 @@ Tab S7은 Pleos 차량이 아니다. 아래에서 ‘무선 통과’는 실제 
 - 판정: **사용자가 이동한 범위에서 실제 무선 송수신 유지 및 USB 없는 단독 수신 통과. 실제 도달 범위 밖 단절/복귀는 관측되지 않아 미검증 유지.** 기존 Bluetooth OFF/ON 및 절전 중 송신기 재시작의 자동 재연결 통과와 구별한다. USB 분리 또는 사용자 이동 자체를 무선 단절 성공으로 기록하지 않는다.
 - 증거는 기존 ignored diagnostics 폴더의 `range-baseline.json`, `range-monitor.jsonl`, `range-monitor-result.json`, `range-summary.json`, `range-publisher.xml`, `range-phone-return.json`, `host-range-events.jsonl`, `host-range-session.txt`다. 송신 계측은 `OK (1 test)`로 종료했다.
 - 양쪽 시험 서비스/계측 종료, 시험 런처 숨김과 verification user0 비활성화를 마쳤으며 해당 패키지의 잔여 NotificationRecord는 0이었다. 일반 앱·양쪽 데이터·기존 페어링을 보존했다. 앱 코드 변경은 없다.
+
+### 2026-11-14 두 번째 이동: 실제 단절과 장시간 뒤 수동 복구
+
+- 사용자가 지난번보다 더 멀리 이동했다. 가까운 상태의 `range2-baseline` ACK 이후 S24 USB를 분리했고, Bluetooth ON을 유지하도록 안내했다. S7 송신기는 약 20초마다 새 `range2-probe-N` 프레임을 전송하며 약 5초마다 링크 상태를 기록했다.
+- **01:02:46 KST에 실제 active=false / ‘연결 끊김 · 마지막 데이터 유지’를 관측했다.** 곧바로 단절 중 새 시험 프레임을 준비하고 사용자에게 복귀를 안내했다. 10분 관측기는 Lost=true / Returned=false로 끝났다. 이는 USB 단절만으로 판정한 결과가 아니다.
+- 복귀 완료 확인까지 대기가 길어져 탭 시험 계측은 1시간 제한(`TimeoutCancellationException: 3600000 ms`)으로 종료됐고 서비스도 종료됐다. 최초 `host-range2-session.txt`는 이 시험기 timeout으로 실패한 실행이며 정상 종료로 덮지 않는다. 따라서 송신기가 계속 켜진 상태의 즉시 거리 복귀 시나리오 전체를 통과/실패로 단정하지 않는다.
+- 복귀한 S24를 연결 조작 없이 확인했다. 서비스는 foreground로 살아 있었지만 마지막 프레임은 `range2-probe-5`, revision 1794586376653이었다. 실제 정보창은 **‘자동 재연결 3회 실패 · … 다시 연결해 주세요.’**를 표시했다. 탭 송신기를 복구하고 새 최신 프레임을 준비한 뒤에도 수동 연결 전에는 탭 active=false가 유지됐다. 장시간 이탈 후 재시도 예산 소진 상태에서 자동 연결은 복구되지 않았음을 확인했다.
+- 자동 판정 증거를 보존한 뒤 별도 수동 복구 검사를 했다. S24 실제 UI에서 페어링된 S7을 다시 선택하자 active=true와 ACK가 확인됐고, `range2-restored-server` 최신 프레임 revision 1794633501492가 저장됐다. 설정 28%와 취소/삭제 기록 3개도 보존됐다. 최신 상태 복구를 확인한 것이며 단절 중 모든 중간 프레임을 각각 전달했다는 뜻은 아니다.
+- 판정: **실제 거리 단절 확인 / 장시간 이탈 후 자동 재연결 미성공(예산 소진) / 수동 재연결·최신 상태 복구 통과.** 짧은 단절 후 자동 복구의 기존 통과와 구별한다. 계속 무한 재시도하는 코드나 재부팅 자동 연결은 이번에 추가하지 않았다.
+- 증거는 기존 ignored diagnostics의 `range2-monitor.jsonl`, `range2-monitor-result.json`, `range2-phone-before-resume.json`, `range2-phone-services-before.txt`, `range2-info-state.txt`, `range2-host-before-resume.json`, `range2-manual-recovery.json`, `host-range2-events-final.jsonl`에 보존했다. 복구 검사 세션 `host-range2-resume-session.txt`는 `OK (1 test)`로 종료했다.
+- 처음 정보창으로 이동하려던 좌표 터치는 자동 승인 검토가 실제 연결 시작 가능성을 이유로 거절했다. 먼저 읽기 전용 UI와 소스의 `connect={connection=true}`를 확인한 뒤 정보창만 열었으며, 수동 연결은 그 이후 별도 단계로 수행했다. 자동 재연결 관찰 전에 연결 버튼을 누른 것으로 간주하지 않는다.
+- 양쪽 시험 서비스/계측을 종료하고 verification 패키지를 user0에서 비활성화했다. 해당 패키지 잔여 NotificationRecord는 0, 일반 앱·양쪽 데이터·기존 페어링은 보존했다.
