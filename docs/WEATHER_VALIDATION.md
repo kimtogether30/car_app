@@ -73,3 +73,15 @@ adb shell am instrument -w -e class com.example.vemoring.phone.DrivingWeatherSto
 ```
 
 날씨 계산 테스트에는 실제 거리 기본 0.1%p/km, 비 총 0.3%p/km, 눈 총 0.5%p/km, PM 일별 상한 2%p, 미량 강수 시 먼지 차감 배제, 누락/72시간/시간 경계, 오래된 SDK 값을 새 수신으로 오인하지 않는 검사가 포함된다. 실제 비 노출이나 센서 정확도를 입증한 것은 아니다.
+
+## 2026-11-14 실제 외부 API 재검사
+
+사용자가 실시간 API 호출을 명시적으로 요청하여 `VEMORING_WEATHER_LIVE=1`로 기존 `WeeklyWeatherRepositoryTest`, `DrivingWeatherTest`만 실행했다. 두 클래스의 실제 앱 HTTP 구현을 사용하며, 고정 공개 서울 시험 좌표만 전송했다. 사용자 GPS/차량 위치 수집이나 앱 데이터 변경은 없다. Gradle worker 2개 등 기존 제한을 유지했다.
+
+- **실제 예보 API: 실패.** `api.open-meteo.com`의 7일 예보 조회는 TLS handshake read timeout, 시간별 강수 조회도 실패해 완성된 HourWeather를 얻지 못했다. 앱 바깥 PowerShell HTTPS도 연결이 원격에서 끊겼으며 IPv4 curl도 connect timeout이었다. 따라서 예보의 현재 실시간 성공으로 판정하지 않는다.
+- **실제 미세먼지 API: 통과.** `air-quality-api.open-meteo.com`은 HTTP 200, PM10/PM2.5 각 24개 표본을 반환했다. 추가로 완료된 UTC 2026-11-14 03:00을 epoch로 찾아 KST 12:00과 일치함을 확인했다. 응답 utc_offset_seconds=0, HTTP Date도 검사 시각과 일치했다. 해당 시간 PM10=44.9, PM2.5=43.2였다. 이는 공개 시험 지점의 모델 응답이며 사용자 현재 공기질이 아니다.
+- **날짜/파싱/정책 로컬 회귀:** 총 14개 중 12 통과, 실제 외부 조회 2개 실패, 생략 0. 한국 날짜 7일/자정·UTC 경계, 누락/오류 처리 등은 통과했지만 이를 실시간 예보 호출 성공과 섞지 않는다.
+- DNS의 예보 서버 IPv4는 OS와 Google 공개 DNS 조회 모두 51.81.167.44였고, IPv6 대체 주소는 얻지 못했다. 같은 PC에서 공식 문서 서버와 미세먼지 서버는 HTTP 200이었다. 현재 증거는 특정 예보 호스트로의 연결 실패이며, 공급자 전체 장애/PC 방화벽 원인 중 하나로 확정하지 않는다. 시스템 DNS/방화벽·인증서 검증·제공자·앱 timeout을 임의 변경하지 않았다.
+- 앱 코드는 변경하지 않았다. 예보 정상화 판정에는 해당 호스트 연결이 가능한 별도 네트워크/기기 비교와 앱의 실제 예보 검사 재실행이 필요하다. 공개 좌표의 미세먼지 성공만으로 강수·7일 예보 전체를 통과 처리하지 않는다.
+
+로그: `build/diagnostics/weather-live-2026-11-14.txt`, `weather-live-air-time-2026-11-14.json` 및 `phone/build/test-results/testDebugUnitTest/TEST-*Weather*.xml`. 과거 통과 기록은 과거 실행 결과로 보존하며 이번 실패로 덮어쓰지 않는다.
