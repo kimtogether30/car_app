@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.Dispatchers
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -206,6 +207,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         readNotification(intent)
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) { com.vemoring.companion.MirrorBluetoothService.restore(applicationContext) }
         setContent { PhoneTheme { PhoneApp(notificationRequest) } }
     }
 }

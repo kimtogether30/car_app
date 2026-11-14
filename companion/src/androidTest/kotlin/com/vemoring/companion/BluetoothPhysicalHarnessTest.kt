@@ -166,7 +166,7 @@ class BluetoothPhysicalHarnessTest {
             context.unregisterReceiver(receiver)
             observer.cancelAndJoin()
             rawJob?.cancel();runCatching {rawSocket?.close()};runCatching {rawServer?.close()}
-            context.stopService(Intent(context,MirrorBluetoothService::class.java))
+            MirrorBluetoothService.stop(context)
             report("finished")
             scope.cancel()
         }
@@ -183,7 +183,7 @@ class BluetoothPhysicalHarnessTest {
                 MirrorBluetoothService.start(context,host,address)
             }
             "invalidPeer" -> MirrorBluetoothService.start(context,host,"00:00:00:00:00:00")
-            "disconnect" -> context.stopService(Intent(context,MirrorBluetoothService::class.java))
+            "disconnect" -> MirrorBluetoothService.stop(context)
             "publish" -> publish(i.getStringExtra("message") ?: "frame",vehicle,
                 if(i.getBooleanExtra("missingFuel",false)) null else i.getIntExtra("fuel",80),
                 if(i.hasExtra("washer")) i.getBooleanExtra("washer",false) else null)

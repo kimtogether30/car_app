@@ -57,8 +57,10 @@ class MirrorBluetoothService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == STOP) { stopSelf(); return START_NOT_STICKY }
-        if (intent == null || !hasConnectPermission(this) || adapter == null || adapter?.isEnabled != true) {
+        if (intent?.action == STOP) { MirrorLinkSettings.forget(this); stopSelf(); return START_NOT_STICKY }
+        // A boot/update restore may arrive before the adapter finishes turning on; it then waits for STATE_ON.
+        val restoring = intent?.getBooleanExtra(RESTORE, false) == true
+        if (intent == null || !hasConnectPermission(this) || adapter == null || (adapter?.isEnabled != true && !restoring)) {
             MirrorBus.link.value = MirrorLink(false, "블루투스와 주변 기기 권한을 확인해 주세요.")
             stopSelf(); return START_NOT_STICKY
         }
@@ -68,7 +70,8 @@ class MirrorBluetoothService : Service() {
             stopSelf(); return START_NOT_STICKY
         }
         try {
-            if (adapter!!.getRemoteDevice(address).bondState != BluetoothDevice.BOND_BONDED) {
+            val ready = adapter!!.isEnabled
+            if (ready && adapter!!.getRemoteDevice(address).bondState != BluetoothDevice.BOND_BONDED) {
                 MirrorBus.link.value = MirrorLink(false, "시스템 설정에서 먼저 기기를 페어링해 주세요.")
                 stopSelf(); return START_NOT_STICKY
             }
@@ -88,7 +91,8 @@ class MirrorBluetoothService : Service() {
                 registered = true
                 scope.launch { MirrorBus.link.collect { runCatching { manager.notify(2041, notification(it.message)) } } }
             }
-            if (hosting) startHost() else startClient()
+            if (!ready) MirrorBus.link.value = MirrorLink(false, "블루투스가 켜지면 자동으로 연결해요 · 마지막 데이터 유지", true)
+            else if (hosting) startHost() else startClient()
         } catch (_: Exception) {
             MirrorBus.link.value = MirrorLink(false, "이 기기에서 블루투스 데이터 연결을 시작할 수 없어요.")
             stopSelf()
@@ -269,6 +273,7 @@ class MirrorBluetoothService : Service() {
         const val HOST = "com.vemoring.companion.HOST"
         const val CONNECT = "com.vemoring.companion.CONNECT"
         const val STOP = "com.vemoring.companion.STOP"
+        private const val RESTORE = "restore"
         private const val CHANNEL = "vemoring_companion"
         private const val HELLO = 0x56454D32
         val SERVICE_UUID: UUID = UUID.fromString("7ff67821-9d45-4a95-8c28-92306fdab461")
@@ -278,33 +283,67 @@ class MirrorBluetoothService : Service() {
             context.stopService(Intent(context,MirrorBluetoothService::class.java))
             MirrorBus.link.value=MirrorLink(false,message)
         }
+        /** User-initiated start. The choice is remembered so a reboot or app update can resume it. */
         fun start(context: Context, host: Boolean, address: String) {
+            if (launch(context, host, address)) MirrorLinkSettings.remember(context, host, address)
+        }
+
+        /** Explicit user stop: forget the remembered link so it is not resumed after a reboot. */
+        fun stop(context: Context) {
+            MirrorLinkSettings.forget(context)
+            context.stopService(Intent(context, MirrorBluetoothService::class.java))
+        }
+
+        /**
+         * Resume a link the user left on: after boot/update, and when the app is opened (the update broadcast can be
+         * held or dropped by the OS). Never restarts a running link, starts one the user did not choose, or bypasses
+         * permission. Call off the main thread; it reads preferences.
+         */
+        fun restore(context: Context) {
+            if (MirrorBus.link.value.running) return
+            val saved = MirrorLinkSettings.saved(context) ?: return
+            if (!hasConnectPermission(context)) return
+            try {
+                val bluetooth = context.getSystemService(BluetoothManager::class.java)?.adapter ?: return
+                // Bond state is only meaningful while the adapter is on; an off adapter waits inside the service.
+                if (bluetooth.isEnabled && bluetooth.getRemoteDevice(saved.peer).bondState != BluetoothDevice.BOND_BONDED) {
+                    MirrorLinkSettings.forget(context); return
+                }
+                ContextCompat.startForegroundService(context, Intent(context, MirrorBluetoothService::class.java)
+                    .setAction(if (saved.host) HOST else CONNECT).putExtra("peer", saved.peer).putExtra(RESTORE, true))
+            } catch (_: SecurityException) { /* Permission revoked; the user reconnects from the app. */ }
+            catch (_: IllegalStateException) { /* OS refused a background FGS start; opening the app retries. */ }
+            catch (_: IllegalArgumentException) { MirrorLinkSettings.forget(context) }
+        }
+
+        private fun launch(context: Context, host: Boolean, address: String): Boolean {
             // Reject unavailable prerequisites before creating an FGS obligation. In particular, newer Android
             // can terminate the app when an ineligible service exits without ever entering the foreground.
             if(!hasConnectPermission(context)) {
                 rejectStart(context,"주변 기기 권한을 허용한 뒤 데이터 연결에서 다시 연결해 주세요.")
-                return
+                return false
             }
             if(!BluetoothAdapter.checkBluetoothAddress(address)) {
                 rejectStart(context,"연결할 기기를 다시 선택해 주세요.")
-                return
+                return false
             }
             try {
                 val bluetooth=context.getSystemService(BluetoothManager::class.java)?.adapter
                 if(bluetooth==null || !bluetooth.isEnabled) {
                     rejectStart(context,"블루투스를 켠 뒤 데이터 연결에서 다시 연결해 주세요.")
-                    return
+                    return false
                 }
                 if(bluetooth.getRemoteDevice(address).bondState!=BluetoothDevice.BOND_BONDED) {
                     rejectStart(context,"시스템 설정에서 먼저 기기를 페어링해 주세요.")
-                    return
+                    return false
                 }
             } catch(_:SecurityException) {
                 rejectStart(context,"주변 기기 권한을 허용한 뒤 데이터 연결에서 다시 연결해 주세요.")
-                return
+                return false
             }
             ContextCompat.startForegroundService(context, Intent(context, MirrorBluetoothService::class.java)
                 .setAction(if (host) HOST else CONNECT).putExtra("peer", address))
+            return true
         }
     }
 }

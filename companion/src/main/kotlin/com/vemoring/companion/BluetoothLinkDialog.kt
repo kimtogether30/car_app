@@ -61,7 +61,7 @@ import kotlinx.coroutines.withContext
                 runCatching { MirrorBluetoothService.start(context, host, address) }.onFailure { message = "연결 서비스를 시작하지 못했어요. 다시 시도해 주세요." }
             }, modifier = Modifier.fillMaxWidth().heightIn(min = actionHeight)) { Text("$name · ${address.takeLast(5)}", fontSize = actionSize) } }
             if (devices.isEmpty() && allowed) Text("페어링한 기기가 없으면 블루투스 설정에서 먼저 페어링해 주세요.", fontSize = bodySize)
-            if (link.running) TextButton(onClick = { context.stopService(Intent(context, MirrorBluetoothService::class.java)) }, modifier = Modifier.heightIn(min = actionHeight)) { Text("연결 종료", fontSize = actionSize) }
+            if (link.running) TextButton(onClick = { MirrorBluetoothService.stop(context) }, modifier = Modifier.heightIn(min = actionHeight)) { Text("연결 종료", fontSize = actionSize) }
             Text("일반 오디오 연결만으로 데이터가 전송되지는 않아요. 양쪽 베모링 앱의 데이터 연결이 필요해요.", fontSize = if (host) 19.sp else 12.sp, lineHeight = if (host) 28.sp else 18.sp)
         }
     }, confirmButton = { TextButton(onClick = dismiss, modifier = Modifier.heightIn(min = actionHeight)) { Text("닫기", fontSize = actionSize) } })

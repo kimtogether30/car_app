@@ -84,6 +84,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         integrationModel.observeVehicle(vehicleModel.state)
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) { com.vemoring.companion.MirrorBluetoothService.restore(applicationContext) }
         setContent {
             MaterialTheme(typography = com.example.vemoring.ui.theme.Typography, colorScheme = GarageColors) {
                 GarageApp(homeLaunchRequest = homeLaunchRequest, vehicleModel = vehicleModel,

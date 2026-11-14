@@ -20,6 +20,12 @@
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:supportsRtl="true">
         <service android:name="com.vemoring.companion.MirrorBluetoothService" android:exported="false" android:foregroundServiceType="connectedDevice" />
+        <receiver android:name="com.vemoring.companion.MirrorLinkRestoreReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <service android:name="com.vemoring.companion.PhoneWashAssistService" android:exported="false" android:foregroundServiceType="location" />
         <receiver android:name="com.vemoring.companion.CareCancelReceiver" android:exported="false" />
         <receiver android:name="com.vemoring.companion.CareDailyReceiver" android:exported="false">

@@ -38,6 +38,12 @@
         android:theme="@style/Theme.Vemoring">
         <uses-library android:name="android.car" android:required="false" />
         <service android:name="com.vemoring.companion.MirrorBluetoothService" android:exported="false" android:foregroundServiceType="connectedDevice" />
+        <receiver android:name="com.vemoring.companion.MirrorLinkRestoreReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <service android:name=".VehicleIconMonitor" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-enabled read-only vehicle telemetry and care-message publishing while another screen is visible; launcher icon updates are optional and independent. The user can stop background receiving in settings." />
