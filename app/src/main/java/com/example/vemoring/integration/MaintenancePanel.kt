@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.mapLatest
 import com.vemoring.companion.*
 
 data class MaintenanceConfig(val unit: String = "", val washId: String = "", val washKm: Double? = null,
-    val oilId: String = "", val oilKm: Double? = null, val intervalKm: Double? = null,
+    val oilId: String = "", val oilKm: Double? = null,
     val intervals: List<TravelInterval> = emptyList(), val syncStatus: String = "차량 임시 추정", val phoneSyncPending: Boolean = false,
     val authority: CareAuthority? = null, val oilRule: EngineOilRule? = null, val oilLedger: org.json.JSONObject? = null)
 fun vehicleCareId(profile: CarProfile): String = profile.vehicleId
@@ -39,12 +39,12 @@ class MaintenanceStore(private val context: Context, private val profile: CarPro
         return MaintenanceConfig(prefs.getString(prefix+"unit","") ?: "",
             prefs.getString(prefix+"washId","") ?: "", prefs.getString(prefix+"washKm",null)?.toDoubleOrNull(),
             prefs.getString(prefix+"oilId","") ?: "",prefs.getString(prefix+"oilKm",null)?.toDoubleOrNull(),
-            prefs.getString(prefix+"intervalKm",null)?.toDoubleOrNull(), care.intervals, care.syncStatus, care.pending,care.authority,EngineOilCatalog.rule(context,profile.fullModel,profile.fuel),ledger.frame())
+            care.intervals, care.syncStatus, care.pending,care.authority,EngineOilCatalog.rule(context,profile.fullModel,profile.fuel),ledger.frame())
     }
     fun save(value: MaintenanceConfig): Boolean = prefs.edit().putString(prefix+"unit",value.unit)
         .putString(prefix+"washId",value.washId).putString(prefix+"washKm",value.washKm?.toString())
         .putString(prefix+"oilId",value.oilId).putString(prefix+"oilKm",value.oilKm?.toString())
-        .putString(prefix+"intervalKm",value.intervalKm?.toString()).commit()
+        .remove(prefix+"intervalKm").commit()
     fun observe(changed: () -> Unit): () -> Unit {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key?.startsWith(prefix) == true) changed()

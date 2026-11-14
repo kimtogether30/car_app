@@ -41,8 +41,6 @@ fun distanceMeters(a: Coordinates, lat: Double, lon: Double): Double {
 object CareEstimator {
     fun cleanliness(days: Long, distanceKm: Double?, observedRainMm: Double?, pm10: Double?, dust: Double?, roadWeight: Double = 0.0): Int =
         com.vemoring.companion.CareEstimateFormula.cleanliness(days, distanceKm, observedRainMm, pm10, dust, roadWeight)
-    fun oilRemaining(currentKm: Double, replacedAtKm: Double, userIntervalKm: Double): Double =
-        com.vemoring.companion.CareEstimateFormula.oilRemaining(currentKm, replacedAtKm, userIntervalKm)
 }
 class DemoVehicleGateway : VehicleGateway {
     override fun start(publish: (VehicleField, Reading) -> Unit) {

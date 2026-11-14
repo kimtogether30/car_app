@@ -20,7 +20,7 @@ class RecordIntentTest {
         val s=com.example.vemoring.vehicle.VehicleSnapshot().let {it.copy(readings=it.readings+
             (com.example.vemoring.vehicle.VehicleField.ODOMETER to com.example.vemoring.vehicle.Reading.available(
                 com.example.vemoring.vehicle.SignalValue("15000km",15000.0,"km"))))}
-        val config=com.example.vemoring.integration.MaintenanceConfig(unit="km",oilId="${r.id}@${r.date}",oilKm=10000.0,intervalKm=5000.0)
+        val config=com.example.vemoring.integration.MaintenanceConfig(unit="km",oilId="${r.id}@${r.date}",oilKm=10000.0)
         assertNull(careCondition(data,s,config).oilRemainingKm)
     }
     @Test fun unknownDoesNotCreateTodayOrRemoveExistingRecords() {

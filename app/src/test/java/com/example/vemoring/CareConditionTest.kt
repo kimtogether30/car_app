@@ -40,7 +40,7 @@ class CareConditionTest {
             maintenanceType = com.vemoring.companion.MaintenanceType.ENGINE_OIL)
         val data = AppData(profile, listOf(oil))
         val vehicle = snapshot(VehicleField.ODOMETER to Reading.available(SignalValue("15000", 15000.0)))
-        val config = MaintenanceConfig("km", oilId = "oil@${oil.date}", oilKm = 10000.0, intervalKm = 5000.0, oilRule=com.vemoring.companion.EngineOilRule("test","현대 아반떼","휘발유",5000.0,null,"fixture"))
+        val config = MaintenanceConfig("km", oilId = "oil@${oil.date}", oilKm = 10000.0, oilRule=com.vemoring.companion.EngineOilRule("test","현대 아반떼","휘발유",5000.0,null,"fixture"))
         assertEquals(0.0, evaluate(data, vehicle, config).oilRemainingKm!!, 0.0)
         for(type in com.vemoring.companion.MaintenanceType.entries.filter { it != com.vemoring.companion.MaintenanceType.ENGINE_OIL }) {
             assertNull(evaluate(data.copy(records = listOf(oil.copy(maintenanceType = type))), vehicle, config).oilRemainingKm)

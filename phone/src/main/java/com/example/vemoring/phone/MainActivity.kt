@@ -73,7 +73,7 @@ private val kinds = listOf("세차", "주유", MAINTENANCE)
 private val SeoulZone = java.time.ZoneId.of("Asia/Seoul")
 private val HomeDateFormat = DateTimeFormatter.ofPattern("yyyy. MM. dd")
 private val ReceivedTimeFormat = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss")
-private data class MirrorDisplay(val fuel: Int?, val battery: Int?, val cleanliness: Int?, val oilRemainingKm: Double?,
+private data class MirrorDisplay(val fuel: Int?, val battery: Int?, val cleanliness: Int?,
     val fuelStatus: String, val batteryStatus: String, val mood: String, val message: String, val demo: Boolean)
 private data class PhoneData(val nickname: String = "나의 베모링", val model: String = "",
     val plate: String = "", val entries: List<Entry> = emptyList(),
@@ -99,7 +99,7 @@ private fun phoneVehicleData(context: android.content.Context,state: CareAuthori
         val mood=if(it.optBoolean("demo")) it.optString("mood","NORMAL") else moodFor(EnergyPolicy.low(p, it)==true,
             score?.let {s -> s<=p.getInt("washAlert")}==true,oilAssessment.due==true)
         MirrorDisplay(it.takeUnless {j -> j.isNull("fuel")}?.getInt("fuel"),it.takeUnless {j -> j.isNull("battery")}?.getInt("battery"),score,
-            it.takeUnless {j -> j.isNull("oilRemainingKm")}?.getDouble("oilRemainingKm"),it.optString("fuelStatus","미수신"),it.optString("batteryStatus","미수신"),
+            it.optString("fuelStatus","미수신"),it.optString("batteryStatus","미수신"),
             mood,if(it.optBoolean("demo")) it.optString("message") else moodMessage(mood),it.optBoolean("demo"))
     }
     return PhoneData(p.optString("nickname"),p.optString("model"),p.optString("plate"),entries,p.getString("fuel"),
@@ -135,7 +135,7 @@ private fun ReceivedMirror.phoneData(): PhoneData {
                 r.optString("appliedAt").takeUnless { it.isBlank() || it == "null" },r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(r.optString("maintenanceType")),r.optDouble("odometerKm",Double.NaN).takeIf {km -> km.isFinite() && km>=0})
         } }.sortedByDescending { it.date }, p.getString("fuel"), p.getBoolean("notifications"), p.getInt("washAlert"), p.getInt("fuelAlert"), this,
         MirrorDisplay(content.takeUnless { it.isNull("fuel") }?.getInt("fuel"), content.takeUnless { it.isNull("battery") }?.getInt("battery"),
-            content.takeUnless { it.isNull("cleanliness") }?.getInt("cleanliness"), content.takeUnless { it.isNull("oilRemainingKm") }?.getDouble("oilRemainingKm"),
+            content.takeUnless { it.isNull("cleanliness") }?.getInt("cleanliness"),
             content.optString("fuelStatus", "미수신"), content.optString("batteryStatus", "미수신"), content.getString("mood"), content.getString("message"), content.getBoolean("demo")))
 }
 

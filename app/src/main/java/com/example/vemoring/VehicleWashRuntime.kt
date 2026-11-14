@@ -32,6 +32,8 @@ object VehicleWashRuntime {
             var repairSites=emptyList<WashSite>()
             var repairsAt=0L
             var previousId:String?=null
+            var oilKey=""
+            var oilEnabled=false
             for((point,receivedAt,snapshot) in channel) {
                 val prefs=app.getSharedPreferences(VehicleIconMonitor.PREFS,Context.MODE_PRIVATE)
                 if(!prefs.getBoolean(VehicleIconMonitor.RECEIVE_ENABLED,true)) continue
@@ -63,7 +65,10 @@ object VehicleWashRuntime {
                     val power=snapshot[VehicleField.IGNITION]
                     val powerAt=power.receivedAtMillis ?: 0
                     val oilPower=when(power.value?.rawState) {"OFF","LOCK"->VerifiedVehiclePower.OFF;"ON"->VerifiedVehiclePower.ON;else->null}
-                    val oilEnabled=EngineOilCatalog.rule(app,receiving.profile.fullModel,receiving.profile.fuel)!=null
+                    // Model/fuel can be edited without changing the vehicle ID; re-check only when they change.
+                    val key=receiving.profile.vehicleId+"|"+receiving.profile.fullModel+"|"+receiving.profile.fuel
+                    if(key!=oilKey) {oilKey=key;oilEnabled=EngineOilCatalog.rule(app,receiving.profile.fullModel,receiving.profile.fuel)!=null}
+                    val oilStore=EngineOilVisitStore(app,receiving.profile.vehicleId)
                     if(oilEnabled && EngineOilVisitPolicy.resumeUsable(fix) &&
                         (fix.liveSpeed()==0.0 && fix.liveGear()!=null || power.state==ReadingState.Available && oilPower!=null && powerAt>lastPowerAt && receivedAt-powerAt in 0..15000) &&
                         (receivedAt-repairsAt>15*60_000 || repairSites.isEmpty() && receivedAt-repairsAt>=60_000)) {
@@ -73,11 +78,11 @@ object VehicleWashRuntime {
                     }
                     if(garage.receiving()?.profile?.vehicleId!=receiving.profile.vehicleId) continue
                     if(oilEnabled && power.state==ReadingState.Available && oilPower!=null && powerAt>lastPowerAt && receivedAt-powerAt in 0..15000 && kotlin.math.abs(fix.at-powerAt)<=15000 && EngineOilVisitPolicy.usable(fix)) {
-                        EngineOilVisitStore(app,receiving.profile.vehicleId).power(oilPower,fix.copy(at=powerAt),repairSites)
+                        oilStore.power(oilPower,fix.copy(at=powerAt),repairSites)
                         lastPowerAt=powerAt
                     }
                     val km=confirmedKilometres(snapshot[VehicleField.ODOMETER],MaintenanceStore(app,receiving.profile).distanceUnit())
-                    if(EngineOilVisitStore(app,receiving.profile.vehicleId).observe(fix,km,if(oilEnabled) repairSites else emptyList())) revision.value++
+                    if(oilStore.observe(fix,km,if(oilEnabled) repairSites else emptyList())) revision.value++
                 } catch(cancelled:CancellationException) {throw cancelled}
                 catch(_:Exception) { /* No invented location, wash, or coordinate logging on failure. */ }
             }

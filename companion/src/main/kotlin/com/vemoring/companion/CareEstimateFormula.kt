@@ -11,9 +11,4 @@ object CareEstimateFormula {
         val loss = (distanceKm ?: (days - 1).coerceAtLeast(0) * 20.0) * .10
         return (100-loss).roundToInt().coerceIn(0,100)
     }
-    fun oilRemaining(currentKm: Double, replacedAtKm: Double, userIntervalKm: Double): Double {
-        require(currentKm.isFinite() && replacedAtKm.isFinite() && userIntervalKm.isFinite())
-        require(currentKm >= replacedAtKm && replacedAtKm >= 0 && userIntervalKm > 0)
-        return (userIntervalKm-(currentKm-replacedAtKm)).coerceAtLeast(0.0)
-    }
 }
