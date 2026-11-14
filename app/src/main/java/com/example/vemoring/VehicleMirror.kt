@@ -21,30 +21,23 @@ import kotlinx.coroutines.withContext
 /** Export exactly the semantic values shown on the vehicle, including unknown/demo status. */
 internal fun mirrorContent(data: AppData, snapshot: VehicleSnapshot, condition: CareCondition, mood: MascotMood, demo: Boolean): String {
     val p = data.profile
-    val warningReadings=listOf(VehicleField.ENGINE_OIL,VehicleField.OIL_PRESSURE,VehicleField.BRAKE_FLUID,
-        VehicleField.TRANSMISSION_OIL,VehicleField.WASHER,VehicleField.SMART_KEY).map {snapshot[it]}
-        .filter {it.state==ReadingState.Available && it.value?.warning!=null}
-    val warningAt=if(condition.signals.vehicleWarning==true) warningReadings.filter {it.value?.warning==true}.mapNotNull {it.receivedAtMillis}.maxOrNull()
-        else warningReadings.mapNotNull {it.receivedAtMillis}.minOrNull()
     return JSONObject().put("profile", JSONObject().put("nickname", p.nickname).put("model", p.fullModel)
-        .put("plate", p.plate).put("fuel", p.fuel).put("notifications", p.notifications)
+        .put("plate", p.plate).put("fuel", p.fuel).put("oilEstimate",p.oilEstimate).put("oilBaselineKm",p.oilBaselineKm).put("notifications", p.notifications)
         .put("washAlert", p.washAlert).put("fuelAlert", p.fuelAlert).put("vehicleId",p.vehicleId))
         .put("records", JSONArray().also { a -> data.records.forEach { a.put(it.json()) } })
         .put("fuel", snapshot[VehicleField.FUEL].realPercent() ?: JSONObject.NULL)
         .put("battery", snapshot[VehicleField.SOC].realPercent() ?: JSONObject.NULL)
         .put("fuelAt",snapshot[VehicleField.FUEL].receivedAtMillis ?: JSONObject.NULL)
         .put("batteryAt",snapshot[VehicleField.SOC].receivedAtMillis ?: JSONObject.NULL)
-        .put("lowFuelAt",snapshot[VehicleField.LOW_FUEL].receivedAtMillis ?: JSONObject.NULL)
-        .put("vehicleWarningAt",warningAt ?: JSONObject.NULL)
         .put("cleanliness", condition.cleanliness ?: JSONObject.NULL)
         .put("oilRemainingKm", condition.oilRemainingKm ?: JSONObject.NULL)
         .put("signals", JSONObject().put("lowFuel", condition.signals.lowFuel)
-            .put("vehicleWarning", condition.signals.vehicleWarning))
+            .put("oilDue", condition.signals.oilDue))
         .put("fuelStatus", snapshot[VehicleField.FUEL].statusText())
         .put("batteryStatus", snapshot[VehicleField.SOC].statusText())
         .put("mood", mood.name).put("demo", demo)
         .put("message", if (demo) "예시 데이터로 보는\n캐릭터예요." else
-            snapshot.priorityWarning()?.let { "차량 경고가 있어요!\n계기판을 확인해주세요." } ?: mood.message).toString()
+            mood.message).toString()
 }
 
 @Composable internal fun PublishVehicleMirror(data: AppData, loaded: Boolean, snapshot: VehicleSnapshot, condition: CareCondition, mood: MascotMood, mode: DataMode) {
@@ -54,8 +47,8 @@ internal fun mirrorContent(data: AppData, snapshot: VehicleSnapshot, condition: 
     val washRevision by VehicleWashRuntime.revision.collectAsState()
     LaunchedEffect(data, loaded, condition.cleanliness, condition.oilRemainingKm, mood, mode,
         // Whole fuel reading (incl. receive time): a refuel confirmation read with an unchanged value must still publish.
-        fuel, battery.realPercent(), battery.statusText(), snapshot.priorityWarning(),
-        snapshot[VehicleField.ODOMETER], snapshot[VehicleField.WASHER], snapshot[VehicleField.TELLTALES], snapshot[VehicleField.TRANSMISSION_OIL],snapshot.motion(),snapshot[VehicleField.GEAR],washRevision) {
+        fuel, battery.realPercent(), battery.statusText(),
+        snapshot[VehicleField.ODOMETER], snapshot.motion(),snapshot[VehicleField.GEAR],washRevision) {
         if (loaded && data.complete) {
             try {
                 val care = VehicleCareRuntime.payload(context, data, snapshot, mode == DataMode.Demo)

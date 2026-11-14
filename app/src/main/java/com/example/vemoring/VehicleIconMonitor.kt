@@ -143,7 +143,7 @@ class VehicleIconMonitor : Service() {
 /** A failed/unsupported reading must not silently clear a previously received warning. */
 fun retainKnownSignals(previous: CareSignals, next: CareSignals) = CareSignals(
     next.lowFuel ?: previous.lowFuel, next.needsWash ?: previous.needsWash,
-    next.vehicleWarning ?: previous.vehicleWarning)
+    next.oilDue)
 
 class IconMonitorBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

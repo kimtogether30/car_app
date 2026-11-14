@@ -67,6 +67,8 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo, onDockChoice: (Boolean) -
     fun next() { step = steps[(position + 1).coerceAtMost(steps.lastIndex)] }
     fun previous() { step = steps[(position - 1).coerceAtLeast(0)] }
     var oil by rememberSaveable { mutableStateOf("") }
+    var oilKm by rememberSaveable {mutableStateOf("")}
+    var oilDate by rememberSaveable {mutableStateOf<String?>(null)}
     var nickname by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
     var plate by rememberSaveable {mutableStateOf(confirmed.plate.orEmpty())}
     val focusManager = LocalFocusManager.current
@@ -122,9 +124,13 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo, onDockChoice: (Boolean) -
                     Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(washAnswered && washDate == null, { washAnswered = it; washDate = null }); Text("세차일이 기억이 안 나요") }
                     if(fuel != "전기차") {
                         Text("엔진오일 교체 시점")
-                        ChoiceRow(listOf("1개월 이내", "3개월 이내", "6개월 이내", "기억이 안 나요"), oil) { oil = it }
+                        ChoiceRow(listOf("날짜 입력", "약 1개월 전", "약 3개월 전", "6개월 이상 전", "모르겠음"), oil) { oil = it }
+                        if(oil=="날짜 입력") DateInput("마지막 엔진오일 교체일",oilDate?.let(LocalDate::parse),{oilDate=it?.toString()},false)
+                        OutlinedTextField(oilKm,{oilKm=it},label={Text("교체 당시 실제 누적거리 (km, 선택)")},
+                            keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),singleLine=true,
+                            supportingText={Text("현재 누적거리가 아니라 교체할 때의 거리예요. 모르면 비워 주세요.")})
                     }
-                    Button(modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp), enabled = fuelAnswered && washAnswered && (fuel == "전기차" || oil.isNotBlank()), onClick = { next() }) { Text("다음") }
+                    Button(modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp), enabled = fuelAnswered && washAnswered && (fuel == "전기차" || oil.isNotBlank() && (oil!="날짜 입력" || oilDate!=null)), onClick = { next() }) { Text("다음") }
                 }
                 4 -> {
                     OutlinedTextField(nickname, { nickname = it }, label = { Text("차량 닉네임") },
@@ -159,8 +165,8 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo, onDockChoice: (Boolean) -
                         Text("내 차 설정에서 변경할 수 있어요. 알림 발송과 날씨는 아직 예시 기능입니다.")
                     }
                     Button(onClick = {
-                        finish(CarProfile(brand, model, nickname.text.trim(), plate = plate.trim(), fuel = fuel, oilEstimate = if(fuel == "전기차") "해당 없음" else oil),
-                            mapOf(CareKind.FUEL to fuelDate?.let(LocalDate::parse), CareKind.WASH to washDate?.let(LocalDate::parse)))
+                        finish(CarProfile(brand, model, nickname.text.trim(), plate = plate.trim(), fuel = fuel, oilEstimate = if(fuel == "전기차") "해당 없음" else oil,oilBaselineKm=oilKm.toDoubleOrNull()?.takeIf {it.isFinite() && it>=0}),
+                            mapOf(CareKind.FUEL to fuelDate?.let(LocalDate::parse), CareKind.WASH to washDate?.let(LocalDate::parse), CareKind.OIL to oilDate?.takeIf {oil=="날짜 입력"}?.let(LocalDate::parse)))
                     }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) { Text("VEMORING 시작하기") }
                 }
             }
@@ -210,7 +216,7 @@ fun VehicleDialog(profile: CarProfile, records: List<CareRecord>, close: () -> U
     var fuel by rememberSaveable { mutableStateOf(profile.fuel) }
     var wash by rememberSaveable { mutableStateOf(records.latest(CareKind.WASH)?.toString()) }
     var lastFuel by rememberSaveable { mutableStateOf(records.latest(CareKind.FUEL)?.toString()) }
-    var oil by rememberSaveable { mutableStateOf(records.latest(CareKind.MAINTENANCE)?.toString()) }
+    var oil by rememberSaveable { mutableStateOf(records.latest(CareKind.OIL)?.toString()) }
     AlertDialog(onDismissRequest = close, title = { Text(if(register) "차량 등록" else "차량 정보 편집") }, text = {
         Column(Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ChoiceRow(VehicleCatalog.brands, brand) { brand = it; model = "" }
@@ -224,12 +230,12 @@ fun VehicleDialog(profile: CarProfile, records: List<CareRecord>, close: () -> U
             OutlinedTextField(plate, { plate = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, label = { Text("번호판 (선택)") }, singleLine = true)
             DateInput("마지막 주유·충전일", lastFuel?.let(LocalDate::parse), { lastFuel = it?.toString() })
             DateInput("마지막 세차일", wash?.let(LocalDate::parse), { wash = it?.toString() })
-            DateInput("마지막 정비일", oil?.let(LocalDate::parse), { oil = it?.toString() })
+            DateInput("마지막 엔진오일 교체일", oil?.let(LocalDate::parse), { oil = it?.toString() })
             Text("날짜를 모르면 기존 기록을 유지해요. 삭제는 관리 기록에서 별도로 확인해 주세요.",fontSize=18.sp)
         }
     }, confirmButton = { TextButton(enabled = nickname.isNotBlank() && model.isNotBlank(), onClick = {
         save(profile.copy(brand = brand, model = model.trim(), nickname = nickname.trim(), plate = plate.trim(), fuel = fuel),
             mapOf(CareKind.WASH to wash?.let(LocalDate::parse), CareKind.FUEL to lastFuel?.let(LocalDate::parse),
-                CareKind.MAINTENANCE to oil?.let(LocalDate::parse)))
+                CareKind.OIL to oil?.let(LocalDate::parse)))
     }) { Text("저장하기") } }, dismissButton = { TextButton(onClick = close) { Text("취소") } })
 }

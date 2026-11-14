@@ -52,7 +52,7 @@ private val HomeDateFormat = java.time.format.DateTimeFormatter.ofPattern("yyyy.
 // Matches the mascot colors: fuel = yellow, maintenance (resolved warning) = purple. Darkened for text contrast on white.
 val CareYellow = Color(0xFFA97C00)
 val CarePurple = Color(0xFF7B4FC4)
-val CareKind.color get() = when(this) { CareKind.WASH -> Blue; CareKind.FUEL -> CareYellow; CareKind.MAINTENANCE -> CarePurple }
+val CareKind.color get() = when(this) { CareKind.WASH -> Blue; CareKind.FUEL -> CareYellow; CareKind.OIL -> CarePurple }
 
 /** One colored dot per record (max 4) so a "2건" day shows which kinds they are. */
 @Composable
@@ -131,7 +131,7 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     val condition = remember(data, snapshot, maintenance, environment) { careCondition(data, snapshot, maintenance, environment) }
     val mood = (careSignals ?: condition.signals).mood()
     // Same list instance across vehicle-signal recompositions, so the calendar tab can skip recomposing.
-    val activeRecords = remember(data.records) { data.records.filterNot { it.cancelled } }
+    val activeRecords = remember(data.records) { data.records.filter { !it.cancelled && (it.kind != CareKind.OIL || it.maintenanceType == com.vemoring.companion.MaintenanceType.ENGINE_OIL) } }
     PublishVehicleMirror(data, loaded && receivesSelected && vehicleModel!=null, snapshot, condition, mood, mode)
     val hasResolvedVehicleData = snapshot.readings.values.any { it.state != ReadingState.Loading && it.state != ReadingState.Disconnected }
     LaunchedEffect(mood, mode, loaded, hasResolvedVehicleData) {
@@ -323,7 +323,7 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
         text = { Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("관리 알림은 연결된 휴대폰에서 확인해요.", color = Muted)
             Text("세차 알림 기준: 청결도 ${data.profile.washAlert}% 이하 · 주기마다 한 번")
-            Text("차량 정비 경고는 실제 수신과 차종별 규칙 확인이 필요해요. 확인되지 않은 경고는 자동 알림을 보류해요.")
+            Text("엔진오일 교체는 차량별 가혹조건 주기로 안내해요. 주기 데이터가 없으면 임의로 판단하지 않아요.")
         } }, confirmButton = { TextButton(onClick = { notifications = false }) { Text("모두 확인했어요") } })
     error?.let { message -> AlertDialog(onDismissRequest = { error = null }, title = { Text("저장 확인") },
         text = { Text(message) }, confirmButton = { TextButton(onClick = { error = null }) { Text("확인") } }) }
@@ -391,7 +391,7 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     CharacterStage(message = if (demo) "예시 데이터로 보는\n캐릭터예요." else
-                        snapshot.priorityWarning()?.let { "차량 경고가 있어요!\n계기판을 확인해주세요." } ?: mood.message,
+                        mood.message,
                         compact = compact, mood = mood)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -426,6 +426,10 @@ fun HomeScreen(data: AppData, battery: BatteryReading, notifications: () -> Unit
                             Text(latest[kind]?.toString() ?: "기록 없음",color=Ink,fontSize=18.sp)
                         }
                     }
+                }
+                if(!p.electric) condition.oilAssessment?.let {oil ->
+                    Stat(if(oil.estimated) "엔진오일 예상 잔여율" else "엔진오일 관리 잔여율",oil.percent?.toInt(),
+                        oil.reason+(oil.dueDate?.let {" · 예상 교체일 $it"} ?: ""),CarePurple,Modifier.fillMaxWidth(),compact)
                 }
                 VehicleHomeWeather(p.vehicleId,demo)
                 NearbyPlacesBanner(compact = compact, slim = true)
@@ -615,12 +619,12 @@ fun CalendarScreen(records: List<CareRecord>, remove: ((CareRecord, () -> Unit) 
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 GarageGlyph(1, Modifier.size(52.dp), Blue)
                 Text("아직 기록이 없어요", color = Ink, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                Text("세차부터 정비까지, 첫 관리를 남겨보세요.", color = Muted, fontSize = 21.sp)
+                Text("세차부터 엔진오일 교체까지, 첫 관리를 남겨보세요.", color = Muted, fontSize = 21.sp)
                 Text("상단의 ＋ 추가로 기록할 수 있어요.", color = Muted, fontSize = 20.sp)
             }
             visible.forEach { record ->
                 Column(Modifier.fillMaxWidth().clickable { editing = record; showEditor = true }.padding(vertical = 8.dp)) {
-                    Text("${if(record.kind == CareKind.MAINTENANCE) record.maintenanceType.label else record.kind.label} · ${record.title}", fontWeight = FontWeight.Bold, color = record.kind.color)
+                    Text("${if(record.kind == CareKind.OIL) record.maintenanceType.label else record.kind.label} · ${record.title}", fontWeight = FontWeight.Bold, color = record.kind.color)
                     Text(record.date.toString(), color = Muted, fontSize = 19.sp)
                     if (record.detail.isNotBlank()) Text(record.detail)
                 }
@@ -660,7 +664,6 @@ fun RecordDialog(existing: CareRecord?, initial: LocalDate, close: () -> Unit,re
     var deleteConfirmation by remember {mutableStateOf(false)}
     var title by rememberSaveable { mutableStateOf(existing?.title ?: "") }
     var detail by rememberSaveable { mutableStateOf(existing?.detail ?: "") }
-    var maintenanceType by rememberSaveable { mutableStateOf((existing?.maintenanceType ?: com.vemoring.companion.MaintenanceType.GENERAL).name) }
     var kindValue by rememberSaveable { mutableStateOf(existing?.kind?.name ?: CareKind.WASH.name) }
     var dateValue by rememberSaveable { mutableStateOf((existing?.date ?: initial).toString()) }
     var manual by rememberSaveable { mutableStateOf(false) }
@@ -670,13 +673,6 @@ fun RecordDialog(existing: CareRecord?, initial: LocalDate, close: () -> Unit,re
     AlertDialog(onDismissRequest = close, title = { Text(if(existing == null) "관리 기록 추가" else "관리 기록 수정") },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (!automatic || manual) ChoiceRow(CareKind.entries.map { it.label }, kind.label) { label -> kindValue = CareKind.entries.first { it.label == label }.name }
-            if(kind == CareKind.MAINTENANCE) {
-                Text("정비 항목", fontSize = 22.sp)
-                ChoiceRow(com.vemoring.companion.MaintenanceType.entries.map { it.label },
-                    com.vemoring.companion.MaintenanceType.from(maintenanceType).label) { label ->
-                    maintenanceType = com.vemoring.companion.MaintenanceType.entries.first { it.label == label }.name
-                }
-            }
             OutlinedTextField(title, { title = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, label = { Text("기록 이름") }, singleLine = true)
             OutlinedTextField(detail, { detail = it }, keyboardOptions = com.vemoring.companion.KoreanTextKeyboardOptions, label = { Text("상세 내용 (장소·금액 등)") })
             if (!automatic || manual) DateInput("관리 날짜", LocalDate.parse(dateValue), { if(it != null) dateValue = it.toString() }, false)
@@ -686,9 +682,9 @@ fun RecordDialog(existing: CareRecord?, initial: LocalDate, close: () -> Unit,re
             if(kind == CareKind.WASH && (!automatic || manual)) com.vemoring.companion.WashCompletionInput(LocalDate.parse(dateValue),washTime,true) {washTime=it}
             if(remove!=null) TextButton(onClick={deleteConfirmation=true},modifier=Modifier.heightIn(min=64.dp)) {Text("기록 삭제",fontSize=22.sp)}
         } }, confirmButton = { TextButton(enabled = title.isNotBlank() && LocalDate.parse(dateValue) <= LocalDate.now(SeoulZone) && (kind != CareKind.WASH || automatic && !manual || washTime.isBlank() || com.vemoring.companion.washCompletion(LocalDate.parse(dateValue),washTime)!=null), onClick = {
-            save(existing?.copy(date = LocalDate.parse(dateValue), kind = kind, maintenanceType = if(kind == CareKind.MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), detail = detail.trim(),
+            save(existing?.copy(date = LocalDate.parse(dateValue), kind = kind, odometerKm=existing.odometerKm.takeIf {existing.date==LocalDate.parse(dateValue) && kind==CareKind.OIL}, maintenanceType = if(kind == CareKind.OIL) com.vemoring.companion.MaintenanceType.ENGINE_OIL else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), detail = detail.trim(),
                 completedAt = if(kind == CareKind.WASH && (!automatic || manual)) com.vemoring.companion.washCompletion(LocalDate.parse(dateValue),washTime) else if(manual) null else existing.completedAt, source = if(manual) "Manual" else existing.source, washEvidence = if(manual) "UserRecord" else existing.washEvidence)
-                ?: CareRecord(completedAt = if(kind == CareKind.WASH) com.vemoring.companion.washCompletion(LocalDate.parse(dateValue),washTime) else null, washEvidence = "UserRecord", date = LocalDate.parse(dateValue), kind = kind, maintenanceType = if(kind == CareKind.MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), detail = detail.trim()))
+                ?: CareRecord(completedAt = if(kind == CareKind.WASH) com.vemoring.companion.washCompletion(LocalDate.parse(dateValue),washTime) else null, washEvidence = "UserRecord", date = LocalDate.parse(dateValue), kind = kind, maintenanceType = if(kind == CareKind.OIL) com.vemoring.companion.MaintenanceType.ENGINE_OIL else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), detail = detail.trim()))
         }) { Text("기록 저장") } }, dismissButton = { TextButton(onClick = close) { Text("취소") } })
     if(deleteConfirmation) AlertDialog(onDismissRequest={deleteConfirmation=false},title={Text("기록을 삭제할까요?")},
         text={Text("${existing?.title.orEmpty()} 기록을 삭제해요. 세차 기록이면 이전 유효한 기록으로 다시 계산해요. 날짜를 모르는 경우에는 삭제하지 않아도 돼요.",fontSize=22.sp)},

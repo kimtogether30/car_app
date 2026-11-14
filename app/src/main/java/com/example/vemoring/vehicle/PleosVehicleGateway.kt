@@ -12,12 +12,9 @@ import ai.pleos.playground.vehicle.api.model.capability.HvacTemperatureConfigArr
 import ai.pleos.playground.vehicle.api.model.capability.AreaBounds
 import ai.pleos.playground.vehicle.callback.exception.a as SdkVehicleException
 import ai.pleos.playground.vehicle.constant.ErrorCode
-import ai.pleos.playground.vehicle.constant.control.OilLevelState
 import ai.pleos.playground.vehicle.constant.control.VehicleGear
 import org.json.JSONArray
 import org.json.JSONObject
-import ai.pleos.playground.vehicle.constant.telltale.TelltaleState
-import ai.pleos.playground.vehicle.constant.telltale.TelltaleType
 import ai.pleos.playground.vehicle.constant.unit.TemperatureUnit
 import ai.pleos.playground.vehicle.listener.*
 
@@ -65,22 +62,19 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         var released = false
         private val unsubscribe = mutableMapOf<VehicleField, () -> Unit>()
         private var polling = false
-        // The getter's interface declares CAR_SAFETY; SDK 2.3.2's implementation may still deny it.
-        // Neither the privileged capability check nor privileged listener is used.
-        private val warningPoll = object : Runnable {
+        // Gear has no supported public change notification on every profile.
+        private val gearPoll = object : Runnable {
             override fun run() {
                 if(!active) return
-                if(pending == 0) runCatching { readTelltales();readGear() }
+                if(pending == 0) runCatching { readGear() }
                 handler.postDelayed(this,30000)
             }
         }
-        init { handler.postDelayed(warningPoll,30000) }
+        init { handler.postDelayed(gearPoll,30000) }
         fun emit(field: VehicleField, reading: Reading) {
             handler.post { if (active) {
                 publish(field, reading)
-                if (field == VehicleField.LOW_FUEL && reading.state in setOf(ReadingState.Error, ReadingState.PermissionDenied, ReadingState.Disconnected, ReadingState.Unsupported, ReadingState.NoData)) {
-                    publish(VehicleField.OIL_PRESSURE, reading); publish(VehicleField.TELLTALES, reading)
-                }
+
             } }
         }
         private fun finish() {
@@ -176,7 +170,6 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
             polling = true
             try {
                 emit(VehicleField.CAR_INFO, Reading(ReadingState.Unsupported, reason = "제조사·모델 자동 조회 API 미확인 · 사용자 입력 유지"))
-                emit(VehicleField.SMART_KEY, Reading(ReadingState.Unsupported, reason = "공식 조회 API 미확인"))
                 val info = vehicle.getCarInfo()
                 read(VehicleField.VIN, "CAR_INFO", info::checkVINInfoCapabilities, info::getVINInfo,
                     { value: String -> require(value.isNotBlank()); SignalValue("VIN 수신됨 · 식별자 숨김") })
@@ -220,68 +213,8 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
                 read(VehicleField.TRIP_DISTANCE, "CAR_DRIVE", odo::checkTripCurrentDrivingDistanceCapabilities, odo::getTripCurrentDrivingDistance, ::rawFloat)
                 read(VehicleField.TRIP_TIME, "CAR_DRIVE", odo::checkTripCurrentDrivingTimeCapabilities, odo::getTripCurrentDrivingTime, { value: Int -> require(value >= 0); SignalValue(value.toString(), value.toDouble()) })
                 readClimate()
-                readSafety()
             } catch (error: Exception) { VehicleField.entries.forEach { emit(it, sdkFailure(error)) } }
             finally { polling = false }
-        }
-        private fun readSafety() {
-            val safety = vehicle.getSafety()
-            read(VehicleField.TRANSMISSION_OIL, "CAR_SAFETY", { ok, fail -> safety.checkTransmissionOilLevelStateCapabilities({ config, _ -> ok(config) }, fail) }, safety::getTransmissionOilLevelState, ::oilValue, {
-                val listener = object : OilLevelStateListener {
-                    override fun onOilLevelUpdated(value: OilLevelState?) = emitOil(VehicleField.TRANSMISSION_OIL, value)
-                    override fun onFailed(error: Exception) = emit(VehicleField.TRANSMISSION_OIL, sdkFailure(error))
-                }
-                safety.registerTransmissionOilLevelState(listener)
-                val remove: () -> Unit = { safety.unregisterTransmissionOilLevelState(listener) }; remove
-            })
-            read(VehicleField.ENGINE_OIL, "CAR_SAFETY", { ok, fail -> safety.checkEngineOilLevelStateCapabilities({ config, _ -> ok(config) }, fail) }, safety::getEngineOilLevelState, ::oilValue, {
-                val listener = object : OilLevelStateListener {
-                    override fun onOilLevelUpdated(value: OilLevelState?) { emitOil(VehicleField.ENGINE_OIL, value) }
-                    override fun onFailed(error: Exception) = emit(VehicleField.ENGINE_OIL, sdkFailure(error))
-                }
-                safety.registerEngineOilLevelState(listener)
-                val remove: () -> Unit = { safety.unregisterEngineOilLevelState(listener) }; remove
-            })
-            read(VehicleField.BRAKE_FLUID, "CAR_SAFETY", { ok, fail -> safety.checkBrakeFluidLevelStateCapabilities({ config, _ -> ok(config) }, fail) }, safety::getBrakeFluidLevelState, ::oilValue, {
-                val listener = object : OilLevelStateListener {
-                    override fun onOilLevelUpdated(value: OilLevelState?) { emitOil(VehicleField.BRAKE_FLUID, value) }
-                    override fun onFailed(error: Exception) = emit(VehicleField.BRAKE_FLUID, sdkFailure(error))
-                }
-                safety.registerBrakeFluidLevelState(listener)
-                val remove: () -> Unit = { safety.unregisterBrakeFluidLevelState(listener) }; remove
-            })
-            read(VehicleField.WASHER, "CAR_SAFETY", safety::checkLowWasherFluidWarningStateCapabilities, safety::hasLowWasherFluidWarning, ::warningValue, {
-                val listener = object : LowWasherFluidWaringListener {
-                    override fun onLowWasherFluidWaringUpdated(value: Boolean?) = emit(VehicleField.WASHER, value?.let { Reading.available(warningValue(it)) } ?: Reading(ReadingState.NoData))
-                    override fun onFailed(error: Exception) = emit(VehicleField.WASHER, sdkFailure(error))
-                }
-                safety.registerLowWasherFluidWaringState(listener)
-                val remove: () -> Unit = { safety.unregisterLowWasherFluidWaringState(listener) }; remove
-            })
-            readTelltales()
-        }
-        private fun readTelltales() {
-            val safety = vehicle.getSafety()
-            if (!allowed(VehicleField.LOW_FUEL, "CAR_SAFETY")) { emit(VehicleField.OIL_PRESSURE, Reading(ReadingState.PermissionDenied)); return }
-            // Vehicle 2.3.2's capability check requires PRIVATE_CAR_SAFETY, unlike the public getter.
-            // Calling it first prevents ordinary apps from ever reaching getTelltalesInfo.
-            // Let the getter report unsupported/permission/error itself, without privileged APIs.
-            run {
-                fun update(info: ai.pleos.playground.vehicle.api.model.telltale.Telltales?) {
-                    val raw = info?.let { JSONArray().also { array -> it.telltales.forEach { t ->
-                        array.put(JSONObject().put("type", t.type.name).put("state", t.state.name)
-                            .put("color", t.color).put("priority", t.priority))
-                    } }.toString() }
-                    emit(VehicleField.TELLTALES, raw?.let { Reading.available(SignalValue(it, rawState = it)) }
-                        ?: Reading(ReadingState.NoData))
-                    for ((field, type) in listOf(VehicleField.LOW_FUEL to TelltaleType.LOW_FUEL, VehicleField.OIL_PRESSURE to TelltaleType.ENGINE_OIL_PRESSURE)) {
-                        val value = info?.telltales?.firstOrNull { it.type == type }
-                        emit(field, if (value == null) Reading(ReadingState.NoData) else Reading.available(
-                            warningValue(value.state != TelltaleState.OFF).copy(rawState = value.state.name, color = value.color)))
-                    }
-                }
-                request(VehicleField.LOW_FUEL, safety::getTelltalesInfo, operation="getTelltalesInfo") { update(it) }
-            }
         }
         private fun readGear() {
             if (!allowed(VehicleField.GEAR, "CAR_DRIVE")) return
@@ -300,9 +233,6 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
                 emit(VehicleField.GEAR, value?.let { Reading.available(SignalValue(normalizedGear(it.name) ?: it.name, rawState = it.name)) }
                     ?: Reading(ReadingState.NoData))
             }
-        }
-        private fun emitOil(field: VehicleField, value: OilLevelState?) {
-            emit(field, when(value) { null -> Reading(ReadingState.NoData); OilLevelState.ERROR -> Reading(ReadingState.Error); else -> Reading.available(oilValue(value)) })
         }
         private fun readClimate() {
             val hvac = vehicle.getHVAC()
@@ -329,7 +259,7 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
         }
         fun close() {
             active = false
-            handler.removeCallbacks(warningPoll)
+            handler.removeCallbacks(gearPoll)
             unsubscribe.values.forEach { runCatching { it() } }
             unsubscribe.clear()
             // Do not release the service in the middle of an SDK onComplete/onFailed call.
@@ -341,8 +271,3 @@ class PleosVehicleGateway(context: Context) : VehicleGateway {
 private fun rawFloat(value: Float): SignalValue { require(value.isFinite() && value >= 0); return SignalValue(value.toString(), value.toDouble()) }
 private fun celsius(value: Float): SignalValue { require(value.isFinite()); return SignalValue("$value °C", value.toDouble(), "°C") }
 private fun booleanValue(value: Boolean) = SignalValue(if (value) "켜짐" else "꺼짐")
-private fun warningValue(value: Boolean) = SignalValue(if (value) "경고 있음" else "경고 없음", warning = value)
-private fun oilValue(value: OilLevelState): SignalValue {
-    require(value != OilLevelState.ERROR)
-    return SignalValue(when(value) { OilLevelState.NORMAL -> "정상"; OilLevelState.LOW -> "부족"; OilLevelState.HIGH -> "과다"; OilLevelState.CRITICALLY_LOW -> "매우 부족"; else -> "미확인" }, warning = value != OilLevelState.NORMAL, rawState = value.name)
-}

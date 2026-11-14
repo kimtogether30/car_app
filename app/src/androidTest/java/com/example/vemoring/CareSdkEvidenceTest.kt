@@ -24,8 +24,7 @@ class CareSdkEvidenceTest {
             gateway = PleosVehicleGateway(c)
             gateway!!.start { field, reading -> synchronized(events) {
                 if (field in setOf(VehicleField.GEAR, VehicleField.ODOMETER, VehicleField.TRIP_DISTANCE,
-                    VehicleField.ENGINE_OIL, VehicleField.BRAKE_FLUID, VehicleField.TRANSMISSION_OIL,
-                    VehicleField.WASHER, VehicleField.TELLTALES, VehicleField.OIL_PRESSURE, VehicleField.SOC))
+                    VehicleField.SOC))
                     events.put(JSONObject().put("field", field.name).put("status", reading.state.name)
                         .put("text", reading.value?.text).put("raw", reading.value?.rawState)
                         .put("unit", reading.value?.unit ?: "unverified").put("at", reading.receivedAtMillis)

@@ -8,14 +8,10 @@ import org.junit.Test
 class MaintenanceRecordTest {
     @Test fun onlyExplicitOilReplacementUsesOilCompletion() {
         for(type in MaintenanceType.entries) {
-            val banner = requireNotNull(BannerPolicy.recordCompletion("maintenance", type))
-            assertEquals(if(type == MaintenanceType.ENGINE_OIL) "OIL_DONE" else "MAINTENANCE_DONE", banner.key)
-            if(type != MaintenanceType.ENGINE_OIL) {
-                assertEquals("정비 기록을 저장했어!", banner.title)
-                assertNull(banner.art)
-            }
+            val banner=BannerPolicy.recordCompletion("maintenance",type)
+            if(type==MaintenanceType.ENGINE_OIL) assertEquals("OIL_DONE",banner?.key) else assertNull(banner)
         }
-        assertEquals("MAINTENANCE_DONE", BannerPolicy.recordCompletion("oil", MaintenanceType.ENGINE_OIL)!!.key)
+        assertEquals("OIL_DONE",BannerPolicy.recordCompletion("oil",MaintenanceType.ENGINE_OIL)?.key)
     }
 
     @Test fun legacyMigrationPreservesIdentityNotesAndDeletionWithoutGuessingWork() {

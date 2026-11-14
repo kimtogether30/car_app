@@ -16,11 +16,6 @@ class EnergyPolicyTest {
         assertEquals(listOf(1000L,3000L,10000L), (0..2).map {ConnectionRetry.delayAfterFailure(it)})
         assertNull(ConnectionRetry.delayAfterFailure(3))
     }
-    @Test fun unsupportedMaintenanceDoesNotBecomeEnabledByPreparedArtwork() {
-        assertTrue("WASHER" in BannerPolicy.supportedDirectWarnings)
-        assertFalse("ABS" in BannerPolicy.supportedDirectWarnings)
-        assertFalse("EV_SYSTEM" in BannerPolicy.supportedDirectWarnings)
-    }
     @Test fun optionalManualTimeIsKoreanTimeAndFutureIsRejected() {
         val date=LocalDate.of(2026,11,12)
         val now=Instant.parse("2026-11-12T07:00:00Z")

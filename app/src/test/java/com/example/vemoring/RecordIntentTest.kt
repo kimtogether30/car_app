@@ -15,7 +15,7 @@ class RecordIntentTest {
         assertEquals(record.visitId,changed.visitId)
     }
     @Test fun aDeletedMaintenanceRecordDoesNotRemainAnEstimateAnchor() {
-        val r=CareRecord("old",LocalDate.now().minusDays(4),CareKind.MAINTENANCE,"삭제된 기록",cancelled=true,deleted=true)
+        val r=CareRecord("old",LocalDate.now().minusDays(4),CareKind.OIL,"삭제된 기록",cancelled=true,deleted=true)
         val data=AppData(records=listOf(r))
         val s=com.example.vemoring.vehicle.VehicleSnapshot().let {it.copy(readings=it.readings+
             (com.example.vemoring.vehicle.VehicleField.ODOMETER to com.example.vemoring.vehicle.Reading.available(

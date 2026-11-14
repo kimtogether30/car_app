@@ -1,0 +1,2298 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-15",
+  "releasePurpose": "reference_data_only_for_friend_implementation",
+  "policy": {
+    "alwaysUseSevere": true,
+    "cycle": "recurring",
+    "trigger": "distance_or_calendar_whichever_comes_first",
+    "unknownEngine": "choose_shortest_among_candidates_eligible_for_same_model_year_and_market",
+    "modelReferenceMeaning": "표의 차종별 최단 참고값. 국가·연식·엔진별 공식 적용 확인과 구분.",
+    "globalSingleInterval": false,
+    "automaticHarshConditionClassification": false,
+    "extraWeatherDeduction": false,
+    "oilLevelOrPressureIsOilLife": false,
+    "vehicleCodeIntegrationPerformed": false,
+    "unknownYear": "no_claim_of_exact_historical_year_coverage; conservativeModelReference_is_reference_only",
+    "firstChange": "use_recurring_cycle_as_user_selected; not_a_guarantee_against_shorter_official_first_change"
+  },
+  "sourceMetadata": [
+    {
+      "id": "user-code-artifact",
+      "filename": "code_artifact.md",
+      "sha256": "d6eff53163238c8e27cf1e413554fac2e331011ce88d6e42722036121c05cf13",
+      "status": "adopted_by_user",
+      "note": "사용자 제공 통합 표. 전체 연식별 공식 원문 검증 자료로 표시하지 않음."
+    },
+    {
+      "id": "official-severe-reference",
+      "filename": "engine-oil-intervals.json",
+      "checkedAt": "2026-11-14",
+      "note": "셀토스·니로·레이의 기존 공식 가혹 주기 근거만 추출."
+    },
+    {
+      "id": "k4-official-reference",
+      "filename": "K4_OFFICIAL_SEVERE_INTERVALS.json",
+      "checkedAt": "2026-11-15",
+      "note": "미국·호주/뉴질랜드 K4 공식 자료 추가."
+    }
+  ],
+  "engineTypeRulesFromUserDocument": [
+    {
+      "engineType": "NA_GAS_LPi",
+      "description": "자연흡기 가솔린, 자연흡기 HEV, 승용 LPi",
+      "distanceKm": 7500,
+      "calendarMonths": 6
+    },
+    {
+      "engineType": "TURBO_GAS",
+      "description": "가솔린 터보(T-GDi), 터보 HEV, N 모델",
+      "distanceKm": 5000,
+      "calendarMonths": 6
+    },
+    {
+      "engineType": "TURBO_LPI",
+      "description": "2024년형 이후 포터 II / 봉고 III 2.5 T-LPi",
+      "distanceKm": 7500,
+      "calendarMonths": 6
+    },
+    {
+      "engineType": "DIESEL",
+      "description": "승용 · RV · 상용 CRDi / e-VGT 디젤 전 차종",
+      "distanceKm": 10000,
+      "calendarMonths": 6
+    }
+  ],
+  "models": [
+    {
+      "id": "현대/아반떼",
+      "brand": "현대",
+      "model": "아반떼",
+      "catalogVariants": [
+        "아반떼",
+        "아반떼 N",
+        "아반떼 하이브리드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2012~2013, 2017, 2020~2027",
+      "engineDescription": "• MD/AD/CN7 1.6 가솔린 · LPi · HEV / • AD/CN7 1.6 가솔린 터보(N라인) / • MD/AD 1.6 디젤 / • CN7 N (2.0 가솔린 터보)",
+      "severeIntervalDescription": "• 7,500km / 6개월 / • 5,000km / 6개월 / • 10,000km / 6개월 / • 5,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "현대/쏘나타",
+      "brand": "현대",
+      "model": "쏘나타",
+      "catalogVariants": [
+        "쏘나타 디 엣지",
+        "쏘나타 하이브리드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2013~2026",
+      "engineDescription": "• YF/LF/DN8 2.0 가솔린 · LPi · HEV / • LF/DN8 1.6T · 2.0T 가솔린 터보 / • LF 1.7 디젤",
+      "severeIntervalDescription": "• 7,500km / 6개월 / • 5,000km / 6개월 / • 10,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": null
+    },
+    {
+      "id": "현대/그랜저",
+      "brand": "현대",
+      "model": "그랜저",
+      "catalogVariants": [
+        "그랜저",
+        "그랜저 하이브리드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2013~2017, 2020~2027",
+      "engineDescription": "• HG/IG/GN7 2.4 · 2.5 · 3.0 · 3.3 · 3.5 가솔린 · LPi / • HG/IG 2.4 HEV / • GN7 1.6 터보 HEV / • HG/IG 2.2 디젤",
+      "severeIntervalDescription": "• 7,500km / 6개월 / • 7,500km / 6개월 / • 5,000km / 6개월 / • 10,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "현대/아이오닉 6",
+      "brand": "현대",
+      "model": "아이오닉 6",
+      "catalogVariants": [
+        "아이오닉 6"
+      ],
+      "oilApplicable": false,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "not_applicable",
+      "intervalCandidates": [],
+      "conservativeModelReference": null,
+      "modelYearScope": null,
+      "note": "전기차·수소차: 엔진오일 교체 대상 아님. 감속기 오일 등 다른 오일 기준으로 사용하지 않음."
+    },
+    {
+      "id": "현대/베뉴",
+      "brand": "현대",
+      "model": "베뉴",
+      "catalogVariants": [
+        "베뉴"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2019~2027",
+      "engineDescription": "• 스마트스트림 1.6 가솔린",
+      "severeIntervalDescription": "• 7,500km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 7500,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "현대/코나",
+      "brand": "현대",
+      "model": "코나",
+      "catalogVariants": [
+        "코나",
+        "코나 하이브리드",
+        "코나 EV"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2019~2027",
+      "engineDescription": "• OS/SX2 1.6 가솔린 터보 / • OS/SX2 1.6 HEV, SX2 2.0 가솔린 / • OS 1.6 디젤",
+      "severeIntervalDescription": "• 5,000km / 6개월 / • 7,500km / 6개월 / • 10,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "현대/투싼",
+      "brand": "현대",
+      "model": "투싼",
+      "catalogVariants": [
+        "투싼",
+        "투싼 하이브리드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2015, 2024~2027",
+      "engineDescription": "• TL 1.7 · 2.0 디젤 (2015) / • NX4 1.6 가솔린 터보 · 1.6 터보 HEV / • NX4 2.0 디젤",
+      "severeIntervalDescription": "• 10,000km / 6개월 / • 5,000km / 6개월 / • 10,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "현대/싼타페",
+      "brand": "현대",
+      "model": "싼타페",
+      "catalogVariants": [
+        "싼타페",
+        "싼타페 하이브리드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2012~2016, 2021~2026",
+      "engineDescription": "• DM 2.0 · 2.2 디젤 (2012~2016) / • TM/MX5 2.5 가솔린 터보 · 1.6 터보 HEV / • TM 2.2 디젤 (2021~2022)",
+      "severeIntervalDescription": "• 10,000km / 6개월 / • 5,000km / 6개월 / • 10,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": null
+    },
+    {
+      "id": "현대/팰리세이드",
+      "brand": "현대",
+      "model": "팰리세이드",
+      "catalogVariants": [
+        "팰리세이드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2025~2027",
+      "engineDescription": "• LX3 2.5 가솔린 터보 · 2.5 터보 HEV",
+      "severeIntervalDescription": "• 5,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "현대/아이오닉 5",
+      "brand": "현대",
+      "model": "아이오닉 5",
+      "catalogVariants": [
+        "아이오닉 5",
+        "아이오닉 5 N"
+      ],
+      "oilApplicable": false,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "not_applicable",
+      "intervalCandidates": [],
+      "conservativeModelReference": null,
+      "modelYearScope": null,
+      "note": "전기차·수소차: 엔진오일 교체 대상 아님. 감속기 오일 등 다른 오일 기준으로 사용하지 않음."
+    },
+    {
+      "id": "현대/아이오닉 9",
+      "brand": "현대",
+      "model": "아이오닉 9",
+      "catalogVariants": [
+        "아이오닉 9"
+      ],
+      "oilApplicable": false,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "not_applicable",
+      "intervalCandidates": [],
+      "conservativeModelReference": null,
+      "modelYearScope": null,
+      "note": "전기차·수소차: 엔진오일 교체 대상 아님. 감속기 오일 등 다른 오일 기준으로 사용하지 않음."
+    },
+    {
+      "id": "현대/넥쏘",
+      "brand": "현대",
+      "model": "넥쏘",
+      "catalogVariants": [
+        "넥쏘"
+      ],
+      "oilApplicable": false,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "not_applicable",
+      "intervalCandidates": [],
+      "conservativeModelReference": null,
+      "modelYearScope": null,
+      "note": "전기차·수소차: 엔진오일 교체 대상 아님. 감속기 오일 등 다른 오일 기준으로 사용하지 않음."
+    },
+    {
+      "id": "현대/스타리아",
+      "brand": "현대",
+      "model": "스타리아",
+      "catalogVariants": [
+        "스타리아",
+        "스타리아 라운지",
+        "스타리아 하이브리드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2024, 2026",
+      "engineDescription": "• 3.5 LPi / • 1.6 터보 HEV / • 2.2 디젤",
+      "severeIntervalDescription": "• 7,500km / 6개월 / • 5,000km / 6개월 / • 10,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": null
+    },
+    {
+      "id": "현대/포터 II",
+      "brand": "현대",
+      "model": "포터 II",
+      "catalogVariants": [
+        "포터 II",
+        "포터 II EV"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2012~2024, 2026 / *(포레스트 2020, 특장 2014~2020, 2023~2025 포함)*",
+      "engineDescription": "• 2.5 CRDi 디젤 (~2023) / • 2.5 T-LPi 터보 (2024~2026) / *(※ 포레스트 · 특장차 동일)*",
+      "severeIntervalDescription": "• 10,000km / 6개월 / • 7,500km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 7500,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": null
+    },
+    {
+      "id": "기아/K3",
+      "brand": "기아",
+      "model": "K3",
+      "catalogVariants": [
+        "K3"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2012",
+      "engineDescription": "• YD 1.6 GDi 가솔린",
+      "severeIntervalDescription": "• 7,500km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 7500,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": null
+    },
+    {
+      "id": "기아/K4",
+      "brand": "기아",
+      "model": "K4",
+      "catalogVariants": [
+        "K4"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "official_reference",
+      "modelYearScope": [
+        2025,
+        2026,
+        2027
+      ],
+      "engineDescription": "Smartstream G2.0 MPI / Smartstream G1.6 T-GDi / Smartstream G2.0 / 2.0 MPI",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 8000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "officialReferenceIds": [
+        "k4-US-2025-20-severe",
+        "k4-US-2025-16t-severe",
+        "k4-US-2026-20-severe",
+        "k4-US-2026-16t-severe",
+        "k4-US-2027-20-severe",
+        "k4-US-2027-16t-severe",
+        "k4-AU-NZ-2025-20-severe",
+        "k4-AU-NZ-2025-16t-severe"
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_available_model_candidate_reference"
+      },
+      "note": "미국 2025~2027 및 호주·뉴질랜드 2025 공식 자료. 국가·엔진 미지정 시 앱 참고 기준 5,000km 또는 6개월. 한국 및 전 세계 공통 공식 주기가 아님."
+    },
+    {
+      "id": "기아/K5",
+      "brand": "기아",
+      "model": "K5",
+      "catalogVariants": [
+        "K5",
+        "K5 하이브리드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2011~2014, 2020~2027",
+      "engineDescription": "• TF/DL3 2.0 가솔린 · LPi · HEV / • TF 2.0T / DL3 1.6 가솔린 터보",
+      "severeIntervalDescription": "• 7,500km / 6개월 / • 5,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "기아/K8",
+      "brand": "기아",
+      "model": "K8",
+      "catalogVariants": [
+        "K8",
+        "K8 하이브리드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2022~2027",
+      "engineDescription": "• 2.5 · 3.5 가솔린 · 3.5 LPi / • 1.6 터보 HEV",
+      "severeIntervalDescription": "• 7,500km / 6개월 / • 5,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "기아/K9",
+      "brand": "기아",
+      "model": "K9",
+      "catalogVariants": [
+        "K9"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2012~2018",
+      "engineDescription": "• KH/RJ 3.3 · 3.8 · 5.0 자연흡기 가솔린 / • RJ 3.3 가솔린 터보 (2018)",
+      "severeIntervalDescription": "• 7,500km / 6개월 / • 5,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": null
+    },
+    {
+      "id": "기아/셀토스",
+      "brand": "기아",
+      "model": "셀토스",
+      "catalogVariants": [
+        "셀토스"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "official_reference",
+      "modelYearScope": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025,
+        2026
+      ],
+      "engineDescription": "가솔린엔진 / 디젤엔진 / 가솔린 엔진 / 디젤 엔진 / 스마트스트림 G 1.6 T-GDi / (가솔린) 2.0 MPI / 스마트스트림 G1.6 T-GDi / 스마트스트림 G1.6 GDi HEV",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "officialReferenceIds": [
+        "oil-1002",
+        "oil-1003",
+        "oil-1006",
+        "oil-1007",
+        "oil-1010",
+        "oil-1011",
+        "oil-1014",
+        "oil-1015",
+        "oil-1018",
+        "oil-1019",
+        "oil-1022",
+        "oil-1023",
+        "oil-1026",
+        "oil-1027",
+        "oil-1030",
+        "oil-1031"
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_available_model_candidate_reference"
+      },
+      "note": "판매 국가·모델 연식·엔진별 공식 수치는 officialReferences에서 확인. 후보 최솟값은 모든 엔진·연식에 공통인 제조사 수치를 뜻하지 않음."
+    },
+    {
+      "id": "기아/니로",
+      "brand": "기아",
+      "model": "니로",
+      "catalogVariants": [
+        "니로 하이브리드",
+        "니로 EV",
+        "니로 플러스"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "official_reference",
+      "modelYearScope": [
+        2016,
+        2017,
+        2018,
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025,
+        2026,
+        2027
+      ],
+      "engineDescription": "가솔린 엔진 카파 1 6 GDI / 가솔린 엔진 카파 1 6L GDI / 가솔린 엔진 카파 1.6L GDI / 스마트스트림 G1.6 GDi HEV / 가솔린 엔진 (가솔린) 1.6 GDi",
+      "intervalCandidates": [
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "officialReferenceIds": [
+        "oil-1286",
+        "oil-1289",
+        "oil-1292",
+        "oil-1295",
+        "oil-1298",
+        "oil-1301",
+        "oil-1303",
+        "oil-1306",
+        "oil-1308",
+        "oil-1310",
+        "oil-1312",
+        "oil-1314",
+        "oil-1316"
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 7500,
+        "calendarMonths": 6,
+        "kind": "shortest_available_model_candidate_reference"
+      },
+      "note": "판매 국가·모델 연식·엔진별 공식 수치는 officialReferences에서 확인. 후보 최솟값은 모든 엔진·연식에 공통인 제조사 수치를 뜻하지 않음."
+    },
+    {
+      "id": "기아/스포티지",
+      "brand": "기아",
+      "model": "스포티지",
+      "catalogVariants": [
+        "스포티지",
+        "스포티지 하이브리드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2015",
+      "engineDescription": "• 스포티지R / QL 1.7 · 2.0 디젤 / • QL 2.0 가솔린 (2015 하반기)",
+      "severeIntervalDescription": "• 10,000km / 6개월 / • 7,500km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 7500,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": null
+    },
+    {
+      "id": "기아/쏘렌토",
+      "brand": "기아",
+      "model": "쏘렌토",
+      "catalogVariants": [
+        "쏘렌토",
+        "쏘렌토 하이브리드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2013~2015, 2021",
+      "engineDescription": "• 뉴 쏘렌토R/UM/MQ4 2.0 · 2.2 디젤 / • MQ4 2.5 가솔린 터보 · 1.6 터보 HEV (2021)",
+      "severeIntervalDescription": "• 10,000km / 6개월 / • 5,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": null
+    },
+    {
+      "id": "기아/모하비",
+      "brand": "기아",
+      "model": "모하비",
+      "catalogVariants": [
+        "모하비"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2016~2024",
+      "engineDescription": "• 더 뉴 모하비 / 더 마스터 V6 3.0 디젤",
+      "severeIntervalDescription": "• 10,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 10000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": null
+    },
+    {
+      "id": "기아/EV3",
+      "brand": "기아",
+      "model": "EV3",
+      "catalogVariants": [
+        "EV3"
+      ],
+      "oilApplicable": false,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "not_applicable",
+      "intervalCandidates": [],
+      "conservativeModelReference": null,
+      "modelYearScope": null,
+      "note": "전기차·수소차: 엔진오일 교체 대상 아님. 감속기 오일 등 다른 오일 기준으로 사용하지 않음."
+    },
+    {
+      "id": "기아/EV6",
+      "brand": "기아",
+      "model": "EV6",
+      "catalogVariants": [
+        "EV6",
+        "EV6 GT"
+      ],
+      "oilApplicable": false,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "not_applicable",
+      "intervalCandidates": [],
+      "conservativeModelReference": null,
+      "modelYearScope": null,
+      "note": "전기차·수소차: 엔진오일 교체 대상 아님. 감속기 오일 등 다른 오일 기준으로 사용하지 않음."
+    },
+    {
+      "id": "기아/EV9",
+      "brand": "기아",
+      "model": "EV9",
+      "catalogVariants": [
+        "EV9"
+      ],
+      "oilApplicable": false,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "not_applicable",
+      "intervalCandidates": [],
+      "conservativeModelReference": null,
+      "modelYearScope": null,
+      "note": "전기차·수소차: 엔진오일 교체 대상 아님. 감속기 오일 등 다른 오일 기준으로 사용하지 않음."
+    },
+    {
+      "id": "기아/레이",
+      "brand": "기아",
+      "model": "레이",
+      "catalogVariants": [
+        "레이",
+        "레이 EV"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "official_reference",
+      "modelYearScope": [
+        2012,
+        2013,
+        2014,
+        2015,
+        2016,
+        2017,
+        2018,
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025,
+        2026,
+        2027
+      ],
+      "engineDescription": "1.0MPI 가솔린, 바이 퓨얼 / 1.0 TCI 가솔린 / 1 0MPI 가솔린, 바이 퓨얼 / TCI 가솔린 / 가솔린 엔진 카파 1 0 MPI / LPI 엔진 카파 1 0 LPI / 가솔린 엔진 카파 1.0 MPI / (가솔린) 1.0 MPI",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "officialReferenceIds": [
+        "oil-868",
+        "oil-869",
+        "oil-872",
+        "oil-873",
+        "oil-874",
+        "oil-875",
+        "oil-880",
+        "oil-881",
+        "oil-882",
+        "oil-883",
+        "oil-888",
+        "oil-889",
+        "oil-892",
+        "oil-893",
+        "oil-896",
+        "oil-897",
+        "oil-899",
+        "oil-901",
+        "oil-903",
+        "oil-905",
+        "oil-907",
+        "oil-909",
+        "oil-911",
+        "oil-913"
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_available_model_candidate_reference"
+      },
+      "note": "판매 국가·모델 연식·엔진별 공식 수치는 officialReferences에서 확인. 후보 최솟값은 모든 엔진·연식에 공통인 제조사 수치를 뜻하지 않음."
+    },
+    {
+      "id": "기아/모닝",
+      "brand": "기아",
+      "model": "모닝",
+      "catalogVariants": [
+        "모닝"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2010~2013, 2021, 2024~2027",
+      "engineDescription": "• 뉴 모닝(SA)/올 뉴(TA)/어반·더 뉴(JA) 1.0 자연흡기 · 바이퓨얼",
+      "severeIntervalDescription": "• 7,500km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 7500,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "기아/카니발",
+      "brand": "기아",
+      "model": "카니발",
+      "catalogVariants": [
+        "카니발",
+        "카니발 하이브리드"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2026~2027 / *(하이리무진 2017, 2021, 2023~2025 포함)*",
+      "engineDescription": "• KA4 3.5 가솔린 / • KA4 1.6 터보 HEV / • YP/KA4 2.2 디젤 (하이리무진 포함)",
+      "severeIntervalDescription": "• 7,500km / 6개월 / • 5,000km / 6개월 / • 10,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "기아/봉고 III",
+      "brand": "기아",
+      "model": "봉고 III",
+      "catalogVariants": [
+        "봉고 III",
+        "봉고 III EV"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2018, 2020, 2022, 2024~2026",
+      "engineDescription": "• 2.5 CRDi 디젤 (2018, 2020, 2022) / • 2.5 T-LPi 터보 (2024~2026)",
+      "severeIntervalDescription": "• 10,000km / 6개월 / • 7,500km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 7500,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": null
+    },
+    {
+      "id": "제네시스/G70",
+      "brand": "제네시스",
+      "model": "G70",
+      "catalogVariants": [
+        "G70",
+        "G70 슈팅브레이크"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2021~2026",
+      "engineDescription": "• 더 뉴 G70 2.0T · 2.5T · 3.3T 가솔린 터보 / • 2.2 디젤 (~2023)",
+      "severeIntervalDescription": "• 5,000km / 6개월 / • 10,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": null
+    },
+    {
+      "id": "제네시스/G80",
+      "brand": "제네시스",
+      "model": "G80",
+      "catalogVariants": [
+        "G80",
+        "G80 전동화 모델"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2013~2015, 2021~2027",
+      "engineDescription": "• DH (제네시스 2세대) 3.3 · 3.8 GDi 자연흡기 / • RG3 2.5T · 3.5T 가솔린 터보 / • RG3 2.2 디젤 (~2021)",
+      "severeIntervalDescription": "• 7,500km / 6개월 / • 5,000km / 6개월 / • 10,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 10000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "제네시스/G90",
+      "brand": "제네시스",
+      "model": "G90",
+      "catalogVariants": [
+        "G90",
+        "G90 롱휠베이스"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2021~2027",
+      "engineDescription": "• HI (2021) 3.8 · 5.0 자연흡기 / 3.3 터보 / • RS4 (2022~2027) 3.5 터보 (48V 일렉트릭 슈퍼차저 포함)",
+      "severeIntervalDescription": "• 자연흡기: 7,500km / 6개월 / • 터보: 5,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        },
+        {
+          "distanceKm": 7500,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "제네시스/GV60",
+      "brand": "제네시스",
+      "model": "GV60",
+      "catalogVariants": [
+        "GV60"
+      ],
+      "oilApplicable": false,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "not_applicable",
+      "intervalCandidates": [],
+      "conservativeModelReference": null,
+      "modelYearScope": null,
+      "note": "전기차·수소차: 엔진오일 교체 대상 아님. 감속기 오일 등 다른 오일 기준으로 사용하지 않음."
+    },
+    {
+      "id": "제네시스/GV70",
+      "brand": "제네시스",
+      "model": "GV70",
+      "catalogVariants": [
+        "GV70",
+        "Electrified GV70"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2025~2027",
+      "engineDescription": "• 2.5T · 3.5T 가솔린 터보",
+      "severeIntervalDescription": "• 5,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    },
+    {
+      "id": "제네시스/GV80",
+      "brand": "제네시스",
+      "model": "GV80",
+      "catalogVariants": [
+        "GV80",
+        "GV80 쿠페"
+      ],
+      "oilApplicable": true,
+      "variantRule": "exclude_BEV_and_FCEV_variants_even_in_mixed_families",
+      "sourceKind": "user_adopted_summary",
+      "modelYearScope": "2024~2027",
+      "engineDescription": "• 2.5T · 3.5T 가솔린 터보 (쿠페 포함)",
+      "severeIntervalDescription": "• 5,000km / 6개월",
+      "intervalCandidates": [
+        {
+          "distanceKm": 5000,
+          "calendarMonths": 6,
+          "condition": "severe"
+        }
+      ],
+      "conservativeModelReference": {
+        "distanceKm": 5000,
+        "calendarMonths": 6,
+        "kind": "shortest_supplied_model_candidate_reference"
+      },
+      "note": "사용자가 code_artifact.md의 정보를 제품 기준으로 채택함. 세대·엔진·연식을 묶은 요약이며 개별 조합의 존재·적용을 새로 보증하지 않음.",
+      "sourceId": "user-code-artifact",
+      "year2027Basis": "2026-based_assumption_as_supplied_not_independent_official_verification"
+    }
+  ],
+  "officialReferences": [
+    {
+      "id": "k4-US-2025-20-severe",
+      "brand": "기아",
+      "modelName": "K4",
+      "generation": "CL4",
+      "modelYear": 2025,
+      "market": "US",
+      "engineLabel": "Smartstream G2.0 MPI",
+      "condition": "severe",
+      "distanceKm": 8000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/CL4/2025/en_US/topics/chapter8_4.html",
+      "sourcePage": null,
+      "model": "K4",
+      "sourceKind": "official_reference",
+      "sourceDistanceMiles": 5000
+    },
+    {
+      "id": "k4-US-2025-16t-severe",
+      "brand": "기아",
+      "modelName": "K4",
+      "generation": "CL4",
+      "modelYear": 2025,
+      "market": "US",
+      "engineLabel": "Smartstream G1.6 T-GDi",
+      "condition": "severe",
+      "distanceKm": 8000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/CL4/2025/en_US/topics/chapter8_4.html",
+      "sourcePage": null,
+      "model": "K4",
+      "sourceKind": "official_reference",
+      "sourceDistanceMiles": 5000
+    },
+    {
+      "id": "k4-US-2026-20-severe",
+      "brand": "기아",
+      "modelName": "K4",
+      "generation": "CL4",
+      "modelYear": 2026,
+      "market": "US",
+      "engineLabel": "Smartstream G2.0",
+      "condition": "severe",
+      "distanceKm": 8000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/CL4/2026/en_US/topics/t00729.html",
+      "sourcePage": null,
+      "model": "K4",
+      "sourceKind": "official_reference",
+      "sourceDistanceMiles": 5000
+    },
+    {
+      "id": "k4-US-2026-16t-severe",
+      "brand": "기아",
+      "modelName": "K4",
+      "generation": "CL4",
+      "modelYear": 2026,
+      "market": "US",
+      "engineLabel": "Smartstream G1.6 T-GDi",
+      "condition": "severe",
+      "distanceKm": 8000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/CL4/2026/en_US/topics/t00729.html",
+      "sourcePage": null,
+      "model": "K4",
+      "sourceKind": "official_reference",
+      "sourceDistanceMiles": 5000
+    },
+    {
+      "id": "k4-US-2027-20-severe",
+      "brand": "기아",
+      "modelName": "K4",
+      "generation": "CL4",
+      "modelYear": 2027,
+      "market": "US",
+      "engineLabel": "Smartstream G2.0",
+      "condition": "severe",
+      "distanceKm": 8000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/CL4/2027/en_US/topics/t00660.html",
+      "sourcePage": null,
+      "model": "K4",
+      "sourceKind": "official_reference",
+      "sourceDistanceMiles": 5000
+    },
+    {
+      "id": "k4-US-2027-16t-severe",
+      "brand": "기아",
+      "modelName": "K4",
+      "generation": "CL4",
+      "modelYear": 2027,
+      "market": "US",
+      "engineLabel": "Smartstream G1.6 T-GDi",
+      "condition": "severe",
+      "distanceKm": 8000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/CL4/2027/en_US/topics/t00660.html",
+      "sourcePage": null,
+      "model": "K4",
+      "sourceKind": "official_reference",
+      "sourceDistanceMiles": 5000
+    },
+    {
+      "id": "k4-AU-NZ-2025-20-severe",
+      "brand": "기아",
+      "modelName": "K4",
+      "generation": "CL4m",
+      "modelYear": 2025,
+      "market": "AU_NZ",
+      "engineLabel": "2.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://www.kia.com/content/dam/kwcms/au/en/files/owners-manuals/k4/Kia-K4-CL4m-ICE-owners-manual-MY25.pdf#page=444",
+      "sourcePage": 444,
+      "model": "K4",
+      "sourceKind": "official_reference",
+      "printedPage": "8-18"
+    },
+    {
+      "id": "k4-AU-NZ-2025-16t-severe",
+      "brand": "기아",
+      "modelName": "K4",
+      "generation": "CL4m",
+      "modelYear": 2025,
+      "market": "AU_NZ",
+      "engineLabel": "Smartstream G1.6 T-GDi",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://www.kia.com/content/dam/kwcms/au/en/files/owners-manuals/k4/Kia-K4-CL4m-ICE-owners-manual-MY25.pdf#page=441",
+      "sourcePage": 441,
+      "model": "K4",
+      "sourceKind": "official_reference",
+      "printedPage": "8-15"
+    },
+    {
+      "id": "oil-1002",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2020,
+      "market": "KR",
+      "engineLabel": "가솔린엔진",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/SP2/2020/ko_KR#page=419",
+      "sourcePage": 419,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1003",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2020,
+      "market": "KR",
+      "engineLabel": "디젤엔진",
+      "condition": "severe",
+      "distanceKm": 10000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/SP2/2020/ko_KR#page=419",
+      "sourcePage": 419,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1006",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2021,
+      "market": "KR",
+      "engineLabel": "가솔린엔진",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/SP2/2021/ko_KR#page=413",
+      "sourcePage": 413,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1007",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2021,
+      "market": "KR",
+      "engineLabel": "디젤엔진",
+      "condition": "severe",
+      "distanceKm": 10000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/SP2/2021/ko_KR#page=413",
+      "sourcePage": 413,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1010",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2022,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP2/2022/ko_KR/topics/t00540.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1011",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2022,
+      "market": "KR",
+      "engineLabel": "디젤 엔진",
+      "condition": "severe",
+      "distanceKm": 10000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP2/2022/ko_KR/topics/t00540.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1014",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2023,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G 1.6 T-GDi",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP2/2023/ko_KR/topics/t00874.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1015",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2023,
+      "market": "KR",
+      "engineLabel": "(가솔린) 2.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP2/2023/ko_KR/topics/t00874.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1018",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2024,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G 1.6 T-GDi",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP2/2024/ko_KR/topics/t00877.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1019",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2024,
+      "market": "KR",
+      "engineLabel": "(가솔린) 2.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP2/2024/ko_KR/topics/t00877.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1022",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2025,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G 1.6 T-GDi",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP2/2025/ko_KR/topics/chapter8_4.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1023",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2025,
+      "market": "KR",
+      "engineLabel": "(가솔린) 2.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP2/2025/ko_KR/topics/chapter8_4.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1026",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2026,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G 1.6 T-GDi",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP2/2026/ko_KR/topics/chapter8_4.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1027",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP2",
+      "modelYear": 2026,
+      "market": "KR",
+      "engineLabel": "(가솔린) 2.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP2/2026/ko_KR/topics/chapter8_4.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1030",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP3",
+      "modelYear": 2026,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G1.6 T-GDi",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP3/2026/ko_KR/topics/t00965.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1031",
+      "brand": "기아",
+      "modelName": "셀토스",
+      "generation": "SP3",
+      "modelYear": 2026,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G1.6 GDi HEV",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SP3/2026/ko_KR/topics/t00965.html",
+      "sourcePage": null,
+      "model": "셀토스",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1286",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "DE",
+      "modelYear": 2016,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진 카파 1 6 GDI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/DE/2016/ko_KR/index.html",
+      "sourcePage": 287,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1289",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "DE",
+      "modelYear": 2017,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진 카파 1 6 GDI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/DE/2017/ko_KR/index.html",
+      "sourcePage": 331,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1292",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "DE",
+      "modelYear": 2018,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진 카파 1 6 GDI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/DE/2018/ko_KR/index.html",
+      "sourcePage": 334,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1295",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "DE",
+      "modelYear": 2019,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진 카파 1 6L GDI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/DE/2019/ko_KR/index.html",
+      "sourcePage": 409,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1298",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "DE",
+      "modelYear": 2020,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진 카파 1.6L GDI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/DE/2020/ko_KR#page=409",
+      "sourcePage": 409,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1301",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "DE",
+      "modelYear": 2021,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진 카파 1.6L GDI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/DE/2021/ko_KR#page=409",
+      "sourcePage": 409,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1303",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "SG2",
+      "modelYear": 2022,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G1.6 GDi HEV",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SG2/2022/ko_KR/topics/t01029.html",
+      "sourcePage": null,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1306",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "DE",
+      "modelYear": 2022,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진 (가솔린) 1.6 GDi",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/DE/2022/ko_KR#page=412",
+      "sourcePage": 412,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1308",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "SG2",
+      "modelYear": 2023,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G1.6 GDi HEV",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SG2/2023/ko_KR/topics/t01029.html",
+      "sourcePage": null,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1310",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "SG2",
+      "modelYear": 2024,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G1.6 GDi HEV",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SG2/2024/ko_KR/topics/t01030.html",
+      "sourcePage": null,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1312",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "SG2",
+      "modelYear": 2025,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G1.6 GDi HEV",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SG2/2025/ko_KR/topics/chapter8_4_2.html",
+      "sourcePage": null,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1314",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "SG2",
+      "modelYear": 2026,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G1.6 GDi HEV",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SG2/2026/ko_KR/topics/chapter8_4_2.html",
+      "sourcePage": null,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-1316",
+      "brand": "기아",
+      "modelName": "니로",
+      "generation": "SG2",
+      "modelYear": 2027,
+      "market": "KR",
+      "engineLabel": "스마트스트림 G1.6 GDi HEV",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/SG2/2027/ko_KR/topics/t00887.html",
+      "sourcePage": null,
+      "model": "니로",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-868",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2012,
+      "market": "KR",
+      "engineLabel": "1.0MPI 가솔린, 바이 퓨얼",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/TAM/2012/ko_KR#page=297",
+      "sourcePage": 297,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-869",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2012,
+      "market": "KR",
+      "engineLabel": "1.0 TCI 가솔린",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/TAM/2012/ko_KR#page=297",
+      "sourcePage": 297,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-872",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2013,
+      "market": "KR",
+      "engineLabel": "1.0MPI 가솔린, 바이 퓨얼",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/TAM/2013/ko_KR#page=297",
+      "sourcePage": 297,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-873",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2013,
+      "market": "KR",
+      "engineLabel": "1.0 TCI 가솔린",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/TAM/2013/ko_KR#page=297",
+      "sourcePage": 297,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-874",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2014,
+      "market": "KR",
+      "engineLabel": "1 0MPI 가솔린, 바이 퓨얼",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2014/ko_KR/index.html",
+      "sourcePage": 291,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-875",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2014,
+      "market": "KR",
+      "engineLabel": "TCI 가솔린",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2014/ko_KR/index.html",
+      "sourcePage": 291,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-880",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2015,
+      "market": "KR",
+      "engineLabel": "1.0MPI 가솔린, 바이 퓨얼",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/TAM/2015/ko_KR#page=291",
+      "sourcePage": 291,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-881",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2015,
+      "market": "KR",
+      "engineLabel": "1.0 TCI 가솔린",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/TAM/2015/ko_KR#page=291",
+      "sourcePage": 291,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-882",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2016,
+      "market": "KR",
+      "engineLabel": "1 0MPI 가솔린, 바이 퓨얼",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2016/ko_KR/index.html",
+      "sourcePage": 293,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-883",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2016,
+      "market": "KR",
+      "engineLabel": "TCI 가솔린",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2016/ko_KR/index.html",
+      "sourcePage": 293,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-888",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2017,
+      "market": "KR",
+      "engineLabel": "1.0MPI 가솔린, 바이 퓨얼",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/TAM/2017/ko_KR#page=293",
+      "sourcePage": 293,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-889",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2017,
+      "market": "KR",
+      "engineLabel": "1.0 TCI 가솔린",
+      "condition": "severe",
+      "distanceKm": 5000,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/TAM/2017/ko_KR#page=293",
+      "sourcePage": 293,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-892",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2018,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진 카파 1 0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2018/ko_KR/index.html",
+      "sourcePage": 263,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-893",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2018,
+      "market": "KR",
+      "engineLabel": "LPI 엔진 카파 1 0 LPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2018/ko_KR/index.html",
+      "sourcePage": 263,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-896",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2019,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진 카파 1 0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2019/ko_KR/index.html",
+      "sourcePage": 263,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-897",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2019,
+      "market": "KR",
+      "engineLabel": "LPI 엔진 카파 1 0 LPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2019/ko_KR/index.html",
+      "sourcePage": 263,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-899",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2020,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진 카파 1 0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2020/ko_KR/index.html",
+      "sourcePage": 291,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-901",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2021,
+      "market": "KR",
+      "engineLabel": "가솔린 엔진 카파 1.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_pdf/TAM/2021/ko_KR#page=291",
+      "sourcePage": 291,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-903",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2022,
+      "market": "KR",
+      "engineLabel": "(가솔린) 1.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2022/ko_KR/topics/t00488.html",
+      "sourcePage": null,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-905",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2023,
+      "market": "KR",
+      "engineLabel": "(가솔린) 1.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2023/ko_KR/topics/t00613.html",
+      "sourcePage": null,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-907",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2024,
+      "market": "KR",
+      "engineLabel": "(가솔린) 1.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2024/ko_KR/topics/t00615.html",
+      "sourcePage": null,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-909",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2025,
+      "market": "KR",
+      "engineLabel": "(가솔린) 1.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2025/ko_KR/topics/chapter8_4_1.html",
+      "sourcePage": null,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-911",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2026,
+      "market": "KR",
+      "engineLabel": "(가솔린) 1.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2026/ko_KR/topics/chapter8_4_1.html",
+      "sourcePage": null,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    },
+    {
+      "id": "oil-913",
+      "brand": "기아",
+      "modelName": "레이",
+      "generation": "TAM",
+      "modelYear": 2027,
+      "market": "KR",
+      "engineLabel": "(가솔린) 1.0 MPI",
+      "condition": "severe",
+      "distanceKm": 7500,
+      "calendarMonths": 6,
+      "sourceUrl": "https://ownersmanual.kia.com/full_webhelp/TAM/2027/ko_KR/topics/t00569.html",
+      "sourcePage": null,
+      "model": "레이",
+      "sourceKind": "official_reference"
+    }
+  ],
+  "coverage": {
+    "catalogFamilies": 37,
+    "oilApplicableFamilies": 29,
+    "notApplicableFamilies": 8,
+    "missingModelPolicies": [],
+    "historicalYearCoverageComplete": false
+  }
+}

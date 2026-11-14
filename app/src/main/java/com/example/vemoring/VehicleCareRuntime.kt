@@ -23,23 +23,11 @@ object VehicleCareRuntime {
             val unit = MaintenanceStore(context, data.profile).distanceUnit()
             if (!demo) journal.observeDistance(confirmedKilometres(snapshot[VehicleField.ODOMETER], unit),
                 snapshot[VehicleField.ODOMETER].receivedAtMillis, session, System.currentTimeMillis(),SharedVehicleConnection.travelPoint.value)
-            val warnings = JSONObject()
-            listOf(VehicleField.ENGINE_OIL, VehicleField.BRAKE_FLUID, VehicleField.TRANSMISSION_OIL,
-                VehicleField.WASHER, VehicleField.TELLTALES, VehicleField.OIL_PRESSURE).forEach { field ->
-                val r = snapshot[field]
-                warnings.put(field.name, JSONObject().put("status", r.state.name).put("at", r.receivedAtMillis)
-                    .put("raw", r.value?.rawState).put("color", r.value?.color)
-                    .put("warning", r.value?.warning).put("source", if(demo) "Demo" else "Real"))
-            }
-            val telltales=snapshot[VehicleField.TELLTALES]
-            if(telltales.state==ReadingState.Available) telltales.value?.rawState?.let {raw ->
-                val values=runCatching {JSONArray(raw)}.getOrNull()
-                if(values!=null) repeat(values.length()) {n -> val item=values.getJSONObject(n)
-                    val type=item.getString("type")
-                    if(type in MaintenanceRules.heldTypes) warnings.put(type,JSONObject()
-                        .put("status","Available").put("at",telltales.receivedAtMillis).put("raw",item.getString("state"))
-                        .put("color",item.optInt("color")).put("eligible",false).put("source",if(demo) "Demo" else "Real"))
-                }
+            val oilLedger=EngineOilLedger(context,id)
+            if(!demo) {
+                oilLedger.observe(confirmedKilometres(snapshot[VehicleField.ODOMETER],unit),snapshot[VehicleField.ODOMETER].receivedAtMillis)
+                oilLedger.assess(JSONObject().put("model",data.profile.fullModel).put("fuel",data.profile.fuel).put("oilEstimate",data.profile.oilEstimate).put("oilBaselineKm",data.profile.oilBaselineKm),
+                    JSONArray().also {a -> data.records.forEach {a.put(it.json())}}.toString())
             }
             val outgoing=journal.outgoingState()
             // Fuel cars (gasoline/diesel/HEV): sticky low episode + three-read refuel confirmation. EV keeps the battery path.
@@ -53,9 +41,9 @@ object VehicleCareRuntime {
                     .put("speedAt",snapshot[VehicleField.SPEED].receivedAtMillis)
                     .put("gear",snapshot[VehicleField.GEAR].takeIf {it.state==ReadingState.Available}?.value?.rawState?.let(::normalizedGear))
                     .put("gearAt",snapshot[VehicleField.GEAR].receivedAtMillis).put("source",if(demo) "Demo" else "Real"))
-                .put("warnings", warnings).put("automaticDetection", "Mapped wash area; 3-minute motion-qualified dwell and corroborated vehicle exit; cancelable estimate")
+                .put("automaticDetection", "Mapped wash area; 3-minute motion-qualified dwell and corroborated vehicle exit; cancelable estimate")
                 .put("washVisits",if(demo) JSONArray() else VehicleWashRuntime.frame(context,id))
                 .put("request", outgoing.request).put("rejectedVisits",outgoing.rejectedVisits).put("deletedRecords",outgoing.deletedRecords)
-                .put("fuelEpisode",fuelEpisode?.json() ?: JSONObject.NULL)
+                .put("fuelEpisode",fuelEpisode?.json() ?: JSONObject.NULL).put("oilLedger",if(demo) JSONObject.NULL else oilLedger.frame())
         } }
 }

@@ -25,17 +25,21 @@ class IconMonitorPreviewReceiver : BroadcastReceiver() {
                 val values = listOf(Triple(80, 100, false), Triple(10, 100, false),
                     Triple(80, 20, false), Triple(80, 100, true),
                     Triple(10, 20, false), Triple(10, 20, true))
-                val (fuel, clean, warning) = values[stage]
+                val (fuel, clean, oilDue) = values[stage]
                 val today = LocalDate.now(java.time.ZoneId.of("Asia/Seoul"))
                 val wash = CareRecord("preview-wash", today.minusDays((100-clean)/2L), CareKind.WASH, "아이콘 테스트")
                 val data = saved.copy(profile = saved.profile.copy(fuel = "휘발유", fuelAlert = 20, washAlert = 30), records = listOf(wash), complete = true)
                 val snapshot = VehicleSnapshot(VehicleSnapshot().readings + mapOf(
                     VehicleField.FUEL to Reading.percent(fuel),
-                    VehicleField.BRAKE_FLUID to Reading.available(SignalValue("경고", warning = warning)),
                     VehicleField.ODOMETER to Reading.available(SignalValue("15000", 15000.0))))
                 IconMonitorTestSource.input.value = IconMonitorSample(data, snapshot,
-                    MaintenanceConfig())
+                    previewOilConfig(oilDue,today))
             } finally { pending.finish() }
         }
     }
 }
+
+internal fun previewOilConfig(due:Boolean,today:LocalDate)=MaintenanceConfig(
+    oilRule=com.vemoring.companion.EngineOilRule("preview","현대 아반떼","휘발유",5000.0,6,"isolated fixture"),
+    oilLedger=org.json.JSONObject().put("enrolled",today.toString()).put("initialIds",org.json.JSONArray())
+        .put("initialDate",(if(due) today.minusMonths(6) else today).toString()).put("anchorKm",15000).put("currentKm",15000))

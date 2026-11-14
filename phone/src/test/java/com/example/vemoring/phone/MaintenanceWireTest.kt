@@ -13,13 +13,13 @@ class MaintenanceWireTest {
         val wire = tire.wireJson()
         assertEquals("maintenance", wire.getString("kind"))
         assertEquals("TIRE_PRESSURE", wire.getString("maintenanceType"))
-        assertEquals("MAINTENANCE_DONE", BannerPolicy.recordCompletion(wire.getString("kind"), MaintenanceType.from(wire.getString("maintenanceType")))!!.key)
+        assertNull(BannerPolicy.recordCompletion(wire.getString("kind"), MaintenanceType.from(wire.getString("maintenanceType"))))
         val oil = tire.copy(maintenanceType = MaintenanceType.ENGINE_OIL).wireJson()
         assertEquals("maintenance", oil.getString("kind"))
         assertEquals("ENGINE_OIL", oil.getString("maintenanceType"))
-        val edited = updateLatestPhoneRecords(listOf(tire), mapOf(MAINTENANCE to tire.date.minusDays(1))).single()
+        val edited = updateLatestPhoneRecords(listOf(tire.copy(maintenanceType=MaintenanceType.ENGINE_OIL)), mapOf(MAINTENANCE to tire.date.minusDays(1))).single()
         assertEquals(tire.id, edited.id)
-        assertEquals(tire.maintenanceType, edited.maintenanceType)
+        assertEquals(MaintenanceType.ENGINE_OIL, edited.maintenanceType)
         assertTrue(deletePhoneRecord(listOf(tire), tire.id).single().wireJson().getBoolean("deleted"))
     }
 }

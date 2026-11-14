@@ -23,7 +23,7 @@ internal fun moodFor(fuel: Boolean, wash: Boolean, warning: Boolean): String = w
 internal fun moodMessage(mood: String): String = when (mood) {
     "FUEL" -> "배가 고파요…\n에너지를 채워줄래요?"
     "WASH" -> "꼬질꼬질해졌어요…\n깨끗하게 씻겨줄래요?"
-    "OIL" -> "차량 경고등이 켜졌어요!\n계기판을 확인해 주세요."
+    "OIL" -> "엔진오일 교체 시기예요!\n교체 기록을 확인해 주세요."
     "ANGRY" -> "두 가지 관리가 필요해요!\n하나씩 챙겨줄래요?"
     "EXHAUSTED" -> "챙겨줄 게 세 가지예요…\n기운을 되찾게 도와줘요."
     else -> "안녕! 준비됐나요?\n오늘도 함께 달려요."
@@ -47,11 +47,12 @@ internal fun currentPhoneMood(context: Context, received: ReceivedMirror?, autho
         val signals = content.optJSONObject("signals")
         return moodFor(EnergyPolicy.low(JSONObject(state.profile), content) == true,
             score?.let { it <= JSONObject(state.profile).getInt("washAlert") } == true,
-            signals?.optBoolean("vehicleWarning") == true)
+            EngineOilCatalog.assess(context,JSONObject(state.profile).put("vehicleId",vehicleId),state.records).due==true)
     }
     if(selected!=null) CareJournal(context,selected).authority()?.let {state ->
         val score=CareJournal(context,selected).score(JSONArray(state.records)).displayed
-        return if(score!=null && score<=JSONObject(state.profile).getInt("washAlert")) "WASH" else "NORMAL"
+        return moodFor(false,score!=null && score<=JSONObject(state.profile).getInt("washAlert"),
+            EngineOilCatalog.assess(context,JSONObject(state.profile).put("vehicleId",selected),state.records).due==true)
     }
     val raw = context.getSharedPreferences("phone_ui_v1", Context.MODE_PRIVATE).getString("data", null) ?: return "NORMAL"
     val j = JSONObject(raw)

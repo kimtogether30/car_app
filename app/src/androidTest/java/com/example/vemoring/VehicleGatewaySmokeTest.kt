@@ -28,7 +28,6 @@ class VehicleGatewaySmokeTest {
         try {
             assertTrue("Every field must resolve or report an explicit failure", gate.await(25, TimeUnit.SECONDS))
             assertEquals(ReadingState.Unsupported, readings.getValue(VehicleField.CAR_INFO).state)
-            assertEquals(ReadingState.Unsupported, readings.getValue(VehicleField.SMART_KEY).state)
             assertTrue(readings.values.none { it.state == ReadingState.Demo })
             for (field in listOf(VehicleField.FUEL, VehicleField.SOC)) {
                 val reading = readings.getValue(field)

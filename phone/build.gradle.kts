@@ -55,3 +55,10 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     add("verificationImplementation", libs.androidx.compose.ui.test.manifest)
 }
+
+val engineOilAssets = tasks.register<Sync>("engineOilAssets") {
+    from(rootProject.file("docs/engine-oil")) { include("engine-oil-intervals.json") }
+    into(layout.buildDirectory.dir("generated/engineOilAssets"))
+}
+android.sourceSets.getByName("main").assets.directories.add(layout.buildDirectory.dir("generated/engineOilAssets").get().asFile.path)
+tasks.named("preBuild").configure { dependsOn(engineOilAssets) }

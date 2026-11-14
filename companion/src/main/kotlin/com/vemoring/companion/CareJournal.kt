@@ -321,18 +321,12 @@ class CareJournal(private val context: Context, val vehicleId: String) {
         if (next != current) { j.put("fuelEpisode", next.json()); save(j) }
         next
     }
-    fun lastWarning(type: String): String? = load().optJSONObject("warnings")?.optString(type)?.takeIf { it.isNotBlank() }
-    fun saveWarning(type: String, state: String) {
-        synchronized(CARE_JOURNAL_LOCK) {
-            val j = load(); val states = j.optJSONObject("warnings") ?: JSONObject()
-            states.put(type, state); j.put("warnings", states); save(j)
-        }
-    }
     fun deleteVehicle() {
         synchronized(CARE_JOURNAL_LOCK) {
             check(prefs.edit().remove(key).commit())
             NotificationHistory(context).use {it.deleteVehicle(vehicleId)}
             FacilityWashStore(context,vehicleId).clear()
+            EngineOilLedger(context,vehicleId).clear()
             if(WashAssistSignals.target.value?.vehicleId==vehicleId) WashAssistSignals.target.value=null
         }
     }
@@ -385,13 +379,3 @@ class CareJournal(private val context: Context, val vehicleId: String) {
 }
 
 internal fun intervalDigest(part: JSONObject): String = java.util.UUID.nameUUIDFromBytes(part.toString().toByteArray(Charsets.UTF_8)).toString()
-
-/** Full agreed scope is prepared; ambiguous telltales stay disabled until vehicle-specific validation. */
-object MaintenanceRules {
-    val heldTypes = setOf("ENGINE", "ENGINE_OIL_PRESSURE", "ENGINE_TEMPERATURE", "LOW_VOLT_BATTERY",
-        "ABS", "ELECTRONIC_PARKING_BRAKE", "MDPS", "TPMS", "ESC", "AIRBAG", "AFS", "LED_HEADLAMP",
-        "PARTICLE_FILTER", "SCR", "WATER_SEPARATOR", "EV_SYSTEM", "HEV_SYSTEM", "FCEV_SYSTEM",
-        "EREV_SYSTEM", "H2_SENSOR", "H2_LEAK")
-    const val reason = "규칙 미검증/자동 정비 알림 보류: 차종별 공식 의미·전제 신호 확인 필요"
-    const val safetyApi = "https://document.pleos.ai/docs/pleos-only/connect-sdk-pleos/Vehicle/vehicle/ai.pleos.playground.vehicle.api/safety/entry"
-}

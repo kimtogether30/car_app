@@ -28,7 +28,7 @@ class PhoneFuelSettingTest {
         val content=JSONObject().put("profile",p).put("records",JSONArray()).put("mood","NORMAL")
             .put("message","시험 데이터").put("demo",false).put("fuel",80).put("battery",JSONObject.NULL)
             .put("cleanliness",JSONObject.NULL).put("oilRemainingKm",JSONObject.NULL)
-            .put("signals",JSONObject().put("lowFuel",false).put("vehicleWarning",false))
+            .put("signals",JSONObject().put("lowFuel",false).put("oilDue",false))
         val frame=MirrorSnapshot(vehicle,1,System.currentTimeMillis(),content.toString())
         runBlocking {MirrorBus.receive(context,frame);CareExchange.receive(context,frame)}
         compose.waitUntil(5000) {compose.onAllNodesWithTag("vehicle-picker").fetchSemanticsNodes().isNotEmpty()}

@@ -162,22 +162,6 @@ class CareFlowTest {
         assertEquals(accepted, store.authority()!!.version)
         store.deleteVehicle(); base.getSystemService(NotificationManager::class.java).cancelAll()
     }
-    @Test fun demoAndDisconnectedReadingsDoNotBecomeMaintenanceAlerts() = runBlocking {
-        val id = UUID.randomUUID().toString(); val real = snapshot(id, lowWasher = true)
-        val demo = real.copy(content = JSONObject(real.content).put("demo", true).toString())
-        CareExchange.receive(context, demo)
-        assertNull(CareJournal(context, id).authority())
-        val disconnected = real.copy(content = JSONObject(real.content).also {
-            it.getJSONObject("care").getJSONObject("warnings").getJSONObject("WASHER").put("status", "Disconnected")
-        }.toString())
-        CareExchange.receive(context, disconnected)
-        assertNull(CareJournal(context, id).lastWarning("WASHER"))
-        CareExchange.receive(context, real.copy(revision = 2))
-        assertEquals("LOW", CareJournal(context, id).lastWarning("WASHER"))
-        CareExchange.receive(context, disconnected.copy(revision = 3))
-        assertEquals("LOW", CareJournal(context, id).lastWarning("WASHER"))
-        CareJournal(context, id).deleteVehicle(); base.getSystemService(NotificationManager::class.java).cancelAll()
-    }
     @Test fun intervalsAreTransferredInBoundedBatchesAndWeatherSurvivesReload() = runBlocking {
         val sourceContext = object : ContextWrapper(base) {
             override fun getSharedPreferences(name: String, mode: Int) = base.getSharedPreferences(prefix + "source_" + name, mode)

@@ -45,7 +45,7 @@ class PhoneLauncherTest {
                 .put("records", org.json.JSONArray()).put("mood", "NORMAL").put("message", "").put("demo", false)
                 .put("fuel", if (lowFuel) 10 else 80).put("battery", JSONObject.NULL).put("cleanliness", JSONObject.NULL)
                 .put("oilRemainingKm", JSONObject.NULL)
-                .put("signals", JSONObject().put("lowFuel", lowFuel).put("vehicleWarning", warning)).toString())
+                .put("signals", JSONObject().put("lowFuel", lowFuel).put("oilDue", warning)).toString())
         // Same order as MirrorBluetoothService: cache the frame, then apply it to the phone-owned care state.
         fun receive(snapshot: MirrorSnapshot) = kotlinx.coroutines.runBlocking {
             MirrorBus.receive(context, snapshot); CareExchange.receive(context, snapshot)

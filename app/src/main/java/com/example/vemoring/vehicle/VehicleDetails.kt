@@ -27,13 +27,6 @@ fun VehicleDetails(snapshot: VehicleSnapshot, refresh: () -> Unit) {
     val context=androidx.compose.ui.platform.LocalContext.current
     val locationPermission=androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {if(it) refresh()}
-    snapshot.priorityWarning()?.let { warning ->
-        Panel(color = Color(0xFFFFE2DC)) {
-            Text("차량 안전 경고", color = Color(0xFF9D2015))
-            Text(warning, color = Color(0xFF9D2015))
-            Text("차량 계기판과 사용 설명서를 확인해 주세요. 정기 교체 알림과 다른 차량 경고입니다.", fontSize = 12.sp)
-        }
-    }
     Panel {
         Row { Text("차량 수신 정보", Modifier.weight(1f)); TextButton(onClick = refresh) { Text("새로고침") } }
         if(snapshot[VehicleField.SPEED].state==ReadingState.PermissionDenied)

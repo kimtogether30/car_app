@@ -48,7 +48,7 @@ class PhoneFleetUiTest {
         val other=JSONObject().put("profile",JSONObject(b.profile)).put("records",JSONArray(b.records)).put("mood","FUEL")
             .put("message","다른 차량의 시험 수신").put("demo",false).put("fuel",5).put("battery",JSONObject.NULL)
             .put("cleanliness",JSONObject.NULL).put("oilRemainingKm",JSONObject.NULL)
-            .put("signals",JSONObject().put("lowFuel",true).put("vehicleWarning",false))
+            .put("signals",JSONObject().put("lowFuel",true).put("oilDue",false))
         runBlocking {val frame=MirrorSnapshot(b.vehicleId,10,System.currentTimeMillis(),other.toString())
             MirrorBus.receive(context,frame);CareExchange.receive(context,frame)}
         compose.onNodeWithTag("vehicle-picker").assertTextContains("첫차-$token",substring=true)

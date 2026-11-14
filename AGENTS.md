@@ -29,3 +29,10 @@
 - Use `tools\graphify.cmd query "symbol or relationship" --budget 1500` for relevant structural questions when `graphify-out/graph.json` exists. Confirm important findings in source, especially inferred relationships and Compose callbacks.
 - Refresh on demand with `tools\graphify.cmd` (code-only, one AST worker). This wrapper also limits numeric-library threads. Do not run a watcher, local LLM, automatic full rebuild on every edit, or large visualization during emulator/build work.
 - Keep generated indexes out of Git. No paid cloud, semantic document/media processing, external uploads, or agent hooks are configured. The Codex Graphify skill is installed for optional explicit use; these project resource limits still apply.
+
+## Engine oil policy (2026-11-15)
+
+- General maintenance and warning-light product paths are retired. Keep only legacy serialization compatibility; only explicitly marked ENGINE_OIL records reset the oil cycle.
+- Follow `docs/engine-oil/ENGINE_OIL_POLICY.md` and the supplied JSON. The latest 30-minute verified vehicle-power OFF→ON policy supersedes the earlier 20-minute continuous-dwell proposal. Do not use Bluetooth loss, engine idle stop, RPM=0, P/N or zero speed as vehicle power OFF.
+- Use model-specific severe recurring intervals and label model-only shortest references honestly. Preserve enrollment anchors; initial history may use 20km/day, but later actual odometer gaps must never also receive average distance.
+- No vehicle power API is currently validated in Vehicle SDK 2.3.2. Keep automatic garage confirmation inactive until the required real power/location evidence is supported and tested; manual engine-oil records remain available. Do not call a fixture a physical ignition/garage test.

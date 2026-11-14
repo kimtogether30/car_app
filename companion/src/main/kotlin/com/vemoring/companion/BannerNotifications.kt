@@ -96,64 +96,28 @@ object BannerNotifications {
         val episode=if(electric) null else (receivedEpisode?.let {next -> journal.updateFuelEpisode {old -> if(next.episode>=old.episode) next else old}}
             ?: journal.fuelEpisode()).takeIf {it.phase!=FuelPhase.UNKNOWN}
         val fuel = if(episode!=null) episode.phase==FuelPhase.LOW else percentages.any {it<=profile.getInt("fuelAlert")}
-        val warnings = telemetry?.optJSONObject("warnings")
         val now = System.currentTimeMillis()
-        val eligible = mutableListOf<String>()
-        val known = mutableMapOf<String,Boolean>()
-        warnings?.keys()?.forEach { type ->
-            val w = warnings.optJSONObject(type) ?: return@forEach
-            if(w.optString("status") != "Available" || w.optString("source","Real") != "Real" || now-w.optLong("at") !in 0..60000) return@forEach
-            val validated = type in BannerPolicy.supportedDirectWarnings
-            if(!validated) return@forEach // Raw ON/BLINK/color alone cannot diagnose an unvalidated telltale.
-            if(w.has("warning") && !w.isNull("warning")) {
-                known[type]=w.getBoolean("warning")
-                if(w.getBoolean("warning")) eligible += type
-            }
-        }
-        val groups = eligible.groupBy { BannerPolicy.maintenanceGroups[it] ?: "VEHICLE_WARNING" }.toMutableMap()
-        val warningSignal=freshSnapshot?.optJSONObject("signals")
-        if(freshField("vehicleWarningAt") && warningSignal?.has("vehicleWarning")==true && !warningSignal.isNull("vehicleWarning"))
-            known["UNCLASSIFIED_WARNING"]=warningSignal.getBoolean("vehicleWarning")
-        if(groups.isEmpty() && known["UNCLASSIFIED_WARNING"]==true) groups["VEHICLE_WARNING"]=listOf("UNCLASSIFIED_WARNING")
         val source = if(profile.optBoolean("simulation")) "Simulation" else "Real"
-        val candidates: List<Pair<String?,List<String>>> = if(groups.isEmpty()) listOf(null to emptyList()) else groups.entries.sortedBy {it.key}.map {it.key to it.value.sorted()}
-        if(groups.isNotEmpty()) NotificationHistory(c).use { h ->
-            h.value(journal.vehicleId,"last:state")?.let {c.getSystemService(NotificationManager::class.java).cancel("${journal.vehicleId}:$it",3010)}
-            h.stateEvent(journal.vehicleId,"covered-by-maintenance")
-        }
-        for((group,types) in candidates) {
-            val banner=BannerPolicy.issues(fuel,dirty,types.firstOrNull()) ?: continue
-            val d=BannerPolicy.forProfile(banner,profile)
+        val oilAssessment=EngineOilCatalog.assess(c,JSONObject(profile.toString()).put("vehicleId",journal.vehicleId),authority.records)
+        val oilDue=oilAssessment.due==true
+        val banner = BannerPolicy.issues(fuel,dirty,oilDue)
+        if(banner != null) {
+            val base=BannerPolicy.forProfile(banner,profile)
+            val d=if(oilDue && oilAssessment.percent==null && oilAssessment.reason.contains("설치 이후")) base.copy(body=oilAssessment.reason) else base
             val washOnly=d.key=="WASH_NEEDED"
-            if(washOnly && score.cycleId!=null && journal.hasNotified("wash:${score.cycleId}")) continue
-            val lane=group ?: "state"
-            val eventId=if(washOnly && score.cycleId!=null) "wash:${score.cycleId}" else NotificationHistory(c).use {
-                it.stateEvent(journal.vehicleId,"${d.key}:${types.joinToString()}:${if(dirty) score.cycleId else ""}",lane)
-            }
-            val occurred=types.mapNotNull {type -> warnings?.optJSONObject(type)?.optLong("at")?.takeIf {it>0}}.maxOrNull() ?: now
-            val event=CareNotificationEntry(journal.vehicleId,eventId,d.key,d.title,d.body,d.mood,d.art,occurred,source=source)
-            NotificationHistory(c).use { h -> h.value(journal.vehicleId,"last:$lane")?.takeIf {it!=eventId}?.let {
-                c.getSystemService(NotificationManager::class.java).cancel("${journal.vehicleId}:$it",3010)
-            } }
-            if(dispatch(c,event,enabled)==NotificationDelivery.Delivered && dirty && score.cycleId!=null) journal.markNotified("wash:${score.cycleId}")
-            NotificationHistory(c).use {
-                it.value(journal.vehicleId,"active:$lane",JSONArray(types).toString())
-                it.value(journal.vehicleId,"last:$lane",eventId)
-            }
-        }
-        // Only explicit current normal readings clear their own notification. Disconnects do not.
-        NotificationHistory(c).use { h ->
-            for(group in BannerPolicy.maintenanceGroups.values.toSet()+"VEHICLE_WARNING") {
-                if(group in groups) continue
-                val prior=h.value(journal.vehicleId,"active:$group")?.let(::JSONArray) ?: continue
-                val priorTypes=(0 until prior.length()).map {prior.getString(it)}
-                if(priorTypes.isNotEmpty() && priorTypes.all {known[it]==false}) {
-                    h.value(journal.vehicleId,"last:$group")?.let { c.getSystemService(NotificationManager::class.java).cancel("${journal.vehicleId}:$it",3010) }
-                    h.stateEvent(journal.vehicleId,"clear",group)
-                    h.value(journal.vehicleId,"active:$group","[]")
+            if(!washOnly || score.cycleId==null || !journal.hasNotified("wash:${score.cycleId}")) {
+                val eventId=if(oilDue) "oil-due:${oilAssessment.cycleId}:${d.key}:${if(fuel) episode?.episode else ""}:${if(dirty) score.cycleId else ""}" else if(washOnly && score.cycleId!=null) "wash:${score.cycleId}" else NotificationHistory(c).use {
+                    it.stateEvent(journal.vehicleId,"${d.key}:${if(dirty) score.cycleId else ""}:${if(oilDue) oilAssessment.cycleId else ""}")
                 }
+                NotificationHistory(c).use { h -> h.value(journal.vehicleId,"last:state")?.takeIf {it!=eventId}?.let {
+                    c.getSystemService(NotificationManager::class.java).cancel("${journal.vehicleId}:$it",3010)
+                } }
+                val event=CareNotificationEntry(journal.vehicleId,eventId,d.key,d.title,d.body,d.mood,d.art,now,source=source)
+                if(dispatch(c,event,enabled)==NotificationDelivery.Delivered && dirty && score.cycleId!=null) journal.markNotified("wash:${score.cycleId}")
+                NotificationHistory(c).use {it.value(journal.vehicleId,"last:state",eventId)}
             }
-            if(!fuel && !dirty && (percentages.isNotEmpty() || episode?.phase==FuelPhase.ARMED)) h.stateEvent(journal.vehicleId,"clear")
+        } else if(!fuel && !dirty && !oilDue && (percentages.isNotEmpty() || episode?.phase==FuelPhase.ARMED)) {
+            NotificationHistory(c).use {it.stateEvent(journal.vehicleId,"clear")}
         }
         // One "주유 완료" per confirmed refuel event id; repeated/replayed frames are deduplicated by the history.
         episode?.refills?.filter {now-it.at in 0..6*3600_000L}?.forEach { refill ->
@@ -167,10 +131,6 @@ object BannerNotifications {
             }
             val d=definition("FUEL_DONE",profile)
             dispatch(c,CareNotificationEntry(journal.vehicleId,eventId,d.key,d.title,d.body,d.mood,d.art,refill.at,source=source),enabled)
-        }
-        warnings?.optJSONObject("WASHER")?.let { w ->
-            if(w.optString("status") == "Available" && now-w.optLong("at") in 0..60000 && w.has("warning") && !w.isNull("warning"))
-                journal.saveWarning("WASHER",if(w.getBoolean("warning")) "LOW" else "NORMAL")
         }
     }
 

@@ -90,6 +90,7 @@ object CareExchange {
             if (j.optBoolean("demo")) return@withLock JSONObject().put("schema", 2)
                 .put("vehicleId", snapshot.vehicleId).put("ack", snapshot.revision).put("demo", true)
             val journal = CareJournal(context, snapshot.vehicleId)
+            j.optJSONObject("care")?.optJSONObject("oilLedger")?.let {EngineOilLedger(context,snapshot.vehicleId).importVehicle(it)}
             val versionBeforeFeedback=journal.authority()?.version
             // Negative feedback is terminal and commutative, independent of message/settings ordering.
             val rejection = j.optJSONObject("care")?.optJSONArray("rejectedVisits")
@@ -205,7 +206,7 @@ object CareExchange {
             val previous = requireNotNull(store.authority())
             val ids=(0 until records.length()).map {records.getJSONObject(it)}.filter {it.optBoolean("deleted")}.map {it.getString("id")}.toSet()
             store.rememberDeletedRecords(ids)
-            val next = previous.copy(version = previous.version + 1, profile = profile.toString(), records = previous.protectCancelledVisits(records.toString()))
+            val next = previous.copy(version = previous.version + 1, profile = profile.toString(), records = previous.protectCancelledVisits(EngineOilLedger(context,vehicleId).attachCurrentMileage(JSONArray(previous.records),records).toString()))
                 .deleteRecords(store.deletedRecords())
             validate(next)
             store.saveAuthority(next); canonical.value = next

@@ -21,14 +21,6 @@ class VehicleStateTest {
         assertEquals(ReadingState.NoData, failureForCode(ErrorCode.ERROR_EMPTY_RESULT).state)
         assertEquals(ReadingState.Unsupported, failureForCode(ErrorCode.ERROR_NOT_SUPPORTED_AREA).state)
     }
-    @Test fun falseWarningIsNotMissingAndSafetyOverridesEnergy() {
-        val normal = Reading.available(SignalValue("경고 없음", warning = false))
-        val warning = Reading.available(SignalValue("부족", warning = true))
-        val snapshot = VehicleSnapshot(VehicleSnapshot().readings + mapOf(VehicleField.WASHER to normal, VehicleField.ENGINE_OIL to warning, VehicleField.FUEL to Reading.percent(10)))
-        assertEquals(ReadingState.Available, snapshot[VehicleField.WASHER].state)
-        assertNotEquals(snapshot[VehicleField.WASHER], snapshot[VehicleField.LOW_FUEL])
-        assertTrue(snapshot.priorityWarning()!!.contains("엔진오일량"))
-    }
     @Test fun unknownUnitsAreNotPresentedAsKilometres() {
         val raw = Reading.available(SignalValue("10000", 10000.0))
         assertFalse(raw.statusText().contains("km"))

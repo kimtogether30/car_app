@@ -14,7 +14,7 @@ class PhoneMoodTest {
         assertEquals("EXHAUSTED", moodFor(fuel = true, wash = true, warning = true))
     }
     @Test fun recordsSavedBeforeRenameReadAsMaintenance() {
-        assertEquals("정비", normalizeKind("엔진오일 교체"))
+        assertEquals("엔진오일 교체", normalizeKind("정비"))
         assertEquals("세차", normalizeKind("세차"))
         assertEquals("주유", normalizeKind("주유"))
     }

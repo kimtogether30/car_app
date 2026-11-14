@@ -15,7 +15,7 @@ import java.time.ZoneId
 class CalendarKindsTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun multipleRecordsShowCountAndMaintenanceLabel() {
+    @Test fun multipleRecordsShowCountAndOilReplacementLabel() {
         val month = YearMonth.now(ZoneId.of("Asia/Seoul"))
         val today = LocalDate.now(ZoneId.of("Asia/Seoul"))
         // Days that are already in the past (or today) in the current month, so none are future dates.
@@ -24,14 +24,13 @@ class CalendarKindsTest {
         val records = listOf(
             CareRecord(date = busy, kind = CareKind.WASH, title = "손세차"),
             CareRecord(date = busy, kind = CareKind.FUEL, title = "주유"),
-            CareRecord(date = busy, kind = CareKind.MAINTENANCE, title = "경고등 해결"),
-            CareRecord(date = single, kind = CareKind.MAINTENANCE, title = "정비")).distinctBy { it.date to it.kind }
+            CareRecord(date = busy, kind = CareKind.OIL, title = "엔진오일 교체"),
+            CareRecord(date = single, kind = CareKind.OIL, title = "엔진오일 교체")).distinctBy { it.date to it.kind }
         compose.setContent {
             MaterialTheme(typography = com.example.vemoring.ui.theme.Typography) { CalendarScreen(records) { _, _ -> } }
         }
         compose.onNodeWithText("${records.count { it.date == busy }}건").assertIsDisplayed()
-        compose.onAllNodesWithText("● 정비").assertCountEquals(1)
-        compose.onAllNodesWithText("엔진오일 교체", substring = true).assertCountEquals(0)
+        compose.onAllNodesWithText("● 엔진오일 교체").assertCountEquals(1)
         // Optional screenshot into the app cache (not its saved data; delete after pulling): -e capture 1
         if (InstrumentationRegistry.getArguments().getString("capture") == "1") {
             val image = compose.onRoot().captureToImage().asAndroidBitmap()

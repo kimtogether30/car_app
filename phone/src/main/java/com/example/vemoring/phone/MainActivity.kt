@@ -79,7 +79,7 @@ private data class PhoneData(val nickname: String = "나의 베모링", val mode
     val plate: String = "", val entries: List<Entry> = emptyList(),
     val fuel: String = "휘발유", val notifications: Boolean = true, val washAlert: Int = 30, val fuelAlert: Int = 20,
     val mirror: ReceivedMirror? = null, val mirrorView: MirrorDisplay? = null,
-    val vehicleId: String = "",val careScore: Int? = null,val hasCareScore: Boolean = false)
+    val vehicleId: String = "",val careScore: Int? = null,val hasCareScore: Boolean = false,val oilAssessment:EngineOilAssessment?=null,val oilEstimate:String="",val oilBaselineKm:Double?=null)
 
 
 private fun phoneVehicleData(context: android.content.Context,state: CareAuthority,received: ReceivedMirror?): PhoneData {
@@ -90,19 +90,20 @@ private fun phoneVehicleData(context: android.content.Context,state: CareAuthori
             r.getString("title"),LocalDate.parse(r.getString("date")),r.optString("detail"),
             r.optString("completedAt").takeUnless {it.isBlank() || it=="null"},r.optString("visitId").takeUnless {it.isBlank() || it=="null"},
             r.optBoolean("cancelled"),r.optString("source","Manual"),r.optString("appliedAt").takeUnless {it.isBlank() || it=="null"},
-            r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(r.optString("maintenanceType")))
+            r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(r.optString("maintenanceType")),r.optDouble("odometerKm",Double.NaN).takeIf {km -> km.isFinite() && km>=0})
     }.sortedByDescending {it.date}
+    val oilAssessment=EngineOilCatalog.assess(context,JSONObject(p.toString()).put("vehicleId",state.vehicleId),state.records)
     val content=received?.let {JSONObject(it.snapshot.content)}
     val view=content?.let {
         val signals=it.optJSONObject("signals")
         val mood=if(it.optBoolean("demo")) it.optString("mood","NORMAL") else moodFor(EnergyPolicy.low(p, it)==true,
-            score?.let {s -> s<=p.getInt("washAlert")}==true,signals?.optBoolean("vehicleWarning")==true)
+            score?.let {s -> s<=p.getInt("washAlert")}==true,oilAssessment.due==true)
         MirrorDisplay(it.takeUnless {j -> j.isNull("fuel")}?.getInt("fuel"),it.takeUnless {j -> j.isNull("battery")}?.getInt("battery"),score,
             it.takeUnless {j -> j.isNull("oilRemainingKm")}?.getDouble("oilRemainingKm"),it.optString("fuelStatus","미수신"),it.optString("batteryStatus","미수신"),
             mood,if(it.optBoolean("demo")) it.optString("message") else moodMessage(mood),it.optBoolean("demo"))
     }
     return PhoneData(p.optString("nickname"),p.optString("model"),p.optString("plate"),entries,p.getString("fuel"),
-        p.getBoolean("notifications"),p.getInt("washAlert"),p.getInt("fuelAlert"),received,view,state.vehicleId,score,true)
+        p.getBoolean("notifications"),p.getInt("washAlert"),p.getInt("fuelAlert"),received,view,state.vehicleId,score,true,oilAssessment,p.optString("oilEstimate"),p.optDouble("oilBaselineKm",Double.NaN).takeIf {it.isFinite() && it>=0})
 }
 
 @Composable private fun CarePermissionButton() {
@@ -131,7 +132,7 @@ private fun ReceivedMirror.phoneData(): PhoneData {
                 r.getString("title"), LocalDate.parse(r.getString("date")), r.getString("detail"),
                 r.optString("completedAt").takeUnless { it.isBlank() || it == "null" },
                 r.optString("visitId").takeUnless { it.isBlank() || it == "null" }, r.optBoolean("cancelled"), r.optString("source", "Manual"),
-                r.optString("appliedAt").takeUnless { it.isBlank() || it == "null" },r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(r.optString("maintenanceType")))
+                r.optString("appliedAt").takeUnless { it.isBlank() || it == "null" },r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(r.optString("maintenanceType")),r.optDouble("odometerKm",Double.NaN).takeIf {km -> km.isFinite() && km>=0})
         } }.sortedByDescending { it.date }, p.getString("fuel"), p.getBoolean("notifications"), p.getInt("washAlert"), p.getInt("fuelAlert"), this,
         MirrorDisplay(content.takeUnless { it.isNull("fuel") }?.getInt("fuel"), content.takeUnless { it.isNull("battery") }?.getInt("battery"),
             content.takeUnless { it.isNull("cleanliness") }?.getInt("cleanliness"), content.takeUnless { it.isNull("oilRemainingKm") }?.getDouble("oilRemainingKm"),
@@ -163,7 +164,7 @@ private class PhoneStore(context: android.content.Context) {
                     LocalDate.parse(it.getString("date")), it.getString("detail"),
                     it.optString("completedAt").takeUnless { v -> v.isBlank() || v == "null" },
                     it.optString("visitId").takeUnless { v -> v.isBlank() || v == "null" }, it.optBoolean("cancelled"), it.optString("source", "Manual"),
-                    it.optString("appliedAt").takeUnless { v -> v.isBlank() || v == "null" },it.optString("washEvidence","EstimatedVisit"),it.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(it.optString("maintenanceType")))
+                    it.optString("appliedAt").takeUnless { v -> v.isBlank() || v == "null" },it.optString("washEvidence","EstimatedVisit"),it.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(it.optString("maintenanceType")),it.optDouble("odometerKm",Double.NaN).takeIf {km -> km.isFinite() && km>=0})
             } }, j.optString("fuel", "휘발유"), j.optBoolean("notifications", true),
             j.optInt("washAlert", 30), j.optInt("fuelAlert", 20)).also { refreshLocal(it,false) }
     }
@@ -171,7 +172,7 @@ private class PhoneStore(context: android.content.Context) {
     fun save(data: PhoneData) {
         val a = JSONArray()
         data.entries.forEach { e -> a.put(JSONObject().put("id", e.id).put("kind", e.kind).put("maintenanceType",e.maintenanceType.name)
-            .put("title", e.title).put("date", e.date).put("detail", e.detail).put("completedAt", e.completedAt).put("deleted",e.deleted)
+            .put("odometerKm",e.odometerKm).put("title", e.title).put("date", e.date).put("detail", e.detail).put("completedAt", e.completedAt).put("deleted",e.deleted)
             .put("visitId", e.visitId).put("cancelled", e.cancelled).put("source", e.source).put("appliedAt", e.appliedAt).put("washEvidence",e.washEvidence)) }
         val j = JSONObject().put("nickname", data.nickname).put("model", data.model)
             .put("plate", data.plate).put("entries", a).put("fuel", data.fuel)
@@ -284,7 +285,7 @@ class MainActivity : ComponentActivity() {
                     val old=updated.vehicleId.takeIf {it.isNotBlank()}?.let {CareJournal(context,it).authority()}
                     val p=(old?.profile?.let(::JSONObject) ?: JSONObject()).put("washAlert",updated.washAlert)
                         .put("fuelAlert",updated.fuelAlert).put("notifications",updated.notifications).put("nickname",updated.nickname)
-                        .put("model",updated.model).put("plate",updated.plate).put("fuel",updated.fuel)
+                        .put("model",updated.model).put("plate",updated.plate).put("fuel",updated.fuel).put("oilEstimate",updated.oilEstimate).put("oilBaselineKm",updated.oilBaselineKm)
                     val records=JSONArray().also {a -> updated.entries.forEach {a.put(it.wireJson())}}
                     if(old==null) CareExchange.registerPhone(context,p,records) else CareExchange.editPhone(context,updated.vehicleId,p,records)
                 }
@@ -353,7 +354,7 @@ class MainActivity : ComponentActivity() {
                 key(current.vehicleId) {when (tab) {
                     0 -> Home(current, connect = { connection = true }, alerts = { historyVehicle=current.vehicleId;historyEvent=null;notifications = true }, search = { pendingSearch = it }, link = link,
                         receivingSelected=current.vehicleId==received?.snapshot?.vehicleId)
-                    1 -> History(current.entries.filterNot { it.cancelled }, add = { date -> editLocal { editingId = null; recordDate = date.toString(); editor = true } },
+                    1 -> History(current.entries.filter { !it.cancelled && (it.kind != MAINTENANCE || it.maintenanceType == com.vemoring.companion.MaintenanceType.ENGINE_OIL) }, add = { date -> editLocal { editingId = null; recordDate = date.toString(); editor = true } },
                         edit = { id -> editLocal { editingId = id; editor = true } }, lastSaved = current.entries.firstOrNull { it.id == lastSavedId })
                     2 -> Car(current, busy || readOnly, edit = { editLocal { editCar = true } },
                         editNickname = { editLocal { editName = true } }, update = { save(it) {} })
@@ -452,7 +453,8 @@ class MainActivity : ComponentActivity() {
         }, emptyList(), java.time.Instant.now()).displayed
     }
     val localCleanliness=if(data.hasCareScore) data.careScore else estimatedCleanliness
-    val needsWash = mirrored == null && localCleanliness != null && localCleanliness <= data.washAlert
+    val needsWash = localCleanliness != null && localCleanliness <= data.washAlert
+    val displayMood=mirrored?.mood ?: moodFor(false,needsWash,data.oilAssessment?.due==true)
     fun percent(key: String): Int? = when (key) { "fuel" -> mirrored?.fuel; "battery" -> mirrored?.battery; else -> if (mirrored != null) mirrored.cleanliness else localCleanliness }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
@@ -469,7 +471,7 @@ class MainActivity : ComponentActivity() {
     }
     Surface(color=MaterialTheme.colorScheme.primaryContainer,shape=RoundedCornerShape(24.dp),modifier=Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-        val mascot = when (mirrored?.mood) {
+        val mascot = when (displayMood) {
             "FUEL" -> R.drawable.mascot_fuel; "WASH" -> R.drawable.mascot_wash; "OIL" -> R.drawable.mascot_oil
             "ANGRY" -> R.drawable.mascot_angry; "EXHAUSTED" -> R.drawable.mascot_exhausted; else -> if (needsWash) R.drawable.mascot_wash else R.drawable.mascot_normal
         }
@@ -478,7 +480,7 @@ class MainActivity : ComponentActivity() {
                     Modifier.align(Alignment.Center).height(190.dp).fillMaxWidth())
                 Surface(color=MaterialTheme.colorScheme.surface,shape=RoundedCornerShape(14.dp),
                     modifier=Modifier.align(Alignment.TopEnd).widthIn(max=180.dp)) {
-                    Text(mirrored?.message ?: if(needsWash) "깨끗하게 씻겨줄래요?" else "오늘도 함께 달려요.",
+                    Text(if(mirrored?.demo==true) mirrored.message else moodMessage(displayMood),
                         Modifier.padding(horizontal=10.dp,vertical=8.dp),fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold)
                 }
             }
@@ -489,6 +491,16 @@ class MainActivity : ComponentActivity() {
                 Text(data.plate.ifBlank { "번호판 미등록" },Modifier.weight(1f),textAlign=TextAlign.End,
                     fontSize=14.sp,fontWeight=FontWeight.SemiBold)
             }
+        }
+    }
+    if(data.fuel!="전기차") data.oilAssessment?.let {oil ->
+        Panel {
+            Text("엔진오일 교체",fontWeight=FontWeight.Bold)
+            Text(oil.reason)
+            if(oil.reference.isNotBlank()) Text(oil.reference,fontSize=12.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            oil.percent?.let {Text("${if(oil.estimated) "예상 " else ""}잔여율 ${it.toInt()}%")}
+            oil.remainingKm?.let {Text(if(it>=0) "주기까지 %.0f km".format(it) else "주기 초과 %.0f km".format(-it))}
+            oil.dueDate?.let {Text("예상 교체일 $it · 이후 하루 20km 가정")}
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -511,7 +523,7 @@ class MainActivity : ComponentActivity() {
     }
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         kinds.forEach { kind ->
-            val date = data.entries.filter {it.kind == kind && !it.cancelled}.maxByOrNull {it.date}?.date
+            val date = data.entries.filter {it.kind == kind && !it.cancelled && (kind != MAINTENANCE || it.maintenanceType == com.vemoring.companion.MaintenanceType.ENGINE_OIL)}.maxByOrNull {it.date}?.date
             Text("$kind ${date?.let { "${it.monthValue}/${it.dayOfMonth}" } ?: "—"}",Modifier.weight(1f),
                 fontSize=12.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -639,7 +651,7 @@ class MainActivity : ComponentActivity() {
     Panel {
         if (filtered.isEmpty()) {
             Text("아직 기록이 없어요", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text("세차부터 정비까지, 첫 관리를 남겨보세요.\n상단의 ＋ 추가로 기록할 수 있어요.", lineHeight = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("세차부터 엔진오일 교체까지, 첫 관리를 남겨보세요.\n상단의 ＋ 추가로 기록할 수 있어요.", lineHeight = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         filtered.forEach { entry ->
             Column(Modifier.fillMaxWidth().clickable { edit(entry.id) }.padding(vertical = 8.dp)) { RecordRow(entry) }
@@ -717,7 +729,6 @@ class MainActivity : ComponentActivity() {
 @Composable internal fun RecordEditor(existing: Entry?, initial: LocalDate, busy: Boolean, close: () -> Unit, save: (Entry) -> Unit,
     remove: (() -> Unit)? = null) {
     var kind by rememberSaveable { mutableStateOf(existing?.kind ?: kinds[0]) }
-    var maintenanceType by rememberSaveable { mutableStateOf((existing?.maintenanceType ?: com.vemoring.companion.MaintenanceType.GENERAL).name) }
     var title by rememberSaveable { mutableStateOf(existing?.title ?: "") }
     var detail by rememberSaveable { mutableStateOf(existing?.detail ?: "") }
     var dateString by rememberSaveable { mutableStateOf((existing?.date ?: initial).toString()) }
@@ -729,21 +740,11 @@ class MainActivity : ComponentActivity() {
     val memoFocus = remember { FocusRequester() }
     PhoneFormDialog(if (existing == null) "관리 기록 추가" else "관리 기록 수정", busy,
         title.isNotBlank() && LocalDate.parse(dateString) <= LocalDate.now(SeoulZone) && (kind != "세차" || automatic && !manual || washTime.isBlank() || washCompletion(LocalDate.parse(dateString),washTime)!=null), close,
-        save = { save(existing?.copy(kind = kind, maintenanceType = if(kind == MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), date = LocalDate.parse(dateString), detail = detail.trim(),
+        save = { save(existing?.copy(kind = kind, odometerKm=existing.odometerKm.takeIf {existing.date==LocalDate.parse(dateString) && kind==MAINTENANCE}, maintenanceType = if(kind == MAINTENANCE) com.vemoring.companion.MaintenanceType.ENGINE_OIL else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), date = LocalDate.parse(dateString), detail = detail.trim(),
             completedAt = if(kind == "세차" && (!automatic || manual)) washCompletion(LocalDate.parse(dateString),washTime) else if(manual) null else existing.completedAt, source = if(manual) "Manual" else existing.source, washEvidence = if(manual) "UserRecord" else existing.washEvidence)
-            ?: Entry(completedAt = if(kind == "세차") washCompletion(LocalDate.parse(dateString),washTime) else null, washEvidence = "UserRecord", kind = kind, maintenanceType = if(kind == MAINTENANCE) com.vemoring.companion.MaintenanceType.from(maintenanceType) else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), date = LocalDate.parse(dateString), detail = detail.trim())) }) { finishInput ->
+            ?: Entry(completedAt = if(kind == "세차") washCompletion(LocalDate.parse(dateString),washTime) else null, washEvidence = "UserRecord", kind = kind, maintenanceType = if(kind == MAINTENANCE) com.vemoring.companion.MaintenanceType.ENGINE_OIL else com.vemoring.companion.MaintenanceType.GENERAL, title = title.trim(), date = LocalDate.parse(dateString), detail = detail.trim())) }) { finishInput ->
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     kinds.forEach { value -> FilterChip(selected = kind == value, enabled = !busy && (!automatic || manual), onClick = { kind = value }, label = { Text(value) }) }
-                }
-                if(kind == MAINTENANCE) {
-                    Text("정비 항목")
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        com.vemoring.companion.MaintenanceType.entries.forEach { item ->
-                            FilterChip(selected = maintenanceType == item.name, enabled = !busy,
-                                onClick = { maintenanceType = item.name }, label = { Text(item.label) },
-                                modifier = Modifier.heightIn(min = 48.dp))
-                        }
-                    }
                 }
                 OutlinedTextField(title, { title = it }, enabled = !busy, label = { Text("기록 이름 (필수)") }, singleLine = true,
                     keyboardOptions = KoreanTextKeyboardOptions.copy(imeAction = ImeAction.Next), keyboardActions = KeyboardActions(onNext = { memoFocus.requestFocus() }),
@@ -779,10 +780,12 @@ class MainActivity : ComponentActivity() {
     var fuel by rememberSaveable { mutableStateOf(data.fuel) }
     var wash by rememberSaveable { mutableStateOf(data.entries.filter { it.kind == "세차" && !it.cancelled }.maxByOrNull { it.date }?.date?.toString()) }
     var lastFuel by rememberSaveable { mutableStateOf(data.entries.filter { it.kind == "주유" && !it.cancelled }.maxByOrNull { it.date }?.date?.toString()) }
-    var oil by rememberSaveable { mutableStateOf(data.entries.filter { it.kind == MAINTENANCE && !it.cancelled }.maxByOrNull { it.date }?.date?.toString()) }
+    var oilKm by rememberSaveable {mutableStateOf(data.oilBaselineKm?.toString().orEmpty())}
+    var oilEstimate by rememberSaveable {mutableStateOf(data.oilEstimate.ifBlank {"모르겠음"})}
+    var oil by rememberSaveable { mutableStateOf(data.entries.filter { it.kind == MAINTENANCE && !it.cancelled && it.maintenanceType == com.vemoring.companion.MaintenanceType.ENGINE_OIL }.maxByOrNull { it.date }?.date?.toString()) }
     PhoneFormDialog(if(register) "차량 등록" else "차량 정보 편집", busy, nickname.isNotBlank() && model.isNotBlank(), close, save = {
         val fullModel = if (brand.isBlank() || model.startsWith(brand)) model.trim() else "$brand ${model.trim()}"
-        save(data.copy(nickname = nickname.trim(), model = fullModel, plate = plate.trim(), fuel = fuel,
+        save(data.copy(nickname = nickname.trim(), model = fullModel, plate = plate.trim(), fuel = fuel,oilEstimate=oilEstimate,oilBaselineKm=oilKm.toDoubleOrNull()?.takeIf {it.isFinite() && it>=0},
             entries = updateLatestPhoneRecords(data.entries, mapOf("세차" to wash?.let(LocalDate::parse), "주유" to lastFuel?.let(LocalDate::parse),
                 MAINTENANCE to oil?.let(LocalDate::parse)))))
     }) { finishInput ->
@@ -809,7 +812,20 @@ class MainActivity : ComponentActivity() {
                 keyboardOptions = KoreanTextKeyboardOptions.copy(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { finishInput() }), modifier = Modifier.fillMaxWidth().testTag("car-plate"))
             OptionalCareDate("마지막 주유·충전일", lastFuel, !busy, finishInput) { lastFuel = it }
             OptionalCareDate("마지막 세차일", wash, !busy, finishInput) { wash = it }
-            OptionalCareDate("마지막 정비일", oil, !busy, finishInput) { oil = it }
+            if(fuel!="전기차") {
+                if(register) {
+                    OutlinedTextField(oilKm,{oilKm=it},enabled=!busy,label={Text("교체 당시 실제 누적거리 (km, 선택)")},
+                        supportingText={Text("모르면 비워 주세요. 현재 누적거리와 달라요.")},singleLine=true,
+                        keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Decimal))
+                    Text("마지막 엔진오일 교체 시점")
+                    FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                        listOf("날짜 입력","약 1개월 전","약 3개월 전","6개월 이상 전","모르겠음").forEach {value ->
+                            FilterChip(selected=oilEstimate==value,enabled=!busy,onClick={oilEstimate=value;oil=null},label={Text(value)})
+                        }
+                    }
+                }
+                if(!register || oilEstimate=="날짜 입력") OptionalCareDate("마지막 엔진오일 교체일", oil, !busy, finishInput) { oil = it }
+            }
             Text("날짜를 모르면 기존 기록은 유지해요. 삭제는 관리 기록에서 기록을 선택한 뒤 확인해 주세요.",fontSize=13.sp)
     }
 }

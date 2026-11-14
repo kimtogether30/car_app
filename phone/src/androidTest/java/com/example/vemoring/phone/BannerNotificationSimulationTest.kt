@@ -64,9 +64,9 @@ class BannerNotificationSimulationTest {
             Triple("FUEL_NEEDED","fuel",0xFFFFC107.toInt()),
             Triple("ALL_DONE","normal",0xFF087BBF.toInt()),
             Triple("WASH_NEEDED","wash",0xFFE86BA2.toInt()),
-            Triple("ENGINE","oil",0xFF8E5ACC.toInt()),
-            Triple("FUEL_ENGINE","angry",0xFFE5484D.toInt()),
-            Triple("ALL_ENGINE","exhausted",0xFF747C88.toInt()))
+            Triple("OIL_NEEDED","oil",0xFF8E5ACC.toInt()),
+            Triple("FUEL_OIL_NEEDED","angry",0xFFE5484D.toInt()),
+            Triple("ALL_NEEDED","exhausted",0xFF747C88.toInt()))
         for((key,mascot,color) in examples) {
             val e=event(key,"heads-up-$mascot")
             assertEquals(NotificationDelivery.Delivered,BannerNotifications.dispatch(context,e))
@@ -85,10 +85,10 @@ class BannerNotificationSimulationTest {
             manager.cancel(posted.tag,posted.id)
         }
     }
-    @Test fun allSixtySixDesignsPostWithBothThemesAndPersistOnlyOnce() {
+    @Test fun remainingCareDesignsPostWithBothThemesAndPersistOnlyOnce() {
         assertTrue(CareNotifications.allowed(context))
         val definitions=BannerCatalog.entries.values.filter {it.art!=null}
-        assertEquals(66,definitions.size)
+        assertEquals(6,definitions.size)
         for(dark in listOf(false,true)) {
             val config=Configuration(base.resources.configuration).apply {
                 uiMode=(uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
@@ -119,7 +119,7 @@ class BannerNotificationSimulationTest {
             }
         }
         NotificationHistory(context).use {h ->
-            assertEquals(132,h.recent(id,200).size)
+            assertEquals(12,h.recent(id,200).size)
             val e=h.recent(id,1).single();h.markRead(id,e.eventId)
         }
         NotificationHistory(context).use {assertTrue(it.recent(id,1).single().read)}
@@ -158,32 +158,6 @@ class BannerNotificationSimulationTest {
         assertFalse(done.notification.actions.any {it.title.toString()=="세차 안 했어요"})
         assertNull(journal.pendingWashConfirmation())
         assertEquals(100,journal.score(JSONArray(journal.authority()!!.records)).displayed)
-    }
-    @Test fun stateTransitionsDeduplicateAndDoNotInventRepairsOnDisconnectOrNormal() {
-        val journal=seed();val a=journal.authority()!!;val score=journal.score(JSONArray(a.records))
-        fun telemetry(on:Boolean,status:String="Available",eligible:Boolean=true,at:Long=System.currentTimeMillis(),type:String="ENGINE_OIL")=
-            JSONObject().put("warnings",JSONObject().put(type,JSONObject().put("status",status).put("warning",on)
-                .put("source","Real").put("eligible",eligible).put("at",at)))
-        fun evaluate(t:JSONObject,fuel:Int=80)=BannerNotifications.evaluate(context,journal,a,score,t,
-            JSONObject().put("observedAt",System.currentTimeMillis()).put("fuel",fuel))
-        evaluate(telemetry(true))
-        val first=NotificationHistory(context).use {it.recent(id).single()}
-        awaitNotification(first.eventId)
-        evaluate(telemetry(true));assertEquals(1,NotificationHistory(context).use {it.recent(id).size})
-        evaluate(telemetry(false,"Disconnected"));assertEquals(1,NotificationHistory(context).use {it.recent(id).size})
-        evaluate(telemetry(false));assertFalse(manager.activeNotifications.any {it.tag=="$id:${first.eventId}"})
-        evaluate(telemetry(true,type="ENGINE"));assertEquals(1,NotificationHistory(context).use {it.recent(id).size})
-        evaluate(telemetry(true,at=System.currentTimeMillis()-61000));assertEquals(1,NotificationHistory(context).use {it.recent(id).size})
-        // A newly sent envelope must not refresh old cached fuel or unclassified warning values.
-        BannerNotifications.evaluate(context,journal,a,score,null,JSONObject().put("observedAt",System.currentTimeMillis())
-            .put("fuel",5).put("fuelAt",System.currentTimeMillis()-61000).put("lowFuelAt",System.currentTimeMillis()-61000)
-            .put("vehicleWarningAt",System.currentTimeMillis()-61000)
-            .put("signals",JSONObject().put("lowFuel",true).put("vehicleWarning",true)))
-        assertEquals(1,NotificationHistory(context).use {it.recent(id).size})
-        evaluate(telemetry(true));assertEquals(2,NotificationHistory(context).use {it.recent(id).size})
-        evaluate(telemetry(true),10)
-        NotificationHistory(context).use {assertEquals("FUEL_FLUID",it.recent(id).first().bannerKey)}
-        assertFalse(NotificationHistory(context).use {it.recent(id).any {e -> e.bannerKey=="OIL_DONE"}})
     }
     @Test fun hybridFuelOnlyAndUnsupportedWarningsDoNotPostEvenIfMarkedEligible() {
         val journal=seed()

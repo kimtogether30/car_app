@@ -7,24 +7,24 @@ import java.time.LocalDate
 import java.util.UUID
 
 enum class CareKind(val label: String, val key: String) {
-    WASH("세차", "lastWash"), FUEL("주유", "lastFuel"), MAINTENANCE("정비", "lastOil");
-    val wire: String get() = name.lowercase()
+    WASH("세차", "lastWash"), FUEL("주유", "lastFuel"), OIL("엔진오일 교체", "lastOil");
+    val wire: String get() = if(this==OIL) "maintenance" else name.lowercase()
 }
 
 data class CareRecord(val id: String = UUID.randomUUID().toString(), val date: LocalDate,
     val kind: CareKind, val title: String, val detail: String = "", val completedAt: String? = null,
     val visitId: String? = null, val cancelled: Boolean = false, val source: String = "Manual", val appliedAt: String? = null,
     val washEvidence: String = "EstimatedVisit", val deleted: Boolean = false,
-    val maintenanceType: com.vemoring.companion.MaintenanceType = com.vemoring.companion.MaintenanceType.GENERAL) {
+    val maintenanceType: com.vemoring.companion.MaintenanceType = if(kind == CareKind.OIL) com.vemoring.companion.MaintenanceType.ENGINE_OIL else com.vemoring.companion.MaintenanceType.GENERAL, val odometerKm: Double? = null) {
     fun json() = JSONObject().put("id", id).put("date", date.toString()).put("kind", kind.wire)
-        .put("title", title).put("detail", detail).put("completedAt", completedAt).put("visitId", visitId)
-        .put("maintenanceType", if(kind == CareKind.MAINTENANCE) maintenanceType.name else null).put("cancelled", cancelled).put("source", source).put("appliedAt", appliedAt).put("washEvidence",washEvidence).put("deleted",deleted)
+        .put("title", title).put("detail", detail).put("odometerKm",odometerKm).put("completedAt", completedAt).put("visitId", visitId)
+        .put("maintenanceType", if(kind == CareKind.OIL) maintenanceType.name else null).put("cancelled", cancelled).put("source", source).put("appliedAt", appliedAt).put("washEvidence",washEvidence).put("deleted",deleted)
 }
 
 data class CarProfile(val brand: String = "", val model: String = "", val nickname: String = "",
     val plate: String = "", val fuel: String = "휘발유", val oilEstimate: String = "",
     val fuelAlert: Int = 20, val washAlert: Int = 30, val notifications: Boolean = true,
-    val vehicleId: String = UUID.randomUUID().toString()) {
+    val vehicleId: String = UUID.randomUUID().toString(), val oilBaselineKm:Double?=null) {
     val electric get() = fuel == "전기차"
     val hybrid get() = fuel == "하이브리드"
     val fullModel get() = if (model.startsWith(brand)) model else "$brand $model"
@@ -70,7 +70,7 @@ class GarageStore(private val context: Context) {
         val recordsJson = legacyString("care_history_v1")?.let(::JSONArray)
         val records = if (recordsJson != null) readRecords(recordsJson) else CareKind.entries.mapNotNull { kind ->
             parseDay(personal.optString(kind.key))?.takeUnless { it > LocalDate.now(java.time.ZoneId.of("Asia/Seoul")) }?.let {
-                CareRecord("setup-${if(kind == CareKind.MAINTENANCE) "oil" else kind.wire}", it, kind, kind.label)
+                CareRecord("setup-${if(kind == CareKind.OIL) "oil" else kind.wire}", it, kind, kind.label)
             }
         }
         val brand=legacyString("vehicle_brand") ?: "";val model=legacyString("vehicle_model") ?: ""
@@ -90,7 +90,10 @@ class GarageStore(private val context: Context) {
         val tombstones=previous?.records.orEmpty().filter {it.deleted}.associateBy {it.id}
         val incomingIds=data.records.mapTo(HashSet()) {it.id}
         val records=data.records.map {tombstones[it.id] ?: it}+tombstones.values.filter {it.id !in incomingIds}
-        val saved=data.copy(records=records)
+        val raw=org.json.JSONArray().also {a -> records.forEach {a.put(it.json())}}
+        val previousRaw=org.json.JSONArray().also {a -> previous?.records.orEmpty().forEach {a.put(it.json())}}
+        val annotated=if(queueForPhone) com.vemoring.companion.EngineOilLedger(context,data.profile.vehicleId).attachCurrentMileage(previousRaw,raw) else raw
+        val saved=data.copy(records=(0 until annotated.length()).map {careRecordFromJson(annotated.getJSONObject(it))})
         val cars=(old.vehicles.filter {it.complete && it.profile.vehicleId!=data.profile.vehicleId}+saved)
         val selected=if(existing && cars.any {it.profile.vehicleId==old.selectedId}) old.selectedId else data.profile.vehicleId
         val receiver=old.receivingId.takeIf {id -> cars.any {it.complete && it.profile.vehicleId==id}}
@@ -98,7 +101,7 @@ class GarageStore(private val context: Context) {
         persist(GarageFleet(cars,selected,receiver))
         if(queueForPhone) {
             val p=saved.profile
-            val profile=JSONObject().put("nickname",p.nickname).put("model",p.fullModel).put("plate",p.plate).put("fuel",p.fuel)
+            val profile=JSONObject().put("nickname",p.nickname).put("model",p.fullModel).put("plate",p.plate).put("fuel",p.fuel).put("oilEstimate",p.oilEstimate).put("oilBaselineKm",p.oilBaselineKm)
                 .put("fuelAlert",p.fuelAlert).put("washAlert",p.washAlert).put("notifications",p.notifications).put("vehicleId",p.vehicleId)
             com.vemoring.companion.CareJournal(context,p.vehicleId).queueRequest(profile,JSONArray().also {a -> saved.records.forEach {a.put(it.json())}})
         }
@@ -113,7 +116,7 @@ class GarageStore(private val context: Context) {
         val p=data.profile
         return JSONObject().put("complete", data.complete).put("profile", JSONObject()
             .put("brand", p.brand).put("model", p.model).put("nickname", p.nickname).put("plate", p.plate)
-            .put("fuel", p.fuel).put("oilEstimate", p.oilEstimate).put("fuelAlert", p.fuelAlert)
+            .put("fuel", p.fuel).put("oilEstimate",p.oilEstimate).put("oilBaselineKm",p.oilBaselineKm).put("oilEstimate", p.oilEstimate).put("oilBaselineKm",p.oilBaselineKm).put("fuelAlert", p.fuelAlert)
             .put("washAlert", p.washAlert).put("notifications", p.notifications).put("vehicleId",p.vehicleId))
             .put("records", JSONArray().also { a -> data.records.forEach { a.put(it.json()) } })
     }
@@ -128,7 +131,7 @@ class GarageStore(private val context: Context) {
         return AppData(CarProfile(p.getString("brand"), p.getString("model"), p.getString("nickname"),
             p.optString("plate"), p.getString("fuel"), p.optString("oilEstimate"), p.optInt("fuelAlert",20),
             p.optInt("washAlert",30), p.optBoolean("notifications",true),p.optString("vehicleId").takeIf {it.isNotBlank()}
-                ?: com.vemoring.companion.legacyVehicleId(if(p.getString("model").startsWith(p.getString("brand"))) p.getString("model") else "${p.getString("brand")} ${p.getString("model")}",p.optString("plate"))),
+                ?: com.vemoring.companion.legacyVehicleId(if(p.getString("model").startsWith(p.getString("brand"))) p.getString("model") else "${p.getString("brand")} ${p.getString("model")}",p.optString("plate")), oilBaselineKm=p.optDouble("oilBaselineKm",Double.NaN).takeIf {it.isFinite() && it>=0}),
             readRecords(json.getJSONArray("records")), json.getBoolean("complete"))
     }
     private fun readRecords(array: JSONArray) = (0 until array.length()).map { i ->
@@ -147,31 +150,32 @@ fun applyPhoneAuthority(data: AppData,authority: com.vemoring.companion.CareAuth
     val incoming=(0 until records.length()).map {careRecordFromJson(records.getJSONObject(it))}
     val incomingIds=incoming.mapTo(HashSet()) {it.id}
     return data.copy(profile=data.profile.copy(brand=brand,model=full.removePrefix(brand).trim(),
-        nickname=p.optString("nickname",data.profile.nickname),plate=p.optString("plate",data.profile.plate),fuel=p.optString("fuel",data.profile.fuel),
+        nickname=p.optString("nickname",data.profile.nickname),plate=p.optString("plate",data.profile.plate),fuel=p.optString("fuel",data.profile.fuel),oilEstimate=p.optString("oilEstimate",data.profile.oilEstimate),
+        oilBaselineKm=if(p.has("oilBaselineKm")) p.optDouble("oilBaselineKm",Double.NaN).takeIf {it.isFinite() && it>=0} else data.profile.oilBaselineKm,
         fuelAlert=p.optInt("fuelAlert",data.profile.fuelAlert),washAlert=p.getInt("washAlert"),notifications=p.getBoolean("notifications")),
         records=(incoming.map {deleted[it.id] ?: it}+deleted.values.filter {it.id !in incomingIds}).sortedByDescending {it.date})
 }
 
 fun careRecordFromJson(r: JSONObject) = CareRecord(r.getString("id"), requireNotNull(parseDay(r.getString("date"))),
-    if(r.getString("kind")=="oil") CareKind.MAINTENANCE else CareKind.entries.first { it.wire == r.getString("kind") }, r.getString("title"), r.optString("detail"),
+    if(r.getString("kind")=="oil") CareKind.OIL else CareKind.entries.first { it.wire == r.getString("kind") }, r.getString("title"), r.optString("detail"),
     r.optString("completedAt").takeUnless { it.isBlank() || it == "null" },
     r.optString("visitId").takeUnless { it.isBlank() || it == "null" }, r.optBoolean("cancelled"), r.optString("source", "Manual"),
-    r.optString("appliedAt").takeUnless { it.isBlank() || it == "null" },r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(r.optString("maintenanceType")))
+    r.optString("appliedAt").takeUnless { it.isBlank() || it == "null" },r.optString("washEvidence","EstimatedVisit"),r.optBoolean("deleted"),com.vemoring.companion.MaintenanceType.from(r.optString("maintenanceType")),r.optDouble("odometerKm",Double.NaN).takeIf {it.isFinite() && it>=0})
 
 fun deleteRecord(records: List<CareRecord>,id: String): List<CareRecord> = records.map {
     if(it.id==id) it.copy(cancelled=true,deleted=true) else it
 }
 
 fun parseDay(value: String): LocalDate? = runCatching { LocalDate.parse(value.take(10)) }.getOrNull()
-fun List<CareRecord>.latest(kind: CareKind) = filter { it.kind == kind && !it.cancelled }.maxByOrNull { it.date }?.date
+fun List<CareRecord>.latest(kind: CareKind) = filter { it.kind == kind && !it.cancelled && (kind!=CareKind.OIL || it.maintenanceType==com.vemoring.companion.MaintenanceType.ENGINE_OIL) }.maxByOrNull { it.date }?.date
 fun updateLatest(records: List<CareRecord>, dates: Map<CareKind, LocalDate?>): List<CareRecord> {
     val updated = records.toMutableList()
     dates.forEach { (kind, date) ->
         if (date != null && date != records.latest(kind)) {
             require(date <= LocalDate.now(java.time.ZoneId.of("Asia/Seoul")))
-            val old = updated.filter { it.kind == kind && !it.cancelled }.maxByOrNull { it.date }
+            val old = updated.filter { it.kind == kind && !it.cancelled && (kind!=CareKind.OIL || it.maintenanceType==com.vemoring.companion.MaintenanceType.ENGINE_OIL) }.maxByOrNull { it.date }
             if (old != null) updated.remove(old)
-            updated.add(old?.copy(date = date, completedAt = null, source = "Manual", washEvidence = "UserRecord") ?: CareRecord(date=date,kind=kind,title=kind.label))
+            updated.add(old?.copy(date = date, completedAt = null, odometerKm=null, source = "Manual", washEvidence = "UserRecord") ?: CareRecord(date=date,kind=kind,title=kind.label))
         }
     }
     return updated.sortedByDescending { it.date }
