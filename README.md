@@ -25,10 +25,13 @@
 ### 실행 방법
 
 1. Pleos Connect 에뮬레이터를 **Cold Boot**로 시작합니다. 공식 문서에 따르면 Quick Boot에서는 VHAL을 사용할 수 없습니다.
-2. 차량용 APK를 adb로 설치합니다.
+2. 차량용 APK를 설치합니다. 설치 스크립트를 실행하는 방법을 권장합니다.
    ```powershell
-   adb install -r apk\VEMORING_VEMORING-Vehicle_release.apk
+   apk\install_vehicle.cmd emulator-5554
    ```
+   - 스크립트는 두 계정에 설치하고, 시스템 계정 설치를 확인한 뒤 앱을 한 번 실행합니다.
+   - 연결된 기기가 하나뿐이면 기기 이름(`emulator-5554`)은 생략해도 됩니다.
+   - 직접 설치할 때는 `adb install -r apk\VEMORING_VEMORING-Vehicle_release.apk`처럼 `--user` 옵션 없이 실행합니다.
    - 일반 `adb install`은 Pleos의 운전자 계정(user 10)과 시스템 계정(user 0)에 함께 설치합니다.
    - 고정바·최근 항목의 상태 아이콘은 Pleos SystemUI가 시스템 계정 정보로 그림을 찾기 때문에 이 설치 방식이 필요합니다. 추가 adb 명령은 필요 없습니다.
    - `--user` 옵션으로 운전자 계정에만 설치하면 고정바 아이콘이 기본 파란 캐릭터로 표시됩니다. 앱 목록 아이콘과 앱 기능은 정상 동작합니다.
