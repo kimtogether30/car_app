@@ -12,6 +12,49 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class BackgroundIconMonitorTest {
+    @Test fun disabledIconsFreezeButReceivingOffReleasesBackgroundSdk() {
+        val instrumentation=InstrumentationRegistry.getInstrumentation();val context=instrumentation.targetContext
+        val prefs=context.getSharedPreferences(VehicleIconMonitor.PREFS,android.content.Context.MODE_PRIVATE)
+        val icon=prefs.getBoolean(VehicleIconMonitor.ENABLED,true);val receive=prefs.getBoolean(VehicleIconMonitor.RECEIVE_ENABLED,true)
+        val pm=context.packageManager
+        fun active(m:MascotMood)=pm.getComponentEnabledSetting(ComponentName(context.packageName,"$APP_CLASS_PREFIX.${m.launcher}"))==PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        val original=MascotMood.entries.firstOrNull {active(it)} ?: MascotMood.NORMAL
+        fun await(label:String,condition:()->Boolean) {
+            val until=SystemClock.uptimeMillis()+20000
+            while(!condition() && SystemClock.uptimeMillis()<until) SystemClock.sleep(100)
+            assertTrue(label,condition())
+        }
+        try {
+            prefs.edit().putBoolean(VehicleIconMonitor.ENABLED,false).putBoolean(VehicleIconMonitor.RECEIVE_ENABLED,true).commit()
+            context.startActivity(Intent(context,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            await("Foreground not ready"){IconMonitorVisibility.visible.value}
+            instrumentation.waitForIdleSync()
+            VehicleIconMonitor.start(context)
+            await("No actual SDK SOC"){SharedVehicleConnection.repository(context).state.value[VehicleField.SOC].state==ReadingState.Available}
+            context.startActivity(requireNotNull(pm.getLaunchIntentForPackage("ai.umos.maps.android.navigation.app")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            await("Activity still visible"){!IconMonitorVisibility.visible.value}
+            MascotLauncher.sync(context,MascotMood.NORMAL)
+            context.sendBroadcast(Intent(context,IconMonitorPreviewReceiver::class.java).putExtra("stage",1))
+            await("Preview not received"){IconMonitorTestSource.input.value!=null}
+            SystemClock.sleep(1800)
+            assertTrue("Icon changed with updates OFF",active(MascotMood.NORMAL))
+            prefs.edit().putBoolean(VehicleIconMonitor.ENABLED,true).commit()
+            await("Icon did not resume after ON"){active(MascotMood.FUEL)}
+            context.sendBroadcast(Intent(context,IconMonitorPreviewReceiver::class.java).putExtra("stage",-1))
+            await("Preview was not cleared"){IconMonitorTestSource.input.value==null}
+            prefs.edit().putBoolean(VehicleIconMonitor.RECEIVE_ENABLED,false).commit()
+            context.stopService(Intent(context,VehicleIconMonitor::class.java))
+            await("SDK owners remain with background receiving OFF"){SharedVehicleConnection.locationMessage.value=="위치 미연결"}
+        } finally {
+            context.sendBroadcast(Intent(context,IconMonitorPreviewReceiver::class.java).putExtra("stage",-1))
+            prefs.edit().putBoolean(VehicleIconMonitor.ENABLED,icon).putBoolean(VehicleIconMonitor.RECEIVE_ENABLED,receive).commit()
+            MascotLauncher.sync(context,original)
+            context.startActivity(Intent(context,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            await("Foreground not restored"){IconMonitorVisibility.visible.value}
+            instrumentation.waitForIdleSync()
+            if(receive) VehicleIconMonitor.start(context) else context.stopService(Intent(context,VehicleIconMonitor::class.java))
+        }
+    }
     /** Vehicle SDK only. On a phone/tablet skip instead of failing midway and leaving other apps on screen. */
     @org.junit.Before fun requireAutomotive() {
         org.junit.Assume.assumeTrue("Pleos automotive device only",InstrumentationRegistry.getInstrumentation().targetContext

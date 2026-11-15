@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +35,7 @@ fun IconMonitorSetting() {
             Text("다른 화면에서도 차량 정보 받기",fontSize=26.sp)
             Text("앱 화면을 보지 않아도 수신 서비스를 유지해요. 차량·권한·운영체제 상태에 따라 수신이 중단될 수 있어요.",fontSize=19.sp)
         }
-        Switch(checked=receiving==true,enabled=receiving!=null && !saving,onCheckedChange={next ->
+        Switch(modifier=Modifier.testTag("background-receiving-switch"),checked=receiving==true,enabled=receiving!=null && !saving,onCheckedChange={next ->
             saving=true
             scope.launch {
                 val saved=withContext(Dispatchers.IO) {context.getSharedPreferences(VehicleIconMonitor.PREFS,Context.MODE_PRIVATE)
@@ -54,7 +55,7 @@ fun IconMonitorSetting() {
             Text("아이콘 갱신을 꺼도 위의 차량 정보 수신 설정은 유지돼요.", fontSize = 19.sp)
 
         }
-        Switch(checked = enabled == true, enabled = enabled != null && !saving, onCheckedChange = { next ->
+        Switch(modifier=Modifier.testTag("launcher-icon-switch"),checked = enabled == true, enabled = enabled != null && !saving, onCheckedChange = { next ->
             saving = true
             scope.launch {
                 val saved = withContext(Dispatchers.IO) {

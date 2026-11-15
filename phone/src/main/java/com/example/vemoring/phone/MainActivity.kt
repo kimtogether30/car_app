@@ -697,7 +697,7 @@ class MainActivity : ComponentActivity() {
                 Text("관리 알림", fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text("주유·세차·엔진오일 관리가 필요할 때 알림을 보내요.", fontSize = 13.sp, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Switch(checked = data.notifications, enabled = !busy, onCheckedChange = { update(data.copy(notifications = it)) })
+            Switch(modifier=Modifier.testTag("care-notifications-switch"),checked = data.notifications, enabled = !busy, onCheckedChange = { update(data.copy(notifications = it)) })
         }
     }
     Panel {
