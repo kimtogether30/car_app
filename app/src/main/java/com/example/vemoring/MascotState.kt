@@ -32,6 +32,7 @@ object MascotLauncher {
     fun sync(context: Context, mood: MascotMood) {
         if (mood == applied) return
         syncComponents(context, mood)
+        PleosGnbIcon.sync(context, mood)
         applied = mood
     }
     private fun syncComponents(context: Context, mood: MascotMood) {

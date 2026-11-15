@@ -88,7 +88,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(typography = com.example.vemoring.ui.theme.Typography, colorScheme = GarageColors) {
                 GarageApp(homeLaunchRequest = homeLaunchRequest, vehicleModel = vehicleModel,
-                    integrationModel = integrationModel)
+                    integrationModel = integrationModel, onLauncherMood = { mood ->
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            if (getSharedPreferences(VehicleIconMonitor.PREFS, MODE_PRIVATE)
+                                    .getBoolean(VehicleIconMonitor.ENABLED, true)) {
+                                runCatching { MascotLauncher.sync(applicationContext, mood) }
+                                    .onFailure { android.util.Log.w("MascotLauncher", "Icon update failed", it) }
+                            }
+                        }
+                    })
             }
         }
     }
@@ -131,9 +139,11 @@ fun GarageApp(storeOverride: GarageStore? = null, startWithSetup: Boolean = fals
     // Same list instance across vehicle-signal recompositions, so the calendar tab can skip recomposing.
     val activeRecords = remember(data.records) { data.records.filter { !it.cancelled && (it.kind != CareKind.OIL || it.maintenanceType == com.vemoring.companion.MaintenanceType.ENGINE_OIL) } }
     PublishVehicleMirror(data, loaded && receivesSelected && vehicleModel!=null, snapshot, condition, mood, mode)
-    val hasResolvedVehicleData = snapshot.readings.values.any { it.state != ReadingState.Loading && it.state != ReadingState.Disconnected }
-    LaunchedEffect(mood, mode, loaded, hasResolvedVehicleData) {
-        if (loaded && mode == DataMode.Real && vehicleModel != null && hasResolvedVehicleData) onLauncherMood(mood)
+    // Match the displayed care state even offline (e.g. a date-based oil reminder).
+    // Unknown SDK signals remain unknown in careCondition; this does not invent telemetry.
+    LaunchedEffect(mood, mode, loaded, receivesSelected, data.complete) {
+        if (loaded && data.complete && receivesSelected && careSignals == null && mode == DataMode.Real &&
+            vehicleModel != null) onLauncherMood(mood)
     }
     val scope = rememberCoroutineScope()
     var saving by remember { mutableStateOf(false) }

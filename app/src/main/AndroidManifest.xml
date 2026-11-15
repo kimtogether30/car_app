@@ -23,6 +23,7 @@
     <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
     <uses-permission android:name="pleos.car.permission.NAVI_CUSTOM_MAP" />
     <queries>
+        <provider android:authorities="com.android.systemui.gnb" />
         <package android:name="ai.umos.maps.android.navigation.app" />
         <package android:name="com.nhn.android.nmap" />
         <package android:name="net.daum.android.map" />
