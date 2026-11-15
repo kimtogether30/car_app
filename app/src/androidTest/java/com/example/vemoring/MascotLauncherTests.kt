@@ -68,4 +68,32 @@ class MascotLauncherTests {
             MascotLauncher.sync(context, MascotMood.NORMAL)
         }
     }
+
+    /** Fresh install: every alias is enabled by default (Pleos user 0 needs them for GNB icons);
+     * the first app start collapses this account to one entry, keeping an explicit mood. */
+    @Test fun firstStartCollapsesDefaultEnabledAliasesToOneEntry() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val pm = context.packageManager
+        val query = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(context.packageName)
+        fun component(m: MascotMood) = ComponentName(context.packageName, "$APP_CLASS_PREFIX.${m.launcher}")
+        fun reset(explicit: MascotMood?) = MascotMood.entries.forEach {
+            pm.setComponentEnabledSetting(component(it), if (it == explicit) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                else PackageManager.COMPONENT_ENABLED_STATE_DEFAULT, PackageManager.DONT_KILL_APP)
+        }
+        try {
+            reset(null)
+            assertEquals(6, pm.queryIntentActivities(query, 0).size)
+            MascotLauncher.ensureSingleEntry(context)
+            assertEquals(listOf("$APP_CLASS_PREFIX.LauncherNormal"), pm.queryIntentActivities(query, 0).map { it.activityInfo.name })
+            reset(MascotMood.WASH)
+            MascotLauncher.ensureSingleEntry(context)
+            assertEquals(listOf("$APP_CLASS_PREFIX.LauncherWash"), pm.queryIntentActivities(query, 0).map { it.activityInfo.name })
+            MascotLauncher.ensureSingleEntry(context) // Already collapsed: no change.
+            assertEquals(1, pm.queryIntentActivities(query, 0).size)
+        } finally {
+            reset(null)
+            MascotLauncher.ensureSingleEntry(context)
+            MascotLauncher.sync(context, MascotMood.NORMAL)
+        }
+    }
 }

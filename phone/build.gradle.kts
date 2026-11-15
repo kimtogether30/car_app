@@ -10,8 +10,8 @@ android {
         applicationId = "com.example.vemoring.phone"
         minSdk = 28
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "1.0"
         testInstrumentationRunner = "com.example.vemoring.phone.VerificationRunner"
     }
     compileOptions {
@@ -21,6 +21,8 @@ android {
     buildFeatures { compose = true }
     // Device tests install/uninstall only this disposable application ID.
     buildTypes {
+        // Contest sideload build: installable from any clone without a private keystore.
+        release { signingConfig = signingConfigs.getByName("debug") }
         create("verification") {
             initWith(getByName("debug"))
             applicationIdSuffix = ".verification"

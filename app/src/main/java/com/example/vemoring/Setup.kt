@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
@@ -66,7 +64,6 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo,
     fun next() { step = steps[(position + 1).coerceAtMost(steps.lastIndex)] }
     fun previous() { step = steps[(position - 1).coerceAtLeast(0)] }
     var oil by rememberSaveable { mutableStateOf("") }
-    var oilKm by rememberSaveable {mutableStateOf("")}
     var oilDate by rememberSaveable {mutableStateOf<String?>(null)}
     var nickname by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
     var plate by rememberSaveable {mutableStateOf(confirmed.plate.orEmpty())}
@@ -75,6 +72,22 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo,
     var washDate by rememberSaveable { mutableStateOf<String?>(null) }
     var fuelAnswered by rememberSaveable { mutableStateOf(false) }
     var washAnswered by rememberSaveable { mutableStateOf(false) }
+    var showPinGuide by rememberSaveable { mutableStateOf(false) }
+    if (showPinGuide) {
+        AlertDialog(onDismissRequest = { showPinGuide = false },
+            title = { Text("고정바에 VEMORING 추가", fontSize = 28.sp) },
+            text = {
+                Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    Text("1. 화면 아래의 앱 목록(격자 아이콘)을 열어 주세요.", fontSize = 22.sp, lineHeight = 32.sp)
+                    Text("2. VEMORING 아이콘을 길게 눌러 주세요.", fontSize = 22.sp, lineHeight = 32.sp)
+                    Text("3. 아이콘을 고정바의 편집 가능한 칸으로 끌어 놓으세요.", fontSize = 22.sp, lineHeight = 32.sp)
+                    Text("최근 사용 항목은 앱을 사용하면 자동으로 표시돼요.", fontSize = 20.sp, lineHeight = 30.sp)
+                }
+            },
+            confirmButton = { TextButton(onClick = { showPinGuide = false }, modifier = Modifier.heightIn(min = 64.dp)) { Text("확인", fontSize = 22.sp) } },
+            dismissButton = { TextButton(onClick = { showPinGuide = false }, modifier = Modifier.heightIn(min = 64.dp)) { Text("나중에 할게요", fontSize = 22.sp) } })
+    }
     BackHandler(position > 0) { previous() }
     key(step) {
         SetupPage {
@@ -124,10 +137,9 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo,
                         Text("엔진오일 교체 시점")
                         ChoiceRow(listOf("날짜 입력", "약 1개월 전", "약 3개월 전", "6개월 이상 전", "모르겠음"), oil) { oil = it }
                         if(oil=="날짜 입력") DateInput("마지막 엔진오일 교체일",oilDate?.let(LocalDate::parse),{oilDate=it?.toString()},false)
-                        OutlinedTextField(oilKm,{oilKm=it},label={Text("교체 당시 실제 누적거리 (km, 선택)")},
-                            keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),singleLine=true,
-                            supportingText={Text("현재 누적거리가 아니라 교체할 때의 거리예요. 모르면 비워 주세요.")})
                     }
+                    if (!fuelAnswered) Text("주유·충전 날짜를 선택하거나 ‘주유·충전일이 기억이 안 나요’를 체크해 주세요.", fontSize = 20.sp, lineHeight = 30.sp)
+                    if (!washAnswered) Text("세차 날짜를 선택하거나 ‘세차일이 기억이 안 나요’를 체크해 주세요.", fontSize = 20.sp, lineHeight = 30.sp)
                     Button(modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp), enabled = fuelAnswered && washAnswered && (fuel == "전기차" || oil.isNotBlank() && (oil!="날짜 입력" || oilDate!=null)), onClick = { next() }) { Text("다음") }
                 }
                 4 -> {
@@ -149,8 +161,17 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo,
                         Text("주유·충전 알림: 20% 이하\n세차 알림: 청결도 30% 이하")
                         Text("내 차 설정에서 변경할 수 있어요. 관리 알림은 연결한 휴대폰으로 받아요.")
                     }
+                    Panel {
+                        Text("고정바에서도 상태를 확인하세요", fontSize = 26.sp, lineHeight = 36.sp, fontWeight = FontWeight.SemiBold)
+                        Text("VEMORING을 고정바에 추가하면 다른 화면에서도 상태 아이콘을 확인하기 쉬워요.", fontSize = 22.sp, lineHeight = 32.sp)
+                        Text("내 차 설정의 ‘앱 밖에서 상태 아이콘 갱신’을 켜 두세요.", fontSize = 20.sp, lineHeight = 30.sp)
+                        OutlinedButton(onClick = { showPinGuide = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
+                            Text("고정바 추가 방법", fontSize = 24.sp)
+                        }
+                        Text("추가는 선택이에요. 바로 시작하고 나중에 추가해도 돼요.", fontSize = 20.sp, lineHeight = 30.sp)
+                    }
                     Button(onClick = {
-                        finish(CarProfile(brand, model, nickname.text.trim(), plate = plate.trim(), fuel = fuel, oilEstimate = if(fuel == "전기차") "해당 없음" else oil,oilBaselineKm=oilKm.toDoubleOrNull()?.takeIf {it.isFinite() && it>=0}),
+                        finish(CarProfile(brand, model, nickname.text.trim(), plate = plate.trim(), fuel = fuel, oilEstimate = if(fuel == "전기차") "해당 없음" else oil),
                             mapOf(CareKind.FUEL to fuelDate?.let(LocalDate::parse), CareKind.WASH to washDate?.let(LocalDate::parse), CareKind.OIL to oilDate?.takeIf {oil=="날짜 입력"}?.let(LocalDate::parse)))
                     }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) { Text("VEMORING 시작하기") }
                 }

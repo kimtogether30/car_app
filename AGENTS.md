@@ -46,7 +46,7 @@
 
 - User explicitly changed oil confirmation to wash-style estimates: apply a qualifying visit first; no answer keeps it; “교체 안 했어요” cancels and persists rejection tombstones. This overrides the earlier yes-before-record policy. Keep ENGINE_OIL/source EstimatedOilVisit distinct from manual/confirmed work.
 - Actual OFF/ON must come from supported AAOS IGNITION_STATE callbacks (OFF/LOCK → ON), never engine RPM, speed, gear, reconnection or missing SDK data. Normal CAR_POWERTRAIN permission and property support must be checked. A supported signal alone does not validate facility position or actual hardware behavior.
-- Remove the dock/pinned-bar onboarding prompt and proactive pin invitation. The user knows pinned icon limitations; do not ask whether to add it.
+- Latest user override (2026-11-15): restore optional pinned-bar guidance in vehicle onboarding now that dynamic GNB icons work. Explain App Library long-press and drag to an editable slot; allow skipping without changing GNB slots automatically. This supersedes the earlier instruction to remove the invitation.
 - Vehicle-unregistered entry screens should use centered, bounded-width content and large readable labels/buttons on tablets and vehicles.
 
 ## Latest engine-oil receiving-gap inference (user override)
@@ -55,3 +55,8 @@
 - Persist the last real stationary vehicle fix in a distinguishable mapped repair-shop area. A fresh stationary vehicle fix in the same mapped facility within20m after a30-minute receiving gap may qualify inferred dwell; continuous live parking must keep advancing the anchor and cannot manufacture a gap.
 - Both endpoint fixes need fresh zero vehicle speed and fresh gear. Phone positions, a Bluetooth reconnection by itself, stale/replayed points, observed departure/movement or different/ambiguous facilities do not qualify. As in wash inference, unknown position accuracy stays unknown; use mapped boundary uncertainty guards, never invent accuracy.
 - Keep verified AAOS power and SAME_PLACE_RECEIVING_GAP evidence distinct. Never label inferred gaps as actual ignition OFF/ON. Retain due/unknown-history rules, actual vehicle exit and next stop, preapply/no-answer-keep/negative-cancel behavior and terminal rejection IDs.
+
+## Weather unavailable display (2026-11-15)
+
+- When weather cannot be loaded, leave forecast cells empty. Never substitute example weather. After a failed refresh, hide the cached forecast until a successful location/weather check; preserve the cache itself for recovery. Apply the same display rule to both apps.
+- First-install demonstrations must preserve the user's saved garage and records. The debug SetupPreviewActivity supports `freshInstall=true` for a separate first-registration session without clearing production data.

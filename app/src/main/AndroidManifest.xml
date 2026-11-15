@@ -73,7 +73,7 @@
             </intent-filter>
         </activity-alias>
         <activity-alias android:name=".LauncherFuel" android:targetActivity=".MainActivity"
-            android:enabled="false" android:exported="true"
+            android:enabled="true" android:exported="true"
             android:icon="@drawable/face_fuel" android:roundIcon="@drawable/face_fuel"
             android:label="@string/app_name">
             <intent-filter>
@@ -82,7 +82,7 @@
             </intent-filter>
         </activity-alias>
         <activity-alias android:name=".LauncherWash" android:targetActivity=".MainActivity"
-            android:enabled="false" android:exported="true"
+            android:enabled="true" android:exported="true"
             android:icon="@drawable/face_wash" android:roundIcon="@drawable/face_wash"
             android:label="@string/app_name">
             <intent-filter>
@@ -91,7 +91,7 @@
             </intent-filter>
         </activity-alias>
         <activity-alias android:name=".LauncherOil" android:targetActivity=".MainActivity"
-            android:enabled="false" android:exported="true"
+            android:enabled="true" android:exported="true"
             android:icon="@drawable/face_oil" android:roundIcon="@drawable/face_oil"
             android:label="@string/app_name">
             <intent-filter>
@@ -100,7 +100,7 @@
             </intent-filter>
         </activity-alias>
         <activity-alias android:name=".LauncherAngry" android:targetActivity=".MainActivity"
-            android:enabled="false" android:exported="true"
+            android:enabled="true" android:exported="true"
             android:icon="@drawable/face_angry" android:roundIcon="@drawable/face_angry"
             android:label="@string/app_name">
             <intent-filter>
@@ -109,7 +109,7 @@
             </intent-filter>
         </activity-alias>
         <activity-alias android:name=".LauncherExhausted" android:targetActivity=".MainActivity"
-            android:enabled="false" android:exported="true"
+            android:enabled="true" android:exported="true"
             android:icon="@drawable/face_exhausted" android:roundIcon="@drawable/face_exhausted"
             android:label="@string/app_name">
             <intent-filter>

@@ -14,7 +14,7 @@ android {
         applicationId = "com.example.vemoring"
         minSdk = 28
         targetSdk = 37
-        versionCode = 2
+        versionCode = 3
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -28,10 +28,10 @@ android {
             signingConfig = getByName("debug").signingConfig
         }
         release {
-            optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
-            }
+            // Contest sideload build: installable from any clone without a private keystore.
+            signingConfig = signingConfigs.getByName("debug")
+            // R8 package-scoped optimization crashed the release app at startup
+            // (IllegalAccessError in androidx.startup). Ship the unoptimized, verified build.
         }
     }
     // Explicit opt-in only: physical radio fixtures must never enter the real vehicle garage/stream.

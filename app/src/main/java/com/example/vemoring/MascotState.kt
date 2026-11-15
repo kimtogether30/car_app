@@ -27,10 +27,31 @@ enum class MascotMood(val character: Int, val launcher: String, val description:
     EXHAUSTED(R.drawable.mascot_exhausted, "LauncherExhausted", "영혼이 빠져나가는 차콜색 캐릭터", "챙겨줄 게 세 가지예요…\n기운을 되찾게 도와줘요."),
 }
 
+/** All six aliases are enabled in the manifest so a never-launched account (Pleos headless
+ * system user 0, whose PackageManager SystemUI uses for GNB icons) can resolve every mood icon
+ * without adb setup. A DEFAULT state therefore means enabled. */
+private fun aliasEnabled(pm: PackageManager, component: ComponentName) =
+    pm.getComponentEnabledSetting(component) != PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+
 /** Worker-thread operation, invoked only on mood changes; skips unchanged launcher entries. */
 object MascotLauncher {
     /** Last mood this process applied. Only this object changes the launcher components. */
     private var applied: MascotMood? = null
+
+    /** Leaves exactly one app-list entry in the account that actually runs the app.
+     * Keeps an explicitly enabled mood (the last applied one); a fresh install keeps NORMAL.
+     * Independent of icon-update settings and registration. Cheap no-op once collapsed. */
+    @Synchronized
+    fun ensureSingleEntry(context: Context) {
+        val pm = context.packageManager
+        fun component(m: MascotMood) = ComponentName(context.packageName, "$APP_CLASS_PREFIX.${m.launcher}")
+        val enabled = MascotMood.entries.filter { aliasEnabled(pm, component(it)) }
+        if (enabled.size == 1) return
+        val keep = MascotMood.entries.firstOrNull {
+            pm.getComponentEnabledSetting(component(it)) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        } ?: MascotMood.NORMAL
+        syncComponents(context, keep)
+    }
     @Synchronized
     fun sync(context: Context, mood: MascotMood) {
         if (mood == applied) return
@@ -47,12 +68,7 @@ object MascotLauncher {
         }
         fun component(m: MascotMood) = ComponentName(context.packageName, "$APP_CLASS_PREFIX.${m.launcher}")
         fun desired(m: MascotMood) = if (m == mood) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-        val changed = MascotMood.entries.filter { m ->
-            val current = pm.getComponentEnabledSetting(component(m))
-            val enabled = current == PackageManager.COMPONENT_ENABLED_STATE_ENABLED ||
-                (current == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && m == MascotMood.NORMAL)
-            enabled != (m == mood)
-        }
+        val changed = MascotMood.entries.filter { m -> aliasEnabled(pm, component(m)) != (m == mood) }
         if (changed.isEmpty()) return
         if (Build.VERSION.SDK_INT >= 33) {
             pm.setComponentEnabledSettings(changed.map {

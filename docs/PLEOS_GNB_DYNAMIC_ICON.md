@@ -1,5 +1,40 @@
 # Pleos 하단 캐릭터 아이콘
 
+## 제출용 release APK: adb 준비 없이 동작 (2026-11-15)
+
+아래 '에뮬레이터 설치 조건'의 `install-existing`/`run-as` 준비는 더 이상 필요하지 않다.
+
+**확인한 사실 (Pleos 2.1.0)**
+- 같은 GNB 행을 FUEL alias로 바꿨을 때, 시스템 계정(user 0)에서 그 alias가 꺼져 있으면 파란 기본 아이콘이 표시됐다. 켜면 노란 아이콘이 표시됐다.
+- `string_icon` 열은 무시된다.
+- shell은 다른 앱의 컴포넌트 상태를 바꿀 수 없다(SecurityException).
+- user 0에 설치된 앱은 한 번도 실행되지 않아 `stopped` 상태다. 따라서 user 0에서 부팅 수신기도 실행되지 않는다.
+
+**변경**
+- manifest의 여섯 `Launcher*` alias 기본값을 모두 `enabled="true"`로 바꿨다. 실행되지 않는 user 0에는 여섯 아이콘이 모두 남는다.
+- 실제로 앱을 실행하는 계정에서는 `MainActivity` 시작 시 `MascotLauncher.ensureSingleEntry`가 항목을 하나만 남긴다. 명시적으로 켜진 상태가 있으면 그 상태를, 새 설치면 NORMAL을 남긴다.
+- 이 정리는 등록 여부와 아이콘 갱신 설정에 관계없이 실행된다. 이미 하나뿐이면 아무것도 바꾸지 않는다.
+
+**검증**
+- 별도 패키지(`.freshcheck`)로 만든 release를 일반 `adb install`로 새로 설치했다.
+- user 0과 user 10에 모두 설치됐다. 첫 실행 뒤 user 10의 앱 목록 항목은 1개, user 0은 6개였다.
+- 해당 GNB 행을 OIL alias로 바꾸자 adb 준비 없이 보라 아이콘이 표시됐다.
+- 테스트 패키지와 GNB 행은 삭제했다.
+- `MascotLauncherTests` 3건(새 `firstStartCollapsesDefaultEnabledAliasesToOneEntry` 포함)이 Tab S7에서 통과했다.
+
+**남은 제약**
+- `--user 10`처럼 운전자 계정에만 설치하면 user 0 메타데이터가 없어 기본 아이콘이 표시된다.
+- 앱을 처음 실행하기 전에는 운전자 계정 앱 목록에도 상태별 아이콘이 여러 개 보인다.
+
+**함께 발견한 문제**
+- release의 R8 `packageScope` 최적화 빌드는 시작 시 `IllegalAccessError`(androidx.startup)로 종료됐다. 그래서 release 최적화를 끄고, 최적화하지 않은 빌드를 Pleos에서 실행해 확인했다.
+
+## 첫 등록의 선택형 고정바 안내 (2026-11-15 사용자 요청)
+
+차량 등록 마지막 요약 화면에 `고정바 추가 방법`을 제공한다. 앱 목록(격자) 열기 → VEMORING 길게 누르기 → 편집 가능한 고정바 칸으로 드래그 순서이며, 실제 추가는 사용자가 시스템 UI에서 수행한다. 앱이 고정 위치를 자동 변경하지 않는다. 안내의 `확인`/`나중에 할게요`는 창을 닫으며, 추가 여부와 관계없이 `VEMORING 시작하기`로 등록을 마칠 수 있다. 아이콘 갱신 설정 위치도 함께 안내한다.
+
+절차 근거: [공식 GNB 편집 안내](https://document.pleos.ai/en/docs/connect/guide/docs-design/components/gnb). 기존의 온보딩 초대 제거 정책은 이번 사용자 요청으로 대체한다. Pleos에서 안내 열기/건너뛰기/등록 완료와 한글 닉네임·기존 기록 보존의 `SetupReadabilityTests` 2건 통과(23.956초), 실제 안내 캡처 확인. 로컬 증거: `.tmp/final-check-2026-11-15/pin-onboarding-test.txt`, `pin-onboarding-guide.png`.
+
 ## 가져온 해결 방법 보존 (2026-11-15)
 
 해결 커밋: `f7575316271e844406c84f7d95852958b5591adf` (`Sync Pleos GNB icon with current mascot state`). 재발 시 `MascotLauncher.sync` → `PleosGnbIcon.sync` 연결과 MainActivity의 실제 수신 차량 상태 전달을 먼저 확인한다. 런처 alias만 전환하면 고정바/최근 항목에 저장된 이전 component는 남으므로, 기존 GNB 행의 id와 intent component도 같은 Launcher alias로 갱신해야 한다. 고정 위치/다른 앱/Intent extras를 보존하고 고정되지 않은 동일 실행 기록만 중복 정리한다.

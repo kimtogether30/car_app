@@ -47,7 +47,7 @@ class PleosGnbIconTests {
             val state = context.packageManager.getComponentEnabledSetting(ComponentName(context.packageName,
                 "$APP_CLASS_PREFIX.${mood.launcher}"))
             state == android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED ||
-                (state == android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && mood == MascotMood.NORMAL)
+                state == android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DEFAULT
         }
         try {
             val automation = instrumentation.uiAutomation

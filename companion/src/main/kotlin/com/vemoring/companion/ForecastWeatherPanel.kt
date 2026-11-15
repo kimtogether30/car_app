@@ -122,7 +122,7 @@ private fun ForecastWeatherContent(vehicleId: String,vehicle: Boolean,enabled: B
                 } catch(cancelled: CancellationException) {throw cancelled}
                 catch(_: Exception) {
                     if(!gotLocation) located=false
-                    error=if(gotLocation) "날씨 갱신 실패 · 마지막 정보를 표시해요." else "현위치를 받지 못했어요. 위치 설정을 확인하고 새로고침해 주세요."
+                    error=if(gotLocation) "날씨를 받지 못했어요. 새로고침해 주세요." else "현위치를 받지 못했어요. 위치 설정을 확인하고 새로고침해 주세요."
                 }
                 finally {loading=false}
                 failures=if(error != null) failures+1 else 0
@@ -132,7 +132,8 @@ private fun ForecastWeatherContent(vehicleId: String,vehicle: Boolean,enabled: B
             }
         } finally {loading=false}
     }
-    val displayed=forecast.takeIf {permitted && located}
+    // Failed requests leave the weather cells empty, including when a previous forecast is cached.
+    val displayed=forecast.takeIf {permitted && located && error == null}
     val suggestion=remember(displayed,now) {WashDatePolicy.suggest(displayed,now)}
     val stamp=forecast?.fetchedAt?.atZone(FORECAST_ZONE)?.format(STAMP_FORMAT)
     val stale=forecast?.let {region?.let {r -> ForecastRefreshPolicy.due(it,r,now)}}==true
