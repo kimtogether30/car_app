@@ -2,6 +2,20 @@
 
 **차량 캐릭터 '베모링'이 주유·충전, 세차, 엔진오일 교체 시기를 표정과 아이콘으로 알려 주는 Pleos 차량용 관리 앱과 휴대폰 동반 앱입니다.**
 
+> [!IMPORTANT]
+> ## ⚠️ 차량용 앱은 꼭 `apk/install_vehicle.cmd`로 설치해 주세요
+>
+> 하단 **고정바·최근 항목의 캐릭터 아이콘이 상태에 따라 바뀌려면** 이 설치 방식이 **반드시** 필요합니다.
+>
+> ```powershell
+> apk\install_vehicle.cmd emulator-5554
+> ```
+>
+> - **APK와 함께 `apk/install_vehicle.cmd`도 내려받아** 같은 `apk` 폴더에 두고 실행하세요.
+> - Pleos는 고정바 아이콘 그림을 **시스템 계정(user 0)** 정보에서 찾습니다. 이 스크립트는 운전자 계정(user 10)과 시스템 계정 **두 곳에** 설치하고 확인까지 합니다.
+> - 스크립트를 쓸 수 없다면 `--user` 옵션 **없이** 설치하세요: `adb install -r apk\VEMORING_VEMORING-Vehicle_release.apk`
+> - ❌ **`--user 10` 등으로 운전자 계정에만 설치하면 고정바 아이콘이 항상 기본 파란 캐릭터로 남습니다.** 앱 목록 아이콘과 나머지 기능은 정상 동작합니다.
+
 ## 제출 정보 (현대자동차그룹 차량용 앱 개발 공모전)
 
 ### APK 위치
@@ -22,10 +36,18 @@
 - **여러 차량**: 차량을 여러 대 등록할 수 있습니다. 차량 정보를 받는 차는 명시적으로 확인해야만 바뀝니다.
 - **휴대폰 동반 앱**: Bluetooth로 차량 앱과 연결해 상태 알림을 받고 기록을 편집합니다. 휴대폰을 재부팅하거나 앱을 업데이트해도 다시 연결됩니다.
 
+### 화면
+
+| 차량용 앱 (Pleos Connect) | 휴대폰용 앱 |
+| --- | --- |
+| <img src="docs/submission-screens/차량_01_홈.png" width="520"> | <img src="docs/submission-screens/휴대폰_01_홈.png" width="200"> |
+
+전체 화면 시안(첫 등록, 관리 기록, 내 차 설정, 캐릭터 상태 6종, 휴대폰 화면)은 [docs/submission-screens/](docs/submission-screens/)에 있습니다. 캐릭터 상태 이미지는 debug 미리보기 화면으로 만든 예시 상태입니다.
+
 ### 실행 방법
 
 1. Pleos Connect 에뮬레이터를 **Cold Boot**로 시작합니다. 공식 문서에 따르면 Quick Boot에서는 VHAL을 사용할 수 없습니다.
-2. 차량용 APK를 설치합니다. 설치 스크립트를 실행하는 방법을 권장합니다.
+2. 차량용 APK를 **반드시 설치 스크립트로** 설치합니다. (맨 위 ⚠️ 안내 참고)
    ```powershell
    apk\install_vehicle.cmd emulator-5554
    ```
