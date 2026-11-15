@@ -36,10 +36,14 @@ class GarageFleetUiTest {
         capture("fleet-vehicles")
         compose.onNodeWithTag("vehicle:${a.profile.vehicleId}").performScrollTo().performClick()
         compose.waitUntil(5000) {store.load().profile.vehicleId==a.profile.vehicleId}
+        // Closing the picker briefly leaves no compose root while the home is rebuilt; wait for it to return.
+        fun awaitTag(tag:String)=compose.waitUntil(5000) {runCatching {compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()}.getOrDefault(false)}
+        awaitTag("vehicle-picker")
         compose.onNodeWithTag("vehicle-picker").performClick()
         compose.onNodeWithTag("vehicle:${b.profile.vehicleId}").performScrollTo().performClick()
         compose.waitUntil(5000) {store.load().profile.vehicleId==b.profile.vehicleId}
         assertEquals(a.profile.vehicleId,store.receiving()!!.profile.vehicleId)
+        compose.waitUntil(5000) {runCatching {compose.onAllNodesWithText("이 차량에 연결").fetchSemanticsNodes().isNotEmpty()}.getOrDefault(false)}
         compose.onNodeWithText("이 차량에 연결").performClick()
         compose.onNodeWithText("취소").performClick()
         assertEquals(a.profile.vehicleId,store.receiving()!!.profile.vehicleId)

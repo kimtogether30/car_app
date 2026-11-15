@@ -508,7 +508,7 @@ fun ProfileScreen(p: CarProfile, edit: () -> Unit, editName: () -> Unit, save: (
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("관리 알림", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Ink)
-                            Text("예시 설정 · 실제 알림은 발송되지 않습니다.", color = Muted, fontSize = 19.sp, lineHeight = 28.sp)
+                            Text("주유·세차·엔진오일 알림을 연결한 휴대폰으로 보내요.", color = Muted, fontSize = 19.sp, lineHeight = 28.sp)
                         }
                         Switch(checked = p.notifications, onCheckedChange = { save(p.copy(notifications = it)) })
                     }

@@ -37,6 +37,9 @@ data class ForecastRegion(val name: String, val latitude: Double, val longitude:
 object ForecastRefreshPolicy {
     const val INTERVAL_MILLIS = 60 * 60 * 1000L
     const val RETRY_MILLIS = 10 * 60 * 1000L
+    private val failureBackoff = listOf(60_000L, 2 * 60_000L, 5 * 60_000L, RETRY_MILLIS)
+    /** The overseas forecast route can stall TLS for a few minutes; recover soon after it clears, then back off. */
+    fun retryMillis(failures: Int): Long = failureBackoff[(failures - 1).coerceIn(failureBackoff.indices)]
     fun due(value: WeeklyWeatherForecast?, region: ForecastRegion, now: Instant): Boolean = value == null ||
         value.latitude != region.latitude || value.longitude != region.longitude ||
         value.days.firstOrNull()?.date != now.atZone(FORECAST_ZONE).toLocalDate() ||

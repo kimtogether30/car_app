@@ -14,7 +14,7 @@ class CarSpeedIntegrationTest {
     private val instrumentation=InstrumentationRegistry.getInstrumentation()
     private val context=instrumentation.targetContext
     private fun checkEnvironment() {
-        assertTrue("Run on official Pleos automotive emulator",context.packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE))
+        org.junit.Assume.assumeTrue("Run on official Pleos automotive emulator",context.packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE))
         assertEquals("Allow CAR_SPEED for the test target",PackageManager.PERMISSION_GRANTED,context.checkSelfPermission(CarSpeedSource.PERMISSION))
     }
     @Test fun speedAndGearArriveThroughProductionGateway() {

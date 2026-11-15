@@ -39,23 +39,33 @@ class PhoneLauncherTest {
             while (launcher() != alias && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(100)
             assertEquals(alias, launcher())
         }
-        fun frame(revision: Long, lowFuel: Boolean, warning: Boolean) = MirrorSnapshot(id, revision, System.currentTimeMillis(),
-            JSONObject().put("profile", JSONObject().put("nickname", "시험").put("model", "시험 차량").put("plate", "TEST")
-                .put("fuel", "휘발유").put("notifications", false).put("washAlert", 30).put("fuelAlert", 20))
-                .put("records", org.json.JSONArray()).put("mood", "NORMAL").put("message", "").put("demo", false)
+        // Oil due is no longer a received flag: the phone derives it from a catalogued model and its own ENGINE_OIL records.
+        val profile = JSONObject().put("nickname", "시험").put("model", "현대 아반떼").put("plate", "TEST")
+            .put("fuel", "휘발유").put("notifications", false).put("washAlert", 30).put("fuelAlert", 20)
+        val today = java.time.LocalDate.now(com.vemoring.companion.CARE_ZONE)
+        fun oil(recordId: String, date: java.time.LocalDate) = JSONObject().put("id", recordId).put("kind", "maintenance")
+            .put("maintenanceType", "ENGINE_OIL").put("date", date.toString()).put("title", "엔진오일 교체").put("detail", "")
+        fun frame(revision: Long, lowFuel: Boolean) = MirrorSnapshot(id, revision, System.currentTimeMillis(),
+            JSONObject().put("profile", profile)
+                .put("records", org.json.JSONArray().put(oil("oil-recent", today))).put("mood", "NORMAL").put("message", "").put("demo", false)
                 .put("fuel", if (lowFuel) 10 else 80).put("battery", JSONObject.NULL).put("cleanliness", JSONObject.NULL)
                 .put("oilRemainingKm", JSONObject.NULL)
-                .put("signals", JSONObject().put("lowFuel", lowFuel).put("oilDue", warning)).toString())
+                .put("signals", JSONObject().put("lowFuel", lowFuel).put("oilDue", true)).toString())
         // Same order as MirrorBluetoothService: cache the frame, then apply it to the phone-owned care state.
         fun receive(snapshot: MirrorSnapshot) = kotlinx.coroutines.runBlocking {
             MirrorBus.receive(context, snapshot); CareExchange.receive(context, snapshot)
         }
+        fun records(vararg values: JSONObject) = kotlinx.coroutines.runBlocking {
+            CareExchange.editPhone(context, id, profile, org.json.JSONArray().also {a -> values.forEach {a.put(it)}})
+        }
         try {
-            receive(frame(1, lowFuel = true, warning = false))
-            await("LauncherFuel")
-            receive(frame(2, lowFuel = true, warning = true))
+            receive(frame(1, lowFuel = true))
+            await("LauncherFuel") // A recent change is not due, and the received oilDue flag is ignored.
+            records(oil("oil-old", today.minusYears(1)))
+            receive(frame(2, lowFuel = true))
             await("LauncherAngry")
-            receive(frame(3, lowFuel = false, warning = false))
+            records(oil("oil-new", today))
+            receive(frame(3, lowFuel = false))
             await("LauncherNormal")
         } finally {
             CareJournal(context, id).deleteVehicle()

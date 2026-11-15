@@ -21,6 +21,11 @@ import java.util.concurrent.TimeUnit
  */
 class RealSdkReceptionTest {
     private val instrumentation=InstrumentationRegistry.getInstrumentation()
+    /** Vehicle SDK only. On a phone/tablet skip instead of failing midway and leaving other apps on screen. */
+    @org.junit.Before fun requireAutomotive() {
+        org.junit.Assume.assumeTrue("Pleos automotive device only",InstrumentationRegistry.getInstrumentation().targetContext
+            .packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_AUTOMOTIVE))
+    }
     @Test fun vehicleReceivesAtLeastOneNumericSignal() {
         val latch=CountDownLatch(1)
         var gateway: PleosVehicleGateway?=null

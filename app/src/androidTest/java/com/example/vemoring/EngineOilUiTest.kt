@@ -32,8 +32,8 @@ class EngineOilUiTest {
         }}
         compose.onNodeWithText("엔진오일 관리 잔여율").assertDoesNotExist()
         compose.onNodeWithText("엔진오일 예상 잔여율").assertDoesNotExist()
-        compose.onNodeWithText("남은 연료").assertIsDisplayed()
-        compose.onNodeWithText("차량 청결도").assertIsDisplayed()
+        compose.onNodeWithText("남은 연료").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("차량 청결도").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("차량 안전 경고").assertDoesNotExist()
         val screenshot=compose.onRoot().captureToImage().asAndroidBitmap()
         val context=InstrumentationRegistry.getInstrumentation().targetContext

@@ -695,7 +695,7 @@ class MainActivity : ComponentActivity() {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("관리 알림", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text("예시 설정 · 실제 알림은 발송되지 않습니다.", fontSize = 13.sp, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("주유·세차·엔진오일 관리가 필요할 때 알림을 보내요.", fontSize = 13.sp, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Switch(checked = data.notifications, enabled = !busy, onCheckedChange = { update(data.copy(notifications = it)) })
         }

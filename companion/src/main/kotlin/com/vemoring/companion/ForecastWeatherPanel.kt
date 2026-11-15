@@ -96,6 +96,7 @@ private fun ForecastWeatherContent(vehicleId: String,vehicle: Boolean,enabled: B
     LaunchedEffect(active,refresh,loaded,enabled,permitted) {
         if(!enabled || !loaded || !active) return@LaunchedEffect
         if(!permitted) {located=false;return@LaunchedEffect}
+        var failures=0
         try {
             while(isActive) {
                 now=Instant.now()
@@ -124,7 +125,8 @@ private fun ForecastWeatherContent(vehicleId: String,vehicle: Boolean,enabled: B
                     error=if(gotLocation) "날씨 갱신 실패 · 마지막 정보를 표시해요." else "현위치를 받지 못했어요. 위치 설정을 확인하고 새로고침해 주세요."
                 }
                 finally {loading=false}
-                val wait=if(error != null) ForecastRefreshPolicy.RETRY_MILLIS
+                failures=if(error != null) failures+1 else 0
+                val wait=if(error != null) ForecastRefreshPolicy.retryMillis(failures)
                     else forecast?.let {ForecastRefreshPolicy.waitMillis(it,Instant.now())} ?: ForecastRefreshPolicy.RETRY_MILLIS
                 delay(wait)
             }

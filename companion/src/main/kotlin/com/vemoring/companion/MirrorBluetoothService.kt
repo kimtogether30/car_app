@@ -89,7 +89,7 @@ class MirrorBluetoothService : Service() {
                     addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
                 }, ContextCompat.RECEIVER_EXPORTED)
                 registered = true
-                scope.launch { MirrorBus.link.collect { runCatching { manager.notify(2041, notification(it.message)) } } }
+                scope.launch { MirrorBus.link.collect { runCatching { NotificationPacer.await(); manager.notify(2041, notification(it.message)) } } }
             }
             if (!ready) MirrorBus.link.value = MirrorLink(false, "블루투스가 켜지면 자동으로 연결해요 · 마지막 데이터 유지", true)
             else if (hosting) startHost() else startClient()

@@ -56,6 +56,10 @@ class ForecastPolicyTest {
         assertNull(WashDatePolicy.suggest(forecast().copy(fetchedAt=now.plusSeconds(1)),now).date)
         assertNull(WashDatePolicy.suggest(forecast(),now.plusSeconds(24*3600)).date)
     }
+    @Test fun failedRefreshRecoversSoonThenBacksOff() {
+        assertEquals(listOf(60_000L,120_000L,300_000L,600_000L,600_000L),(1..5).map(ForecastRefreshPolicy::retryMillis))
+        assertEquals(60_000L,ForecastRefreshPolicy.retryMillis(0))
+    }
     @Test fun hourlyExpiryLocationChangeAndKoreanMidnightTriggerRefresh() {
         assertFalse(ForecastRefreshPolicy.due(forecast(),region,now.plusSeconds(3599)))
         assertTrue(ForecastRefreshPolicy.due(forecast(),region,now.plusSeconds(3600)))

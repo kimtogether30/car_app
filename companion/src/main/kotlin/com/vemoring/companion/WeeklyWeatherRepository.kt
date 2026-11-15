@@ -78,6 +78,8 @@ internal class WeatherHttpException(val status: Int) : IOException("Weather HTTP
  * The forecast host is overseas and the route drops a few percent of packets (measured 2026-11-14: 2/30 lost to
  * api.open-meteo.com, 0/30 to a nearby host), so a single lost TLS handshake used to fail the whole refresh.
  * Retry network errors and 5xx a bounded number of times; never retry 4xx or invalid data.
+ * Re-measured 2026-11-15 on a Tab S7: TCP connected in ~0.3 s but the TLS handshake stalled for 30 s on five
+ * consecutive tries over ~2.5 minutes, then every call succeeded in ~1 s. The panel backs off 1/2/5/10 minutes.
  */
 internal fun <T> retryTransient(attempts: Int = 3, waitsMillis: List<Long> = listOf(1_000, 3_000), budgetMillis: Long = 45_000,
     clock: () -> Long = System::currentTimeMillis, sleep: (Long) -> Unit = Thread::sleep, block: () -> T): T {
@@ -101,7 +103,8 @@ private fun requestWeatherJsonOnce(url: String): JSONObject {
     val connection = URI(url).toURL().openConnection() as HttpURLConnection
     try {
         connection.connectTimeout = 10000
-        connection.readTimeout = 20000
+        // The reply is ~2 KB. A stalled TLS handshake counts against this read timeout, so keep it short and retry.
+        connection.readTimeout = 12000
         connection.instanceFollowRedirects = false
         connection.setRequestProperty("User-Agent", "Vemoring/1.0 (Android prototype)")
         val status = connection.responseCode

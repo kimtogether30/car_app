@@ -16,7 +16,7 @@ class MascotLauncherTests {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         fun open(mood: MascotMood) {
             context.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-                .setComponent(ComponentName(context.packageName, "${context.packageName}.${mood.launcher}"))
+                .setComponent(ComponentName(context.packageName, "$APP_CLASS_PREFIX.${mood.launcher}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             instrumentation.waitForIdleSync()
         }
@@ -35,7 +35,7 @@ class MascotLauncherTests {
                 background()
                 MascotLauncher.sync(context, mood)
                 assertTrue(context.packageManager.getComponentEnabledSetting(ComponentName(context.packageName,
-                    "${context.packageName}.MainActivity")) != PackageManager.COMPONENT_ENABLED_STATE_DISABLED)
+                    "$APP_CLASS_PREFIX.MainActivity")) != PackageManager.COMPONENT_ENABLED_STATE_DISABLED)
                 open(mood)
                 open(mood)
                 val deadline = android.os.SystemClock.uptimeMillis() + 5000
@@ -60,9 +60,9 @@ class MascotLauncherTests {
                 MascotLauncher.sync(context, mood)
                 val entries = pm.queryIntentActivities(query, 0)
                 assertEquals(1, entries.size)
-                assertEquals("${context.packageName}.${mood.launcher}", entries.single().activityInfo.name)
+                assertEquals("$APP_CLASS_PREFIX.${mood.launcher}", entries.single().activityInfo.name)
                 assertTrue(pm.getActivityIcon(ComponentName(context.packageName,
-                    "${context.packageName}.${mood.launcher}")).intrinsicWidth > 0)
+                    "$APP_CLASS_PREFIX.${mood.launcher}")).intrinsicWidth > 0)
             }
         } finally {
             MascotLauncher.sync(context, MascotMood.NORMAL)

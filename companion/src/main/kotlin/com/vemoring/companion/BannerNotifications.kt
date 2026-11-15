@@ -66,6 +66,7 @@ object BannerNotifications {
             }
             builder.addAction(Notification.Action.Builder(null,if(oilQuestion) "기록 보기" else "알림 내역",open).build())
             val result = runCatching {
+                NotificationPacer.await()
                 manager.notify("${event.vehicleId}:${event.eventId}",if(event.visitId != null) 3011 else 3010,builder.build())
                 NotificationDelivery.Delivered
             }.getOrElse { NotificationDelivery.Error }

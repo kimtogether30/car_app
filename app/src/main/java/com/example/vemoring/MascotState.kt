@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 
+/** Manifest class namespace. Differs from packageName in the .verification build, so never derive aliases from it. */
+internal val APP_CLASS_PREFIX: String = MainActivity::class.java.name.substringBeforeLast('.')
+
 /** Unknown signals never create warnings. Supply validated live data here later. */
 data class CareSignals(val lowFuel: Boolean? = null, val needsWash: Boolean? = null, val oilDue: Boolean? = null) {
     fun mood(): MascotMood = when (listOf(lowFuel, needsWash, oilDue).count { it == true }) {
@@ -38,11 +41,11 @@ object MascotLauncher {
     private fun syncComponents(context: Context, mood: MascotMood) {
         val pm = context.packageManager
         // The screen itself must stay enabled even when the launcher color changes.
-        val screen = ComponentName(context.packageName, "${context.packageName}.MainActivity")
+        val screen = ComponentName(context.packageName, "$APP_CLASS_PREFIX.MainActivity")
         if (pm.getComponentEnabledSetting(screen) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED) {
             pm.setComponentEnabledSetting(screen, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP)
         }
-        fun component(m: MascotMood) = ComponentName(context.packageName, "${context.packageName}.${m.launcher}")
+        fun component(m: MascotMood) = ComponentName(context.packageName, "$APP_CLASS_PREFIX.${m.launcher}")
         fun desired(m: MascotMood) = if (m == mood) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED
         val changed = MascotMood.entries.filter { m ->
             val current = pm.getComponentEnabledSetting(component(m))

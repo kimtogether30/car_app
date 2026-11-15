@@ -29,9 +29,9 @@ class PleosGnbIconTests {
         }
         val before = rows()
         val own = before.filter { row -> MascotMood.entries.any { mood ->
-            row[1] == ComponentName(context.packageName, "${context.packageName}.${mood.launcher}").flattenToString() ||
+            row[1] == ComponentName(context.packageName, "$APP_CLASS_PREFIX.${mood.launcher}").flattenToString() ||
                 row[1] == ComponentName(context.packageName,
-                    "${context.packageName}.${mood.launcher.replace("Launcher", "Gnb")}").flattenToString()
+                    "$APP_CLASS_PREFIX.${mood.launcher.replace("Launcher", "Gnb")}").flattenToString()
         } }
         val originals = mutableMapOf<String, ContentValues>()
         resolver.query(uri, null, null, null, null)!!.use { cursor ->
@@ -45,7 +45,7 @@ class PleosGnbIconTests {
         assertTrue("Need an existing VEMORING GNB shortcut", own.isNotEmpty())
         val originalMood = MascotMood.entries.first { mood ->
             val state = context.packageManager.getComponentEnabledSetting(ComponentName(context.packageName,
-                "${context.packageName}.${mood.launcher}"))
+                "$APP_CLASS_PREFIX.${mood.launcher}"))
             state == android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED ||
                 (state == android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && mood == MascotMood.NORMAL)
         }
@@ -76,7 +76,7 @@ class PleosGnbIconTests {
                 assertEquals("Duplicate recent VEMORING entries", 1, after.values.count {
                     it[1] == PleosGnbIcon.component(context, mood).flattenToString() && it.drop(3).all { position -> position == "-1" }
                 })
-                context.startActivity(Intent().setClassName(context.packageName, "${context.packageName}.StatePreviewActivity")
+                context.startActivity(Intent().setClassName(context.packageName, "$APP_CLASS_PREFIX.StatePreviewActivity")
                     .putExtra("stage", when(mood) {
                         MascotMood.NORMAL -> 0; MascotMood.FUEL -> 1; MascotMood.WASH -> 2
                         MascotMood.OIL -> 3; MascotMood.ANGRY -> 4; MascotMood.EXHAUSTED -> 5

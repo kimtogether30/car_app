@@ -12,6 +12,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class BackgroundIconMonitorTest {
+    /** Vehicle SDK only. On a phone/tablet skip instead of failing midway and leaving other apps on screen. */
+    @org.junit.Before fun requireAutomotive() {
+        org.junit.Assume.assumeTrue("Pleos automotive device only",InstrumentationRegistry.getInstrumentation().targetContext
+            .packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_AUTOMOTIVE))
+    }
     @Test fun receivingContinuesOffScreenEvenWhenIconUpdatesAreDisabled() {
         val instrumentation=InstrumentationRegistry.getInstrumentation();val context=instrumentation.targetContext
         val prefs=context.getSharedPreferences(VehicleIconMonitor.PREFS,android.content.Context.MODE_PRIVATE)
@@ -70,7 +75,7 @@ class BackgroundIconMonitorTest {
         await("VEMORING is still visible") { !IconMonitorVisibility.visible.value }
         val pm = context.packageManager
         fun active(mood: MascotMood) = pm.getComponentEnabledSetting(
-            ComponentName(context.packageName, "${context.packageName}.${mood.launcher}")) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            ComponentName(context.packageName, "$APP_CLASS_PREFIX.${mood.launcher}")) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
         try {
             for ((stage, mood) in listOf(MascotMood.NORMAL, MascotMood.FUEL, MascotMood.WASH,
                 MascotMood.OIL, MascotMood.ANGRY, MascotMood.EXHAUSTED, MascotMood.NORMAL).withIndex()) {

@@ -16,7 +16,7 @@ internal object PleosGnbIcon {
     private const val AUTHORITY = "com.android.systemui.gnb"
     private val uri = Uri.parse("content://$AUTHORITY/gnb-mixed")
     fun component(context: Context, mood: MascotMood) = ComponentName(context.packageName,
-        "${context.packageName}.${mood.launcher}")
+        "$APP_CLASS_PREFIX.${mood.launcher}")
     private data class Shortcut(val key: Long, val id: String, val original: String,
         val updated: String, val left: Int, val right: Int, val bottom: Int, val timestamp: Long) {
         val unplaced get() = left == -1 && right == -1 && bottom == -1
@@ -27,7 +27,7 @@ internal object PleosGnbIcon {
             val target = component(context, mood)
             val aliases = MascotMood.entries.flatMap {
                 listOf(component(context, it), ComponentName(context.packageName,
-                    "${context.packageName}.${it.launcher.replace("Launcher", "Gnb")}")) // Migrate local diagnostic aliases.
+                    "$APP_CLASS_PREFIX.${it.launcher.replace("Launcher", "Gnb")}")) // Migrate local diagnostic aliases.
             }.toSet()
             val changes = arrayListOf<ContentProviderOperation>()
             val shortcuts = mutableListOf<Shortcut>()

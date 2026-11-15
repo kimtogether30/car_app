@@ -24,14 +24,16 @@ class GarageLayoutTests {
                 Box(Modifier.width(1240.dp)) { HomeScreen(data, BatteryReading(), {}) }
             }
         }
-        val character = compose.onNodeWithContentDescription("파란색 기본 캐릭터").fetchSemanticsNode().boundsInRoot
-        val status = compose.onNodeWithText("남은 배터리").fetchSemanticsNode().boundsInRoot
-        assertTrue(status.top > character.bottom)
+        // boundsInRoot is clipped to the viewport; the status row may be below the fold on a tablet, so compare
+        // unclipped layout positions.
+        val character = compose.onNodeWithContentDescription("파란색 기본 캐릭터").fetchSemanticsNode()
+        val status = compose.onNodeWithText("남은 배터리").fetchSemanticsNode()
+        assertTrue(status.positionInRoot.y > character.positionInRoot.y + character.size.height)
         compose.onNodeWithText("수정").assertDoesNotExist()
         compose.onNodeWithText("현대 코나").assertIsDisplayed()
-        compose.onNodeWithText("이번 주 날씨").assertIsDisplayed()
-        compose.onNodeWithText("오늘").assertIsDisplayed()
-        compose.onNodeWithText("정비소").assertIsDisplayed()
+        compose.onNodeWithText("이번 주 날씨").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("오늘").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("정비소").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun narrowLayoutWithLargerTextKeepsStatusAndSearchReachable() {

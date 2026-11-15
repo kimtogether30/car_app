@@ -147,7 +147,7 @@ private fun SetupForm(confirmed: ConfirmedVehicleInfo,
                         Text(fuel + (confirmed.plate?.let { " · $it" } ?: ""))
                         if (steps.size < 6) Text("차량에서 확인한 정보도 내 차 설정에서 수정할 수 있어요.")
                         Text("주유·충전 알림: 20% 이하\n세차 알림: 청결도 30% 이하")
-                        Text("내 차 설정에서 변경할 수 있어요. 알림 발송과 날씨는 아직 예시 기능입니다.")
+                        Text("내 차 설정에서 변경할 수 있어요. 관리 알림은 연결한 휴대폰으로 받아요.")
                     }
                     Button(onClick = {
                         finish(CarProfile(brand, model, nickname.text.trim(), plate = plate.trim(), fuel = fuel, oilEstimate = if(fuel == "전기차") "해당 없음" else oil,oilBaselineKm=oilKm.toDoubleOrNull()?.takeIf {it.isFinite() && it>=0}),

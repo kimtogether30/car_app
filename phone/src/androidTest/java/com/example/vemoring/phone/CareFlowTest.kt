@@ -247,8 +247,17 @@ class CareFlowTest {
             CareExchange.receive(base, snapshot(a)); CareExchange.receive(base, snapshot(b))
             val wash = DetectedWash("same-visit-in-two-vehicles", Instant.now().minusSeconds(60))
             CareExchange.detected(base, a, wash); CareExchange.detected(base, b, wash)
-            val first = manager.activeNotifications.first { it.tag == "$a:detected:${wash.visitId}" }.notification
-            val other = manager.activeNotifications.first { it.tag == "$b:detected:${wash.visitId}" }.notification
+            // NotificationManager registers posts asynchronously; wait instead of reading the list once.
+            fun posted(tag: String): android.app.Notification {
+                val until = android.os.SystemClock.uptimeMillis() + 5000
+                while (true) {
+                    manager.activeNotifications.firstOrNull { it.tag == tag }?.let { return it.notification }
+                    check(android.os.SystemClock.uptimeMillis() < until) { "Notification $tag was not posted" }
+                    android.os.SystemClock.sleep(50)
+                }
+            }
+            val first = posted("$a:detected:${wash.visitId}")
+            val other = posted("$b:detected:${wash.visitId}")
             assertEquals("세차한 것 같아!", first.extras.getString(android.app.Notification.EXTRA_TITLE))
             assertEquals("세차 안 했어요", first.actions.first().title.toString())
             assertNotEquals(first.actions.first().actionIntent, other.actions.first().actionIntent)

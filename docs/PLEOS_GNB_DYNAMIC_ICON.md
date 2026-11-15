@@ -1,5 +1,13 @@
 # Pleos 하단 캐릭터 아이콘
 
+## 가져온 해결 방법 보존 (2026-11-15)
+
+해결 커밋: `f7575316271e844406c84f7d95852958b5591adf` (`Sync Pleos GNB icon with current mascot state`). 재발 시 `MascotLauncher.sync` → `PleosGnbIcon.sync` 연결과 MainActivity의 실제 수신 차량 상태 전달을 먼저 확인한다. 런처 alias만 전환하면 고정바/최근 항목에 저장된 이전 component는 남으므로, 기존 GNB 행의 id와 intent component도 같은 Launcher alias로 갱신해야 한다. 고정 위치/다른 앱/Intent extras를 보존하고 고정되지 않은 동일 실행 기록만 중복 정리한다.
+
+아래 시스템 계정 메타데이터 준비 조건도 해결 방법의 일부다. 일반 삼성 태블릿의 최근 앱 화면은 Pleos GNB가 아니므로 패드 검사 통과를 Pleos 고정바 검증으로 대체하지 않는다. 아래의 기존 Pleos 검증 기록은 해당 커밋 작성 당시 결과이며, 후속 패드 점검 결과와 구분한다.
+
+이번 PC 재검증에서도 코드 설치만으로는 provider 주소 검사에 통과하면서 실제 고정바 그림은 파랑으로 남았다. 문서의 `install-existing --user 0` 및 시스템 계정 여섯 alias 활성화를 적용하고 차량 앱 프로세스를 종료한 뒤 다시 검사하자 NORMAL/FUEL/WASH/OIL/ANGRY/EXHAUSTED의 큰 캐릭터·고정 슬롯·최근 항목 그림이 모두 일치했다. 따라서 주소 검사만으로 해결 판정을 내리지 말고 실제 캡처를 확인해야 한다. 최종 `PleosGnbIconTests` 1건 통과(17.443초). 현재 계정의 실제 차량 앱 런처는 1개이며 고정 슬롯 터치로 MainActivity가 열림을 확인했다. 로컬 캡처: `.tmp/final-check-2026-11-15/pleos-final-*.png`. 세부 결과와 시험 한계는 [최종 점검 보고서](FINAL_FUNCTION_CHECK_2026-11-15.md)에 기록한다.
+
 대상: Pleos Connect v2.1.0 / API 34. 공개 SDK 기능이 아니라 이 버전의 exported GNB provider에 대한 호환 처리다. 다른 Pleos 버전과 실차에서의 동작은 보장하지 않는다.
 
 ## 구현
